@@ -19,7 +19,6 @@ import {
   ChevronRight,
   ListTodo,
   UploadCloud,
-  Users,
   School,
 } from 'lucide-react';
 import { VisitorStatsSummary } from '../types';
@@ -268,25 +267,6 @@ export const TodayView: React.FC<TodayViewProps> = ({
             <ListTodo className="w-4 h-4 text-purple-200 stroke-[2.5]" />
             <span className="font-bold">أيام الأسبوع والمخطط</span>
           </button>
-
-          {/* Requested Feature: Visitor & Registered Students Stats Button */}
-          {onOpenVisitorStats && (
-            <button
-              type="button"
-              id="btn-open-visitor-stats-header"
-              onClick={onOpenVisitorStats}
-              className="px-4 py-2.5 rounded-2xl text-xs font-bold bg-emerald-700 hover:bg-emerald-600 text-white shadow-sm transition-all duration-150 flex items-center gap-2 font-sans active:scale-95 border border-emerald-500/40 cursor-pointer"
-              title="عرض سجل الطلاب والزوار المسجلين"
-            >
-              <Users className="w-4 h-4 text-emerald-200 stroke-[2.5]" />
-              <span className="font-bold">سجل الطلاب والزوار</span>
-              {visitorStats && (
-                <span className="px-2 py-0.5 rounded-full bg-emerald-950/70 text-emerald-300 font-mono text-[11px] font-bold">
-                  {visitorStats.totalUniqueEmails}
-                </span>
-              )}
-            </button>
-          )}
         </div>
       </div>
 
