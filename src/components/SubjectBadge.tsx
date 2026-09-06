@@ -23,10 +23,7 @@ export const SubjectBadge: React.FC<SubjectBadgeProps> = ({ subject, size = 'md'
     >
       <span className={`w-2 h-2 rounded-full ${subject.color.bg}`} />
       <SubjectIcon name={subject.iconName} className="w-3.5 h-3.5" />
-      <span>{subject.nameAr}</span>
-      <span className="text-[11px] opacity-80 font-sans font-normal hidden sm:inline">
-        ({subject.nameEn})
-      </span>
+      <span>{subject.nameEn || subject.nameAr}</span>
     </span>
   );
 };

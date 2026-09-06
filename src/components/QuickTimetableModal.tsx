@@ -160,10 +160,7 @@ export const QuickTimetableModal: React.FC<QuickTimetableModalProps> = ({
                             >
                               <SubjectIcon name={subj.iconName} className={`w-4 h-4 ${subj.color.text}`} />
                               <span className={`text-xs font-bold ${subj.color.text} leading-tight font-sans`}>
-                                {subj.nameEn}
-                              </span>
-                              <span className="text-[10px] text-slate-500 leading-tight">
-                                {subj.nameAr}
+                                {subj.nameEn || subj.nameAr}
                               </span>
                             </div>
                           ) : (

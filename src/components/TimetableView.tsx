@@ -219,10 +219,7 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
                                 <SubjectIcon name={subj.iconName} className={`w-4 h-4 ${subj.color.text}`} />
                               </div>
                               <span className={`text-xs font-bold ${subj.color.text} truncate block font-sans`}>
-                                {subj.nameEn}
-                              </span>
-                              <span className="text-[10px] text-slate-500 truncate block">
-                                {subj.nameAr}
+                                {subj.nameEn || subj.nameAr}
                               </span>
                             </button>
                           ) : (
@@ -280,8 +277,7 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
                       <SubjectIcon name={sub.iconName} className="w-4 h-4" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="text-xs font-bold text-slate-900 truncate font-sans">{sub.nameEn}</div>
-                      <div className="text-[10px] text-slate-500 truncate">{sub.nameAr}</div>
+                      <div className="text-xs font-bold text-slate-900 truncate font-sans">{sub.nameEn || sub.nameAr}</div>
                     </div>
                     {isSelected && <Check className="w-4 h-4 text-indigo-600 shrink-0" />}
                   </button>

@@ -150,8 +150,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                       <SubjectIcon name={sub.iconName} className="w-3.5 h-3.5" />
                     </div>
                     <div className="truncate min-w-0">
-                      <div className="truncate font-sans">{sub.nameEn}</div>
-                      <div className="text-[10px] text-slate-400 font-normal truncate">{sub.nameAr}</div>
+                      <div className="truncate font-sans font-bold text-xs">{sub.nameEn || sub.nameAr}</div>
                     </div>
                   </button>
                 );

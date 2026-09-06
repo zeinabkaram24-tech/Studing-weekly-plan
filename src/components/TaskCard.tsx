@@ -63,8 +63,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-1">
             {subject && (
               <span className="text-[12px] font-bold text-slate-800 font-sans">
-                {subject.nameEn}
-                <span className="text-slate-400 font-normal ms-1 font-sans">({subject.nameAr})</span>
+                {subject.nameEn || subject.nameAr}
               </span>
             )}
             {task.period !== undefined && (

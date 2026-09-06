@@ -57,8 +57,8 @@ export const PERIODS_TIMING = [
 export const DEFAULT_SUBJECTS: Subject[] = [
   {
     id: 'math',
-    nameEn: 'Mathematics',
-    nameAr: 'الرياضيات',
+    nameEn: 'Math',
+    nameAr: 'Math',
     code: 'MATH',
     color: {
       bg: 'bg-blue-600',
@@ -72,7 +72,7 @@ export const DEFAULT_SUBJECTS: Subject[] = [
   {
     id: 'science',
     nameEn: 'Science',
-    nameAr: 'العلوم',
+    nameAr: 'Science',
     code: 'SCI',
     color: {
       bg: 'bg-emerald-600',
@@ -85,8 +85,8 @@ export const DEFAULT_SUBJECTS: Subject[] = [
   },
   {
     id: 'french',
-    nameEn: 'Français',
-    nameAr: 'اللغة الفرنسية',
+    nameEn: 'French',
+    nameAr: 'French',
     code: 'FR',
     color: {
       bg: 'bg-rose-600',
@@ -100,7 +100,7 @@ export const DEFAULT_SUBJECTS: Subject[] = [
   {
     id: 'english',
     nameEn: 'English',
-    nameAr: 'اللغة الإنجليزية',
+    nameAr: 'English',
     code: 'ENG',
     color: {
       bg: 'bg-purple-600',
@@ -114,7 +114,7 @@ export const DEFAULT_SUBJECTS: Subject[] = [
   {
     id: 'arabic',
     nameEn: 'Arabic',
-    nameAr: 'اللغة العربية',
+    nameAr: 'Arabic',
     code: 'ARB',
     color: {
       bg: 'bg-amber-600',
@@ -128,7 +128,7 @@ export const DEFAULT_SUBJECTS: Subject[] = [
   {
     id: 'social_studies',
     nameEn: 'Social Studies',
-    nameAr: 'الدراسات الاجتماعية',
+    nameAr: 'Social Studies',
     code: 'SOC',
     color: {
       bg: 'bg-cyan-600',
@@ -141,8 +141,8 @@ export const DEFAULT_SUBJECTS: Subject[] = [
   },
   {
     id: 'religion',
-    nameEn: 'Religion (Islamic / Christian)',
-    nameAr: 'التربية الدينية',
+    nameEn: 'Religion',
+    nameAr: 'Religion',
     code: 'REL',
     color: {
       bg: 'bg-teal-600',
@@ -155,8 +155,8 @@ export const DEFAULT_SUBJECTS: Subject[] = [
   },
   {
     id: 'ict',
-    nameEn: 'ICT / Computer',
-    nameAr: 'تكنولوجيا المعلومات (ICT)',
+    nameEn: 'ICT',
+    nameAr: 'ICT',
     code: 'ICT',
     color: {
       bg: 'bg-indigo-600',
@@ -169,8 +169,8 @@ export const DEFAULT_SUBJECTS: Subject[] = [
   },
   {
     id: 'pe',
-    nameEn: 'PE / Sports',
-    nameAr: 'التربية البدنية (PE)',
+    nameEn: 'PE',
+    nameAr: 'PE',
     code: 'PE',
     color: {
       bg: 'bg-orange-600',
@@ -184,7 +184,7 @@ export const DEFAULT_SUBJECTS: Subject[] = [
   {
     id: 'arts',
     nameEn: 'Arts',
-    nameAr: 'التربية الفنية',
+    nameAr: 'Arts',
     code: 'ART',
     color: {
       bg: 'bg-pink-600',
@@ -198,7 +198,7 @@ export const DEFAULT_SUBJECTS: Subject[] = [
   {
     id: 'music',
     nameEn: 'Music',
-    nameAr: 'التربية الموسيقية',
+    nameAr: 'Music',
     code: 'MUS',
     color: {
       bg: 'bg-violet-600',

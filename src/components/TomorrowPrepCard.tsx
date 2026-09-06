@@ -390,11 +390,8 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
                         <div className="flex items-center gap-1.5 min-w-0">
                           <SubjectIcon name={subj?.iconName || 'BookOpen'} className={`w-4 h-4 ${subj?.color.text}`} />
                           <span className="font-bold text-xs text-slate-900 font-sans truncate">
-                            الـ {subj?.nameEn || subjId}
+                            {subj?.nameEn || subj?.nameAr || subjId}
                           </span>
-                          {subj?.nameAr && (
-                            <span className="text-[11px] text-slate-400 font-normal shrink-0">({subj.nameAr})</span>
-                          )}
                         </div>
                         <span className="text-[11px] font-sans font-bold px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100 shrink-0">
                           {formatPeriodsAr(periods)}
