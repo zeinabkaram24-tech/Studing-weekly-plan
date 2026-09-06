@@ -112,16 +112,31 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             </div>
 
-            {/* Discreet top green icon for creator / admin */}
-            <button
-              type="button"
-              id="desktop-header-visitor-stats"
-              onClick={onOpenVisitorStats}
-              className="p-2 rounded-xl bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-400 border border-emerald-800/50 transition-colors shrink-0 shadow-xs active:scale-95"
-              title="لوحة المتابعة (Admin)"
-            >
-              <Users className="w-4 h-4" />
-            </button>
+            {/* Discreet top icons for creator / admin */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              {/* Upload Weekly Plan Button placed next to visitor records icon */}
+              <button
+                type="button"
+                id="desktop-header-upload-plan"
+                onClick={handleUploadClick}
+                className="p-2 rounded-xl bg-indigo-950/60 hover:bg-indigo-900/80 text-indigo-300 hover:text-white border border-indigo-800/50 transition-colors shadow-xs active:scale-95 flex items-center gap-1"
+                title={isAdmin ? 'إضافة ملفات الخطة (الأدمن)' : 'إضافة ملفات الخطة مقتصر على الأدمن'}
+              >
+                <UploadCloud className="w-4 h-4 text-indigo-400" />
+                {!isAdmin && <Lock className="w-2.5 h-2.5 text-indigo-300" />}
+              </button>
+
+              {/* Green visitor records icon */}
+              <button
+                type="button"
+                id="desktop-header-visitor-stats"
+                onClick={onOpenVisitorStats}
+                className="p-2 rounded-xl bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-400 border border-emerald-800/50 transition-colors shadow-xs active:scale-95"
+                title="سجل الحضور والمتابعة (Admin)"
+              >
+                <Users className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* Requested Feature: Class Section Switcher (2A / 2B / 2C) */}
@@ -322,27 +337,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Action Tools Section */}
           <div className="pt-3 mt-3 border-t border-slate-800/80 space-y-2">
-            {/* Primary Requested Upload Button (Admin Protected) */}
-            <button
-              type="button"
-              id="sidebar-upload-plan-files"
-              onClick={handleUploadClick}
-              className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-bold p-3 rounded-2xl text-xs flex items-center justify-between shadow-lg shadow-indigo-950/80 transition-all active:scale-98 font-sans"
-              title={isAdmin ? 'رفع ملفات الخطة الأسبوعية (الأدمن)' : 'رفع ملفات الخطة مقتصر على الأدمن'}
-            >
-              <div className="flex items-center gap-2">
-                <UploadCloud className="w-4 h-4 stroke-[2.5]" />
-                <span>📁 رفع ملفات الـ Weekly Plan</span>
-              </div>
-              {isAdmin ? (
-                <span className="text-[10px] bg-emerald-500/30 border border-emerald-400/40 text-emerald-200 px-1.5 py-0.5 rounded-md font-bold">
-                  أدمن 👑
-                </span>
-              ) : (
-                <Lock className="w-3.5 h-3.5 text-indigo-300" />
-              )}
-            </button>
-
             <button
               type="button"
               id="sidebar-add-task"
@@ -483,25 +477,28 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <FolderArchive className="w-3.5 h-3.5" />
               </button>
 
-              <button
-                type="button"
-                onClick={handleUploadClick}
-                className="p-1.5 rounded-xl bg-indigo-600 text-white shadow-xs text-xs flex items-center gap-1"
-                title={isAdmin ? 'رفع ملفات الخطة الأسبوعية (الأدمن)' : 'رفع ملفات الخطة مقتصر على الأدمن'}
-              >
-                <UploadCloud className="w-3.5 h-3.5" />
-                {!isAdmin && <Lock className="w-2.5 h-2.5 text-indigo-200" />}
-              </button>
+              {/* Admin Tools: Upload Plan Files next to Visitor Records Icon */}
+              <div className="flex items-center gap-1 bg-slate-950/80 p-0.5 rounded-xl border border-slate-800">
+                <button
+                  type="button"
+                  onClick={handleUploadClick}
+                  className="p-1.5 rounded-lg bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/60 text-xs flex items-center gap-0.5 active:scale-95"
+                  title={isAdmin ? 'إضافة ملفات الخطة (الأدمن)' : 'إضافة ملفات الخطة مقتصر على الأدمن'}
+                >
+                  <UploadCloud className="w-3.5 h-3.5 text-indigo-400" />
+                  {!isAdmin && <Lock className="w-2 h-2 text-indigo-300" />}
+                </button>
 
-              <button
-                type="button"
-                id="mobile-btn-visitor-stats"
-                onClick={onOpenVisitorStats}
-                className="p-1.5 rounded-xl bg-emerald-950/80 text-emerald-300 border border-emerald-800/70 text-xs flex items-center justify-center active:scale-95"
-                title="لوحة المتابعة (Admin)"
-              >
-                <Users className="w-3.5 h-3.5" />
-              </button>
+                <button
+                  type="button"
+                  id="mobile-btn-visitor-stats"
+                  onClick={onOpenVisitorStats}
+                  className="p-1.5 rounded-lg bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-800/70 text-xs flex items-center justify-center active:scale-95"
+                  title="سجل الحضور والمتابعة (Admin)"
+                >
+                  <Users className="w-3.5 h-3.5 text-emerald-400" />
+                </button>
+              </div>
             </div>
           </div>
 

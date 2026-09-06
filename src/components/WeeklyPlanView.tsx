@@ -13,10 +13,7 @@ import {
   Calendar,
   Layers,
   Printer,
-  UploadCloud,
-  School,
   FolderArchive,
-  Lock,
 } from 'lucide-react';
 
 interface WeeklyPlanViewProps {
@@ -24,7 +21,6 @@ interface WeeklyPlanViewProps {
   subjects: Subject[];
   weekTitle: string;
   currentSection?: GradeSection;
-  onSelectSection?: (section: GradeSection) => void;
   onChangeWeekTitle: (title: string) => void;
   onToggleDone: (taskId: string) => void;
   onEditTask: (task: PlanTask) => void;
@@ -32,12 +28,9 @@ interface WeeklyPlanViewProps {
   onAddTaskForDay: (day: DayOfWeek, subjectId?: string) => void;
   onOpenSmartPaste: () => void;
   onOpenTimetableModal: () => void;
-  onOpenUploadModal?: () => void;
   onOpenArchiveModal?: () => void;
   activeBlockNumber?: number;
   activeWeekNumber?: number;
-  isAdmin?: boolean;
-  onOpenAdminLogin?: () => void;
 }
 
 export const WeeklyPlanView: React.FC<WeeklyPlanViewProps> = ({
@@ -45,7 +38,6 @@ export const WeeklyPlanView: React.FC<WeeklyPlanViewProps> = ({
   subjects,
   weekTitle,
   currentSection = '2A',
-  onSelectSection,
   onChangeWeekTitle,
   onToggleDone,
   onEditTask,
@@ -53,25 +45,12 @@ export const WeeklyPlanView: React.FC<WeeklyPlanViewProps> = ({
   onAddTaskForDay,
   onOpenSmartPaste,
   onOpenTimetableModal,
-  onOpenUploadModal,
   onOpenArchiveModal,
   activeBlockNumber = 1,
   activeWeekNumber = 1,
-  isAdmin = false,
-  onOpenAdminLogin,
 }) => {
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>('all');
   const [collapsedDays, setCollapsedDays] = useState<Record<string, boolean>>({});
-
-  const handleUploadClick = () => {
-    if (isAdmin && onOpenUploadModal) {
-      onOpenUploadModal();
-    } else if (onOpenAdminLogin) {
-      onOpenAdminLogin();
-    } else if (onOpenUploadModal) {
-      onOpenUploadModal();
-    }
-  };
 
   const subjectMap = new Map<string, Subject>();
   subjects.forEach((s) => subjectMap.set(s.id, s));
@@ -114,31 +93,9 @@ export const WeeklyPlanView: React.FC<WeeklyPlanViewProps> = ({
               <span className="text-xs font-bold px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase tracking-wider font-sans">
                 Full Weekly Schedule
               </span>
-              <span className="text-xs text-slate-500 font-sans font-medium">
+              <span className="text-xs text-indigo-700 bg-indigo-50 font-bold px-2.5 py-0.5 rounded-full border border-indigo-200">
                 Grade 2 ({currentSection}) • Nile International Schools
               </span>
-              {onSelectSection && (
-                <div className="flex items-center bg-slate-100 p-1 rounded-xl">
-                  <span className="text-xs font-bold text-slate-500 px-2 flex items-center gap-1">
-                    <School className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>الفصل:</span>
-                  </span>
-                  {(['2A', '2B', '2C'] as GradeSection[]).map((sec) => (
-                    <button
-                      key={sec}
-                      type="button"
-                      onClick={() => onSelectSection(sec)}
-                      className={`px-3 py-1 rounded-lg text-xs font-black transition-all ${
-                        currentSection === sec
-                          ? 'bg-indigo-600 text-white shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      {sec}
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
 
             {/* Editable Week Title */}
@@ -167,25 +124,11 @@ export const WeeklyPlanView: React.FC<WeeklyPlanViewProps> = ({
                 type="button"
                 id="btn-archive-weekly"
                 onClick={onOpenArchiveModal}
-                className="px-4 py-2.5 rounded-2xl text-xs font-bold bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 transition-colors flex items-center gap-2 shadow-2xs font-sans"
+                className="px-4 py-2.5 rounded-2xl text-xs font-bold bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 transition-colors flex items-center gap-2 shadow-2xs font-sans cursor-pointer"
                 title="أرشيف وبلوكات الخطط الأسبوعية (الرجوع لأي أسبوع سابق)"
               >
                 <FolderArchive className="w-4 h-4 text-purple-600" />
                 <span>أرشيف الأسابيع (B{activeBlockNumber} • W{activeWeekNumber})</span>
-              </button>
-            )}
-
-            {onOpenUploadModal && (
-              <button
-                type="button"
-                id="btn-upload-plan-files-weekly"
-                onClick={handleUploadClick}
-                className="px-4 py-2.5 rounded-2xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors flex items-center gap-2 shadow-xs font-sans"
-                title={isAdmin ? 'رفع ملفات الخطة الأسبوعية (الأدمن)' : 'رفع ملفات الخطة مقتصر على الأدمن'}
-              >
-                <UploadCloud className="w-4 h-4" />
-                <span>رفع ملفات الخطة</span>
-                {!isAdmin && <Lock className="w-3 h-3 text-indigo-200" />}
               </button>
             )}
 

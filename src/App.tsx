@@ -582,33 +582,16 @@ export default function App() {
             timetable={timetable}
             student={student}
             selectedSection={selectedSection}
-            onSelectSection={handleSelectSection}
-            onOpenClassSelector={() => setIsClassSelectorOpen(true)}
             onToggleDone={handleToggleDone}
             onEditTask={handleOpenEditTask}
             onDeleteTask={handleDeleteTask}
             onAddTaskForDay={handleOpenAddTask}
             onOpenTimetableModal={() => setIsTimetableModalOpen(true)}
             onOpenWeekDaysModal={() => setIsWeekDaysModalOpen(true)}
-            onOpenUploadModal={() => setIsUploadModalOpen(true)}
             onOpenArchiveModal={() => setIsArchiveModalOpen(true)}
             activeBlockNumber={activeBlockNumber}
             activeWeekNumber={activeWeekNumber}
             activePlanTitle={activePlan?.title || weekTitle}
-            isAdmin={isAdmin}
-            onOpenAdminLogin={() =>
-              handleOpenAdminLogin(
-                'رفع ملفات الخطة الأسبوعية',
-                'رفع وإضافة خطط جديدة مقتصر على المشرف (الأدمن)'
-              )
-            }
-            onOpenVisitorStats={() => setIsVisitorStatsOpen(true)}
-            onOpenLoginModal={() => setIsWelcomeModalOpen(true)}
-            visitorStats={visitorStats}
-            onNavigateToTab={setCurrentTab}
-            isLoggedIn={isLoggedIn}
-            onLogin={handleLogin}
-            onLogout={handleLogout}
           />
         )}
 
@@ -618,7 +601,6 @@ export default function App() {
             subjects={subjects}
             weekTitle={weekTitle}
             currentSection={selectedSection}
-            onSelectSection={handleSelectSection}
             onChangeWeekTitle={setWeekTitle}
             onToggleDone={handleToggleDone}
             onEditTask={handleOpenEditTask}
@@ -626,17 +608,9 @@ export default function App() {
             onAddTaskForDay={handleOpenAddTask}
             onOpenSmartPaste={() => setIsSmartPasteOpen(true)}
             onOpenTimetableModal={() => setIsTimetableModalOpen(true)}
-            onOpenUploadModal={() => setIsUploadModalOpen(true)}
             onOpenArchiveModal={() => setIsArchiveModalOpen(true)}
             activeBlockNumber={activeBlockNumber}
             activeWeekNumber={activeWeekNumber}
-            isAdmin={isAdmin}
-            onOpenAdminLogin={() =>
-              handleOpenAdminLogin(
-                'رفع ملفات الخطة الأسبوعية',
-                'رفع وإضافة خطط جديدة مقتصر على المشرف (الأدمن)'
-              )
-            }
           />
         )}
 
