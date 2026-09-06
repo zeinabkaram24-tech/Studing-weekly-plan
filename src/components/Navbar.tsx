@@ -65,18 +65,31 @@ export const Navbar: React.FC<NavbarProps> = ({
       <aside className="hidden md:flex md:w-64 lg:w-72 bg-[#0F172A] flex-col border-s border-slate-800 text-slate-200 shrink-0 sticky top-0 h-screen z-30 justify-between select-none">
         {/* Top Branding */}
         <div className="p-6">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="bg-gradient-to-br from-indigo-500 to-indigo-700 w-11 h-11 rounded-2xl flex items-center justify-center text-white font-black text-base shadow-md shadow-indigo-950 ring-2 ring-indigo-400/30">
-              {selectedSection}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <div className="bg-gradient-to-br from-indigo-500 to-indigo-700 w-11 h-11 rounded-2xl flex items-center justify-center text-white font-black text-base shadow-md shadow-indigo-950 ring-2 ring-indigo-400/30">
+                {selectedSection}
+              </div>
+              <div>
+                <h1 className="text-white text-base font-black tracking-tight leading-tight font-sans">
+                  Studying Weekly Plan
+                </h1>
+                <span className="text-[11px] text-indigo-400 font-sans font-bold block">
+                  Nile Schools • Grade 2 ({selectedSection})
+                </span>
+              </div>
             </div>
-            <div>
-              <h1 className="text-white text-base font-black tracking-tight leading-tight font-sans">
-                Studying Weekly Plan
-              </h1>
-              <span className="text-[11px] text-indigo-400 font-sans font-bold block">
-                Nile Schools • Grade 2 ({selectedSection})
-              </span>
-            </div>
+
+            {/* Discreet top green icon for creator / admin */}
+            <button
+              type="button"
+              id="desktop-header-visitor-stats"
+              onClick={onOpenVisitorStats}
+              className="p-2 rounded-xl bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-400 border border-emerald-800/50 transition-colors shrink-0 shadow-xs active:scale-95"
+              title="لوحة المتابعة (Admin)"
+            >
+              <Users className="w-4 h-4" />
+            </button>
           </div>
 
           {/* Requested Feature: Class Section Switcher (2A / 2B / 2C) */}
@@ -209,23 +222,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <ListTodo className="w-4 h-4 text-purple-400" />
               <span>عرض كل أيام الأسبوع والمخطط</span>
-            </button>
-
-            {/* Visitor / Email Stats Button */}
-            <button
-              type="button"
-              id="sidebar-visitor-stats"
-              onClick={onOpenVisitorStats}
-              className="w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-bold text-emerald-300 bg-emerald-950/50 hover:bg-emerald-900/60 border border-emerald-800/60 transition-all shadow-xs"
-              title="عرض عدد وإحصائيات الإيميلات التي استخدمت التطبيق"
-            >
-              <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-emerald-400" />
-                <span>إحصائيات وإيميلات الزوار</span>
-              </div>
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                {visitorStats ? `${visitorStats.totalUniqueEmails} إيميل` : '...'}
-              </span>
             </button>
           </div>
 
@@ -360,13 +356,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 type="button"
                 id="mobile-btn-visitor-stats"
                 onClick={onOpenVisitorStats}
-                className="p-1.5 rounded-xl bg-emerald-950 text-emerald-300 border border-emerald-800 text-xs flex items-center gap-1"
-                title="إحصائيات وإيميلات المستخدمين"
+                className="p-1.5 rounded-xl bg-emerald-950/80 text-emerald-300 border border-emerald-800/70 text-xs flex items-center justify-center active:scale-95"
+                title="لوحة المتابعة (Admin)"
               >
                 <Users className="w-3.5 h-3.5" />
-                {visitorStats && (
-                  <span className="text-[9px] font-mono font-bold">{visitorStats.totalUniqueEmails}</span>
-                )}
               </button>
             </div>
           </div>

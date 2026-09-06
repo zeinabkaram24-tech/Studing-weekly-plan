@@ -44,6 +44,7 @@ export const VisitorStatsModal: React.FC<VisitorStatsModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [pinInput, setPinInput] = useState('');
   const [isUnlocked, setIsUnlocked] = useState(false);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [copied, setCopied] = useState(false);
 
@@ -56,6 +57,7 @@ export const VisitorStatsModal: React.FC<VisitorStatsModalProps> = ({
 
     const isAuthorizedByDefault =
       userEmail === 'zeinabkaram909@gmail.com' ||
+      userEmail === 'zeinabkaram24@gmail.com' ||
       savedPin === '2026' ||
       savedPin === 'admin';
 
@@ -63,8 +65,9 @@ export const VisitorStatsModal: React.FC<VisitorStatsModalProps> = ({
       setIsUnlocked(true);
       loadVisitorsList(savedPin || '2026', userEmail);
     } else {
-      // Try to load with default empty credentials or prompt PIN
-      loadVisitorsList('', userEmail);
+      setIsUnlocked(false);
+      setShowAdminLogin(false);
+      setError(null);
     }
   }, [isOpen]);
 
@@ -132,6 +135,92 @@ export const VisitorStatsModal: React.FC<VisitorStatsModalProps> = ({
 
   if (!isOpen) return null;
 
+  // 1. COMPACT DIALOG FOR NON-ADMIN USERS (Requested: Short notice indicating Admin-Only)
+  if (!isUnlocked) {
+    return (
+      <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
+        <div className="bg-white rounded-3xl w-full max-w-sm sm:max-w-md shadow-2xl border border-slate-200/80 p-6 text-center text-slate-800 space-y-4 relative">
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute top-4 left-4 p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            title="إغلاق"
+          >
+            <X className="w-5 h-5" />
+          </button>
+
+          <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200/60 flex items-center justify-center mx-auto shadow-xs">
+            <Lock className="w-7 h-7" />
+          </div>
+
+          <div className="space-y-1.5">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-700 font-bold text-xs">
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
+              <span>مخصصة للمسؤول فقط (Admin Only)</span>
+            </div>
+            <h3 className="text-lg font-black text-slate-900 font-sans pt-1">
+              لوحة المتابعة وإحصائيات الطلاب
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-sans px-2">
+              عذراً، هذه الإحصائيات وسجل المتابعة مخصصة فقط لمنشئ التطبيق وإدارة الخطة المدرسية، وليست متاحة للطلاب والزوار حفاظاً على الخصوصية.
+            </p>
+          </div>
+
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 px-4 rounded-2xl text-xs sm:text-sm transition-all shadow-md active:scale-98"
+            >
+              حسناً، فهمت
+            </button>
+          </div>
+
+          {/* Admin Login for creator */}
+          <div className="pt-3 border-t border-slate-100">
+            {!showAdminLogin ? (
+              <button
+                type="button"
+                onClick={() => setShowAdminLogin(true)}
+                className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 underline transition-colors cursor-pointer"
+              >
+                هل أنت منشئ التطبيق؟ تسجيل الدخول كمسؤول
+              </button>
+            ) : (
+              <form onSubmit={handleUnlockWithPin} className="space-y-2.5 pt-1">
+                <p className="text-[11px] text-slate-500 font-medium">
+                  أدخل رمز المرور السري للمسؤول:
+                </p>
+                <input
+                  type="password"
+                  value={pinInput}
+                  onChange={(e) => setPinInput(e.target.value)}
+                  placeholder="رمز المرور (2026)"
+                  autoFocus
+                  className="w-full text-center px-4 py-2.5 rounded-xl border border-slate-300 focus:border-indigo-600 text-sm font-bold font-mono outline-hidden"
+                />
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Unlock className="w-4 h-4" />
+                  <span>{loading ? 'جارٍ التحقق...' : 'دخول المسؤول'}</span>
+                </button>
+                {error && (
+                  <p className="text-xs text-rose-600 font-bold bg-rose-50 p-2 rounded-lg border border-rose-200">
+                    {error}
+                  </p>
+                )}
+              </form>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. FULL UNLOCKED DASHBOARD FOR ADMIN
   const filteredVisitors = visitors.filter((v) => {
     const q = searchQuery.toLowerCase().trim();
     return (
@@ -252,52 +341,9 @@ export const VisitorStatsModal: React.FC<VisitorStatsModalProps> = ({
 
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4">
-          {!isUnlocked ? (
-            /* Locked State (Security protection for parents privacy) */
-            <div className="p-6 max-w-md mx-auto text-center bg-slate-50 rounded-2xl border border-slate-200 my-6 space-y-4">
-              <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center mx-auto">
-                <Lock className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-base font-black text-slate-900 mb-1">
-                  عرض قائمة الإيميلات التفصيلية
-                </h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  لحماية خصوصية أولياء الأمور والطلاب، قائمة الإيميلات محمية. يرجى إدخال رمز المرور
-                  <span className="font-mono font-bold text-indigo-700 mx-1">(2026)</span>
-                  أو بريدك كمسؤول لفتح القائمة الكاملة.
-                </p>
-              </div>
-
-              <form onSubmit={handleUnlockWithPin} className="space-y-3 pt-1">
-                <input
-                  type="password"
-                  value={pinInput}
-                  onChange={(e) => setPinInput(e.target.value)}
-                  placeholder="أدخل رمز المرور (الافتراضي 2026)"
-                  className="w-full text-center px-4 py-2.5 rounded-xl border border-slate-300 focus:border-indigo-600 text-sm font-bold font-mono outline-hidden"
-                />
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-colors flex items-center justify-center gap-2"
-                >
-                  <Unlock className="w-4 h-4" />
-                  <span>فتح قائمة الإيميلات</span>
-                </button>
-              </form>
-
-              {error && (
-                <p className="text-xs text-rose-600 font-bold bg-rose-50 p-2 rounded-lg border border-rose-200">
-                  {error}
-                </p>
-              )}
-            </div>
-          ) : (
-            /* Unlocked State: Full Emails Directory */
-            <div className="space-y-4">
-              {/* Controls bar: Search & Actions */}
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="space-y-4">
+            {/* Controls bar: Search & Actions */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
                 <div className="relative w-full sm:w-72">
                   <input
                     type="text"
@@ -430,8 +476,7 @@ export const VisitorStatsModal: React.FC<VisitorStatsModalProps> = ({
                 </div>
               )}
             </div>
-          )}
-        </div>
+          </div>
 
         {/* Footer */}
         <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">

@@ -214,9 +214,10 @@ async function startServer() {
   app.post("/api/visitors/all", (req, res) => {
     const { pin, userEmail } = req.body || {};
 
+    const normalizedEmail = typeof userEmail === "string" ? userEmail.trim().toLowerCase() : "";
     const isAdminEmail =
-      typeof userEmail === "string" &&
-      userEmail.trim().toLowerCase() === "zeinabkaram909@gmail.com";
+      normalizedEmail === "zeinabkaram909@gmail.com" ||
+      normalizedEmail === "zeinabkaram24@gmail.com";
 
     const isPinCorrect = pin === "2026" || pin === "admin" || pin === "zeinab";
 
