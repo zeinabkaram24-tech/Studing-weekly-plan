@@ -128,3 +128,26 @@ export interface WeeklyPlanArchiveEntry {
   notes?: string;
 }
 
+export interface MaterialItem {
+  id: string;
+  title: string;
+  subjectId: string;
+  blockNumber: number; // e.g. 1 for Block 1
+  category: 'main_sheets' | 'week1' | 'week2' | 'week3' | 'week4' | 'week5' | string;
+  categoryLabel?: string; // e.g. "الشيتات الرئيسية", "ويك 1", "ويك 2"
+  itemType: 'sheet' | 'booklet' | 'notes' | 'revision' | 'link';
+  fileUrl?: string;
+  fileName?: string;
+  fileSize?: string;
+  notes?: string;
+  pageCount?: number;
+  unitTitle?: string;
+  contentPreview?: {
+    type: 'exercises' | 'topics' | 'reading';
+    items: string[];
+    sections?: { title: string; points: string[] }[];
+  };
+  section?: 'all' | GradeSection;
+  createdAt: number;
+}
+

@@ -18,6 +18,7 @@ import {
   LogOut,
   User,
   FolderArchive,
+  FolderOpen,
   ShieldCheck,
   Lock,
 } from 'lucide-react';
@@ -37,6 +38,7 @@ interface NavbarProps {
   onOpenWeekDaysModal: () => void;
   onOpenUploadModal: () => void;
   onOpenArchiveModal: () => void;
+  onOpenMaterialsModal?: () => void;
   isAdmin?: boolean;
   onOpenAdminLogin?: () => void;
   activeBlockNumber?: number;
@@ -65,6 +67,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenWeekDaysModal,
   onOpenUploadModal,
   onOpenArchiveModal,
+  onOpenMaterialsModal,
   isAdmin = false,
   onOpenAdminLogin,
   activeBlockNumber = 1,
@@ -114,6 +117,19 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Discreet top icons for creator / admin */}
             <div className="flex items-center gap-1.5 shrink-0">
+              {/* Materials Button */}
+              {onOpenMaterialsModal && (
+                <button
+                  type="button"
+                  id="desktop-header-materials"
+                  onClick={onOpenMaterialsModal}
+                  className="p-2 rounded-xl bg-blue-950/60 hover:bg-blue-900/80 text-blue-300 hover:text-white border border-blue-800/50 transition-colors shadow-xs active:scale-95 flex items-center gap-1 cursor-pointer"
+                  title="الماتيريال والشيتات (Block 1 - الشيتات الرئيسية والأسابيع)"
+                >
+                  <FolderOpen className="w-4 h-4 text-blue-400" />
+                </button>
+              )}
+
               {/* Upload Weekly Plan Button placed next to visitor records icon */}
               <button
                 type="button"
@@ -314,6 +330,25 @@ export const Navbar: React.FC<NavbarProps> = ({
               </span>
             </button>
 
+            {/* User Requested: Materials Navigation Button */}
+            {onOpenMaterialsModal && (
+              <button
+                type="button"
+                id="sidebar-btn-materials"
+                onClick={onOpenMaterialsModal}
+                className="w-full bg-gradient-to-r from-blue-950/70 to-indigo-950/70 hover:from-blue-900/90 hover:to-indigo-900/90 text-blue-200 border border-blue-600/50 p-2.5 rounded-xl text-xs flex items-center justify-between transition-all font-sans group shadow-xs active:scale-98 cursor-pointer"
+                title="الماتيريال وشيتات المذاكرة (Block 1 والشيتات الرئيسية والأسابيع)"
+              >
+                <div className="flex items-center gap-2">
+                  <FolderOpen className="w-4 h-4 text-blue-400 group-hover:scale-110 transition-transform" />
+                  <span className="font-bold">الماتيريال (Materials)</span>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-md bg-blue-500/30 text-blue-300 font-bold">
+                  Block 1
+                </span>
+              </button>
+            )}
+
             {/* Timetable popup shortcut */}
             <button
               type="button"
@@ -463,6 +498,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                 >
                   <LogIn className="w-3 h-3 text-white" />
                   <span>دخول</span>
+                </button>
+              )}
+
+              {/* Materials button on mobile */}
+              {onOpenMaterialsModal && (
+                <button
+                  type="button"
+                  id="mobile-btn-materials"
+                  onClick={onOpenMaterialsModal}
+                  className="p-1.5 rounded-xl bg-blue-900/70 hover:bg-blue-800 text-blue-200 border border-blue-700/60 shadow-xs text-xs cursor-pointer flex items-center gap-1"
+                  title="الماتيريال والشيتات (Block 1)"
+                >
+                  <FolderOpen className="w-3.5 h-3.5" />
                 </button>
               )}
 

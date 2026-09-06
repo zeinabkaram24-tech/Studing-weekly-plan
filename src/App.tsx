@@ -55,6 +55,8 @@ import { AdminAuthModal } from './components/AdminAuthModal';
 import { VisitorWelcomeModal } from './components/VisitorWelcomeModal';
 import { VisitorStatsModal } from './components/VisitorStatsModal';
 import { ClassSelectorModal } from './components/ClassSelectorModal';
+import { MaterialsModal } from './components/MaterialsModal';
+import { SideMaterialsButton } from './components/SideMaterialsButton';
 import { triggerAllDoneCelebration } from './utils/celebration';
 import {
   fetchVisitorStats,
@@ -152,6 +154,7 @@ export default function App() {
   const [isSmartPasteOpen, setIsSmartPasteOpen] = useState(false);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isMaterialsModalOpen, setIsMaterialsModalOpen] = useState(false);
 
   // Requested dedicated popups
   const [isTimetableModalOpen, setIsTimetableModalOpen] = useState(false);
@@ -550,6 +553,7 @@ export default function App() {
         onOpenWeekDaysModal={() => setIsWeekDaysModalOpen(true)}
         onOpenUploadModal={() => setIsUploadModalOpen(true)}
         onOpenArchiveModal={() => setIsArchiveModalOpen(true)}
+        onOpenMaterialsModal={() => setIsMaterialsModalOpen(true)}
         isAdmin={isAdmin}
         onOpenAdminLogin={() =>
           handleOpenAdminLogin(
@@ -568,6 +572,9 @@ export default function App() {
         onLogin={handleLogin}
         onLogout={handleLogout}
       />
+
+      {/* Floating Side Materials Icon requested by user */}
+      <SideMaterialsButton onClick={() => setIsMaterialsModalOpen(true)} />
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col p-4 sm:p-6 lg:p-10 relative overflow-y-auto w-full max-w-7xl mx-auto">
@@ -794,6 +801,21 @@ export default function App() {
             if (data) setVisitorStats(data);
           });
         }}
+      />
+
+      {/* Materials & Sheets Modal (Block 1 Main Sheets & Weekly Materials) */}
+      <MaterialsModal
+        isOpen={isMaterialsModalOpen}
+        onClose={() => setIsMaterialsModalOpen(false)}
+        subjects={subjects}
+        currentSection={selectedSection}
+        isAdmin={isAdmin}
+        onOpenAdminLogin={() =>
+          handleOpenAdminLogin(
+            'صلاحية إضافة وتعديل الماتيريال',
+            'إضافة شيتات جديدة أو مذكرات للأسابيع مقتصر على الأدمن'
+          )
+        }
       />
     </div>
   );
