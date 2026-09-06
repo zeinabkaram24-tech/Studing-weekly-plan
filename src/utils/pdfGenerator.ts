@@ -1,5 +1,18 @@
 import { jsPDF } from 'jspdf';
 import { MaterialItem } from '../types';
+import {
+  printMaterialSheet,
+  downloadMaterialSheet,
+  generateSheetPrintableHtml,
+  ensureBlobOrHttpUrl,
+} from './sheetPrinter';
+
+export {
+  printMaterialSheet,
+  downloadMaterialSheet,
+  generateSheetPrintableHtml,
+  ensureBlobOrHttpUrl,
+};
 
 /**
  * Generate a clean, authentic Nile Egyptian International School PDF worksheet
@@ -157,57 +170,15 @@ export function getMaterialPdfUrl(item: MaterialItem): string {
 }
 
 /**
- * Download sheet as real PDF directly
+ * Download sheet exactly as provided, with zero additions
  */
 export function downloadMaterialPdf(item: MaterialItem): void {
-  const url = getMaterialPdfUrl(item);
-  const link = document.createElement('a');
-  link.href = url;
-  const safeName = (item.fileName || `${item.title}`).replace(/\.[^/.]+$/, '');
-  link.download = `${safeName}.pdf`;
-  document.body.appendChild(link);
-  link.click();
-  setTimeout(() => {
-    document.body.removeChild(link);
-  }, 100);
+  downloadMaterialSheet(item);
 }
 
 /**
- * Print sheet directly from PDF
+ * Print sheet directly with full cross-browser reliability
  */
 export function printMaterialPdf(item: MaterialItem): void {
-  const url = getMaterialPdfUrl(item);
-
-  // If it's a direct URL or blob URL, create a hidden printing iframe
-  const iframe = document.createElement('iframe');
-  iframe.style.position = 'fixed';
-  iframe.style.right = '0';
-  iframe.style.bottom = '0';
-  iframe.style.width = '0';
-  iframe.style.height = '0';
-  iframe.style.border = '0';
-  iframe.src = url;
-
-  iframe.onload = () => {
-    try {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
-    } catch {
-      // Fallback: open in new window and print
-      const win = window.open(url, '_blank');
-      if (win) {
-        win.focus();
-        win.print();
-      }
-    }
-  };
-
-  document.body.appendChild(iframe);
-  setTimeout(() => {
-    try {
-      document.body.removeChild(iframe);
-    } catch {
-      // ignore
-    }
-  }, 60000);
+  printMaterialSheet(item);
 }

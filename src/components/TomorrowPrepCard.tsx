@@ -302,7 +302,7 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
               {targetArtTasks.length > 0 ? (
                 <div className="space-y-1.5 mt-2">
                   <span className="text-[11px] font-bold text-purple-900 block">
-                    المطلوب بالويكلي بلان بالنص:
+                    المطلوب في Weekly Plan بالنص:
                   </span>
                   {targetArtTasks.map((t) => (
                     <div key={t.id} className="text-xs text-purple-950 font-bold bg-white p-2 rounded-xl border border-purple-200">
@@ -312,7 +312,7 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
                 </div>
               ) : (
                 <p className="text-[11px] text-purple-900 font-medium leading-relaxed">
-                  📌 مستلزمات المادة (لا توجد أدوات إضافية مدونة بالويكلي بلان).
+                  📌 مستلزمات المادة (لا توجد أدوات إضافية مدونة في Weekly Plan).
                 </p>
               )}
             </div>
@@ -416,7 +416,7 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
                   <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
-                  <span>المطلوب في الويكلي بلان لغداً بالنص ({targetHomeworks.length} تكليف):</span>
+                  <span>المطلوب في Weekly Plan لغداً بالنص ({targetHomeworks.length} تكليف):</span>
                 </span>
               </div>
 
@@ -469,7 +469,7 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-indigo-900 flex items-center gap-1.5">
                   <Briefcase className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>مستلزمات وأدوات محددة بالويكلي بلان بالنص:</span>
+                  <span>مستلزمات وأدوات محددة في Weekly Plan بالنص:</span>
                 </span>
               </div>
               <div className="space-y-1.5">

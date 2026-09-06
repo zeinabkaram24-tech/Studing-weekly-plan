@@ -212,9 +212,43 @@ function saveDatabase(db: VisitorsDatabase) {
 
 async function startServer() {
   const app = express();
-  app.use(express.json());
+  app.use(express.json({ limit: "50mb" }));
+  app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
   let db = initDatabase();
+
+  const UPLOADS_DIR = path.join(DATA_DIR, "uploads");
+  const MATERIALS_FILE = path.join(DATA_DIR, "materials.json");
+
+  // Ensure uploads directory exists
+  if (!fs.existsSync(UPLOADS_DIR)) {
+    try {
+      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+    } catch (e) {
+      console.error("Failed to create uploads dir:", e);
+    }
+  }
+
+  function getStoredMaterials(): any[] {
+    try {
+      if (fs.existsSync(MATERIALS_FILE)) {
+        const raw = fs.readFileSync(MATERIALS_FILE, "utf-8");
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.error("Failed to read materials.json:", e);
+    }
+    return [];
+  }
+
+  function saveStoredMaterials(list: any[]) {
+    try {
+      fs.writeFileSync(MATERIALS_FILE, JSON.stringify(list, null, 2), "utf-8");
+    } catch (e) {
+      console.error("Failed to write materials.json:", e);
+    }
+  }
 
   // 1. Health check
   app.get("/api/health", (_req, res) => {
@@ -500,6 +534,167 @@ async function startServer() {
     saveDatabase(db);
 
     res.json({ success: true, remaining: db.visitors.length });
+  });
+
+  // =========================================================================
+  // MATERIALS & PDF MANAGEMENT API
+  // =========================================================================
+
+  // 7. Get all materials
+  app.get("/api/materials", (_req, res) => {
+    const list = getStoredMaterials();
+    res.json({ success: true, materials: list });
+  });
+
+  // 8. Add or upload a material (with optional PDF base64 file)
+  app.post("/api/materials", (req, res) => {
+    try {
+      const {
+        title,
+        subjectId,
+        blockNumber,
+        category,
+        categoryLabel,
+        itemType,
+        fileName,
+        fileUrl,
+        fileBase64,
+        fileSize,
+        pageRange,
+        pageCount,
+        unitTitle,
+        notes,
+        section,
+        contentPreview,
+      } = req.body || {};
+
+      if (!title || typeof title !== "string") {
+        return res.status(400).json({ error: "عنوان الشيت مطلوب" });
+      }
+
+      const fileId = `mat-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      let finalFileUrl = typeof fileUrl === "string" ? fileUrl : undefined;
+
+      // Handle binary/base64 PDF upload if provided
+      if (typeof fileBase64 === "string" && fileBase64.length > 50) {
+        try {
+          const rawBase64 = fileBase64.replace(/^data:application\/pdf;base64,/, "").replace(/^data:.*?;base64,/, "");
+          const buffer = Buffer.from(rawBase64, "base64");
+          const safeFileName = `${fileId}.pdf`;
+          const filePath = path.join(UPLOADS_DIR, safeFileName);
+          fs.writeFileSync(filePath, buffer);
+          finalFileUrl = `/api/materials/file/${fileId}`;
+        } catch (e) {
+          console.error("Failed to write uploaded PDF to disk:", e);
+        }
+      }
+
+      const newItem = {
+        id: fileId,
+        title: title.trim(),
+        subjectId: subjectId || "science",
+        blockNumber: Number(blockNumber) || 1,
+        category: category || "week1",
+        categoryLabel: categoryLabel || (category === "week1" ? "Week 1" : category === "week2" ? "Week 2" : category === "week3" ? "Week 3" : "Main Sheets"),
+        itemType: itemType || "sheet",
+        fileName: fileName ? fileName.trim() : undefined,
+        fileUrl: finalFileUrl,
+        fileSize: fileSize || undefined,
+        pageRange: pageRange ? pageRange.trim() : undefined,
+        pageCount: pageCount ? Number(pageCount) : undefined,
+        unitTitle: unitTitle ? unitTitle.trim() : undefined,
+        notes: notes ? notes.trim() : undefined,
+        section: section || "all",
+        contentPreview: contentPreview || undefined,
+        createdAt: Date.now(),
+        isUserUploaded: true,
+      };
+
+      const current = getStoredMaterials();
+      const updated = [newItem, ...current];
+      saveStoredMaterials(updated);
+
+      res.json({ success: true, material: newItem });
+    } catch (err: any) {
+      console.error("Error creating material:", err);
+      res.status(500).json({ error: "فشل حفظ الشيت: " + (err?.message || "Unknown error") });
+    }
+  });
+
+  // 9. Serve authentic PDF file
+  app.get("/api/materials/file/:fileId", (req, res) => {
+    try {
+      const { fileId } = req.params;
+      const safeFileName = `${fileId.replace(/[^a-zA-Z0-9_-]/g, "")}.pdf`;
+      const filePath = path.join(UPLOADS_DIR, safeFileName);
+
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: "ملف الـ PDF غير موجود على الخادم" });
+      }
+
+      const list = getStoredMaterials();
+      const found = list.find((m) => m.id === fileId);
+      const downloadName = found?.fileName || `NileSchools_Sheet_${fileId}.pdf`;
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(downloadName)}"`);
+      
+      const fileStream = fs.createReadStream(filePath);
+      fileStream.pipe(res);
+    } catch (err: any) {
+      console.error("Error serving PDF file:", err);
+      res.status(500).json({ error: "تعذر فتح ملف الـ PDF" });
+    }
+  });
+
+  // 10. Delete a material
+  app.delete("/api/materials/:id", (req, res) => {
+    try {
+      const { id } = req.params;
+      const current = getStoredMaterials();
+      const updated = current.filter((m) => m.id !== id);
+      saveStoredMaterials(updated);
+
+      // Clean up file if on disk
+      try {
+        const filePath = path.join(UPLOADS_DIR, `${id}.pdf`);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      } catch {
+        // ignore
+      }
+
+      res.json({ success: true, count: updated.length });
+    } catch (err: any) {
+      console.error("Error deleting material:", err);
+      res.status(500).json({ error: "فشل حذف الشيت" });
+    }
+  });
+
+  // 11. Sync materials list from client
+  app.post("/api/materials/sync", (req, res) => {
+    try {
+      const { materials } = req.body || {};
+      if (Array.isArray(materials)) {
+        saveStoredMaterials(materials);
+      }
+      res.json({ success: true, count: Array.isArray(materials) ? materials.length : 0 });
+    } catch (err: any) {
+      console.error("Error syncing materials:", err);
+      res.status(500).json({ error: "فشل المزامنة" });
+    }
+  });
+
+  // 12. Clear all materials
+  app.post("/api/materials/clear-all", (_req, res) => {
+    try {
+      saveStoredMaterials([]);
+      res.json({ success: true, count: 0 });
+    } catch (err: any) {
+      console.error("Error clearing materials:", err);
+      res.status(500).json({ error: "فشل مسح الشيتات" });
+    }
   });
 
   // Vite middleware for development vs static build in production

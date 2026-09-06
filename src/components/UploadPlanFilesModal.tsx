@@ -278,7 +278,7 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
                 خاص بالأدمن فقط (أ. زينب كرم) 🔒
               </h4>
               <p className="text-xs text-slate-600 leading-relaxed">
-                إضافة ملفات الويكلي بلان وتحديث خطط البلوكات والأسابيع مقتصر على حساب المشرف العام.
+                إضافة ملفات Weekly Plan وتحديث خطط البلوكات والأسابيع مقتصر على حساب المشرف العام.
                 يرجى إدخال رمز مرور الأدمن للمتابعة.
               </p>
             </div>

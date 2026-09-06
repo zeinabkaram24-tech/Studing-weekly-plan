@@ -147,7 +147,7 @@ export interface MaterialItem {
   subjectId: string;
   blockNumber: number; // e.g. 1 for Block 1
   category: 'main_sheets' | 'week1' | 'week2' | 'week3' | 'week4' | 'week5' | string;
-  categoryLabel?: string; // e.g. "الشيتات الرئيسية", "ويك 1", "ويك 2"
+  categoryLabel?: string; // e.g. "Main Sheets", "Week 1", "Week 2"
   itemType: 'sheet' | 'booklet' | 'notes' | 'revision' | 'link';
   fileUrl?: string;
   fileName?: string;
@@ -163,5 +163,6 @@ export interface MaterialItem {
   };
   section?: 'all' | GradeSection;
   createdAt: number;
+  isUserUploaded?: boolean;
 }
 
