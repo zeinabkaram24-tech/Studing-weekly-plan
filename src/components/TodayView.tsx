@@ -20,6 +20,8 @@ import {
   ListTodo,
   UploadCloud,
   School,
+  LogIn,
+  LogOut,
 } from 'lucide-react';
 import { VisitorStatsSummary } from '../types';
 
@@ -43,6 +45,9 @@ interface TodayViewProps {
   onOpenUploadModal?: () => void;
   onOpenVisitorStats?: () => void;
   onOpenLoginModal?: () => void;
+  isLoggedIn?: boolean;
+  onLogin?: () => void;
+  onLogout?: () => void;
   visitorStats?: VisitorStatsSummary | null;
   onNavigateToTab?: (tab: 'today' | 'weekly' | 'timetable') => void;
 }
@@ -68,6 +73,9 @@ export const TodayView: React.FC<TodayViewProps> = ({
   onOpenVisitorStats,
   visitorStats,
   onNavigateToTab,
+  isLoggedIn = false,
+  onLogin,
+  onLogout,
 }) => {
   const [filter, setFilter] = useState<'all' | 'pending' | 'completed'>('all');
   const [copiedText, setCopiedText] = useState(false);
@@ -267,6 +275,36 @@ export const TodayView: React.FC<TodayViewProps> = ({
             <ListTodo className="w-4 h-4 text-purple-200 stroke-[2.5]" />
             <span className="font-bold">أيام الأسبوع والمخطط</span>
           </button>
+
+          {/* Requested Feature: Dynamic Login / Logout Button */}
+          {isLoggedIn ? (
+            <button
+              type="button"
+              id="btn-header-auth-toggle"
+              onClick={onLogout}
+              className="px-4 py-2.5 rounded-2xl text-xs font-bold bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-400/50 shadow-sm transition-all duration-150 flex items-center gap-2 font-sans active:scale-95 cursor-pointer"
+              title="تسجيل الخروج من الحساب"
+            >
+              <LogOut className="w-4 h-4 text-rose-300 stroke-[2.2]" />
+              <span>تسجيل خروج</span>
+              {student.name && student.name !== 'طالب Grade 2' && student.name !== 'زائر' && (
+                <span className="hidden lg:inline max-w-[100px] truncate text-[11px] text-rose-200/90 font-normal">
+                  ({student.name})
+                </span>
+              )}
+            </button>
+          ) : (
+            <button
+              type="button"
+              id="btn-header-auth-toggle"
+              onClick={onLogin}
+              className="px-4 py-2.5 rounded-2xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition-all duration-150 flex items-center gap-2 font-sans active:scale-95 cursor-pointer"
+              title="تسجيل الدخول باسم الطالب"
+            >
+              <LogIn className="w-4 h-4 text-emerald-100 stroke-[2.5]" />
+              <span>تسجيل دخول</span>
+            </button>
+          )}
         </div>
       </div>
 

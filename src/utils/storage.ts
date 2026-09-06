@@ -146,6 +146,16 @@ export function isStudentRemembered(): boolean {
   }
 }
 
+export function isUserLoggedIn(): boolean {
+  try {
+    const isRemembered = localStorage.getItem('g2_student_remembered') === 'true';
+    const name = localStorage.getItem('g2_saved_student_name');
+    return Boolean(isRemembered && name && name.trim() && name !== 'طالب Grade 2' && name !== 'زائر');
+  } catch {
+    return false;
+  }
+}
+
 export function getSavedStudentName(): string | null {
   try {
     return localStorage.getItem('g2_saved_student_name');

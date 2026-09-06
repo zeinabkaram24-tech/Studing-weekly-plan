@@ -26,6 +26,8 @@ import {
   saveWeekTitle,
   isStudentRemembered,
   getSavedStudentName,
+  isUserLoggedIn,
+  clearStudentLogin,
 } from './utils/storage';
 import { DEFAULT_TIMETABLE, GRADE_TIMETABLES } from './data/defaultData';
 import { Navbar } from './components/Navbar';
@@ -113,6 +115,22 @@ export default function App() {
   const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
   const [visitorStats, setVisitorStats] = useState<VisitorStatsSummary | null>(null);
 
+  // Authentication & Visitor Mode State
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => isUserLoggedIn());
+
+  const handleLogin = () => {
+    setIsWelcomeModalOpen(true);
+  };
+
+  const handleLogout = () => {
+    clearStudentLogin();
+    setIsLoggedIn(false);
+    setStudent((prev) => ({
+      ...prev,
+      name: 'زائر',
+    }));
+  };
+
   // Sync visitor stats & session tracking
   useEffect(() => {
     const refreshStats = () => {
@@ -134,14 +152,18 @@ export default function App() {
         ...prev,
         name: savedStudentName,
       }));
-    } else if (storedEmail) {
-      pingVisitorSession(storedEmail);
+      setIsLoggedIn(true);
     } else {
-      // First visit / not remembered: Show student welcome registration modal
-      const timer = setTimeout(() => {
-        setIsWelcomeModalOpen(true);
-      }, 800);
-      return () => clearTimeout(timer);
+      setIsLoggedIn(false);
+      if (storedEmail) {
+        pingVisitorSession(storedEmail);
+      } else {
+        // First visit / not remembered: Show student welcome registration modal
+        const timer = setTimeout(() => {
+          setIsWelcomeModalOpen(true);
+        }, 800);
+        return () => clearTimeout(timer);
+      }
     }
   }, []);
 
@@ -357,6 +379,9 @@ export default function App() {
         onResetData={handleResetData}
         todayPendingCount={todayPendingCount}
         todayCompletedCount={todayCompletedCount}
+        isLoggedIn={isLoggedIn}
+        onLogin={handleLogin}
+        onLogout={handleLogout}
       />
 
       {/* Main Content Area */}
@@ -384,6 +409,9 @@ export default function App() {
             onOpenLoginModal={() => setIsWelcomeModalOpen(true)}
             visitorStats={visitorStats}
             onNavigateToTab={setCurrentTab}
+            isLoggedIn={isLoggedIn}
+            onLogin={handleLogin}
+            onLogout={handleLogout}
           />
         )}
 
@@ -508,10 +536,13 @@ export default function App() {
         selectedSection={selectedSection}
         onSectionChange={handleSelectSection}
         currentStudentName={student.name}
+        isLoggedIn={isLoggedIn}
+        onLogout={handleLogout}
         onRegistered={(vis) => {
           if (vis.name) {
             setStudent((prev) => ({ ...prev, name: vis.name }));
           }
+          setIsLoggedIn(true);
           fetchVisitorStats().then((data) => {
             if (data) setVisitorStats(data);
           });

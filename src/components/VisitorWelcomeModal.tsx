@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Sparkles, CheckCircle2, ShieldCheck, X, School, BookmarkCheck } from 'lucide-react';
+import { User, Sparkles, CheckCircle2, ShieldCheck, X, School, BookmarkCheck, LogOut, LogIn } from 'lucide-react';
 import { registerStudentLogin } from '../utils/visitorTracker';
 import { GradeSection, VisitorItem } from '../types';
 import { GRADE_SECTIONS } from '../data/defaultData';
@@ -12,6 +12,8 @@ interface VisitorWelcomeModalProps {
   selectedSection: GradeSection;
   onSectionChange: (section: GradeSection) => void;
   currentStudentName?: string;
+  isLoggedIn?: boolean;
+  onLogout?: () => void;
 }
 
 export const VisitorWelcomeModal: React.FC<VisitorWelcomeModalProps> = ({
@@ -21,6 +23,8 @@ export const VisitorWelcomeModal: React.FC<VisitorWelcomeModalProps> = ({
   selectedSection,
   onSectionChange,
   currentStudentName = '',
+  isLoggedIn = false,
+  onLogout,
 }) => {
   const [name, setName] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
@@ -78,9 +82,7 @@ export const VisitorWelcomeModal: React.FC<VisitorWelcomeModalProps> = ({
   };
 
   const handleQuickEnter = () => {
-    const defaultName = name.trim() || `طالب فصل ${selectedSection}`;
-    saveStudentLogin(defaultName, selectedSection, rememberMe);
-    registerStudentLogin(defaultName, `Grade ${selectedSection}`);
+    // Enter as visitor without saving credentials
     onClose();
   };
 
@@ -208,17 +210,37 @@ export const VisitorWelcomeModal: React.FC<VisitorWelcomeModalProps> = ({
               className="w-full sm:flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl text-sm transition-all shadow-md shadow-indigo-900/20 active:scale-98 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>{loading ? 'جاري الحفظ...' : 'تسجيل ودخول للمنصة'}</span>
+              <span>{loading ? 'جاري الحفظ...' : (isLoggedIn ? 'تحديث بيانات الطالب' : 'تسجيل ودخول للمنصة')}</span>
             </button>
 
             <button
               type="button"
               onClick={handleQuickEnter}
               className="w-full sm:w-auto px-4 py-3 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
+              title="تصفح الخطة كزائر بدون حفظ بيانات"
             >
-              دخول مباشر
+              المتابعة كزائر
             </button>
           </div>
+
+          {isLoggedIn && onLogout && (
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+              <span className="text-xs text-slate-500 font-medium">
+                مسجل حالياً باسم: <strong className="text-indigo-900">{currentStudentName}</strong>
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  onLogout();
+                  onClose();
+                }}
+                className="text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>تسجيل خروج</span>
+              </button>
+            </div>
+          )}
         </form>
       </div>
     </div>
