@@ -52,25 +52,38 @@ export function getTodayDayOfWeek(): DayOfWeek {
   return dayMap[dayIndex] || 'sunday';
 }
 
+export function filterOutArtTasks(tasks: PlanTask[]): PlanTask[] {
+  return tasks.filter(
+    (t) =>
+      t.subjectId !== 'arts' &&
+      !t.title?.toLowerCase().includes('arts') &&
+      !t.title?.includes('التربية الفنية') &&
+      !t.title?.includes('الرسم')
+  );
+}
+
 export function loadSavedTasks(section: GradeSection = '2A'): PlanTask[] {
   try {
     const key = `${STORAGE_KEYS.TASKS}_${section}`;
     const saved = localStorage.getItem(key);
     if (saved) {
-      return JSON.parse(saved);
+      const parsed: PlanTask[] = JSON.parse(saved);
+      return filterOutArtTasks(parsed);
     }
   } catch (e) {
     console.error('Failed to load tasks', e);
   }
-  return GRADE_TASKS[section] || DEFAULT_TASKS;
+  const defaults = GRADE_TASKS[section] || DEFAULT_TASKS;
+  return filterOutArtTasks(defaults);
 }
 
 export function saveTasks(tasks: PlanTask[], section: GradeSection = '2A'): void {
   try {
+    const filtered = filterOutArtTasks(tasks);
     const key = `${STORAGE_KEYS.TASKS}_${section}`;
-    localStorage.setItem(key, JSON.stringify(tasks));
+    localStorage.setItem(key, JSON.stringify(filtered));
     // Also save as global fallback
-    localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks));
+    localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(filtered));
   } catch (e) {
     console.error('Failed to save tasks', e);
   }
@@ -118,11 +131,76 @@ export function saveSubjects(subjects: Subject[]): void {
   }
 }
 
+export function isStudentRemembered(): boolean {
+  try {
+    const remembered = localStorage.getItem('g2_student_remembered');
+    return remembered === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export function getSavedStudentName(): string | null {
+  try {
+    return localStorage.getItem('g2_saved_student_name');
+  } catch {
+    return null;
+  }
+}
+
+export function saveStudentLogin(name: string, section: GradeSection, remember: boolean = true): void {
+  try {
+    const trimmedName = name.trim();
+    if (remember) {
+      localStorage.setItem('g2_student_remembered', 'true');
+      localStorage.setItem('g2_saved_student_name', trimmedName);
+    } else {
+      localStorage.removeItem('g2_student_remembered');
+      localStorage.removeItem('g2_saved_student_name');
+    }
+
+    // Save section
+    saveGradeSection(section);
+
+    // Save student profile
+    const existing = loadSavedStudent();
+    saveStudent({
+      ...existing,
+      name: trimmedName,
+      section: section,
+      grade: `Grade ${section}`,
+    });
+  } catch (e) {
+    console.error('Failed to save student login', e);
+  }
+}
+
+export function clearStudentLogin(): void {
+  try {
+    localStorage.removeItem('g2_student_remembered');
+    localStorage.removeItem('g2_saved_student_name');
+    localStorage.removeItem(STORAGE_KEYS.STUDENT);
+  } catch (e) {
+    console.error('Failed to clear student login', e);
+  }
+}
+
 export function loadSavedStudent(): StudentProfile {
   try {
     const saved = localStorage.getItem(STORAGE_KEYS.STUDENT);
+    const savedName = getSavedStudentName();
     if (saved) {
-      return JSON.parse(saved);
+      const parsed = JSON.parse(saved);
+      if (savedName && savedName.trim()) {
+        parsed.name = savedName.trim();
+      }
+      return parsed;
+    }
+    if (savedName && savedName.trim()) {
+      return {
+        ...DEFAULT_STUDENT,
+        name: savedName.trim(),
+      };
     }
   } catch (e) {
     console.error('Failed to load student', e);

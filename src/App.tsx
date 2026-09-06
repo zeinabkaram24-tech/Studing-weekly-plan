@@ -24,6 +24,8 @@ import {
   saveTimetable,
   saveUploadedFiles,
   saveWeekTitle,
+  isStudentRemembered,
+  getSavedStudentName,
 } from './utils/storage';
 import { DEFAULT_TIMETABLE, GRADE_TIMETABLES } from './data/defaultData';
 import { Navbar } from './components/Navbar';
@@ -120,14 +122,25 @@ export default function App() {
     };
     refreshStats();
 
+    // Check if student login is remembered
+    const isRemembered = isStudentRemembered();
+    const savedStudentName = getSavedStudentName();
     const storedEmail = getStoredVisitorEmail();
-    if (storedEmail) {
+
+    if (savedStudentName && isRemembered) {
+      // Student is remembered on this browser: ping session and do not show welcome prompt
+      pingVisitorSession(savedStudentName);
+      setStudent((prev) => ({
+        ...prev,
+        name: savedStudentName,
+      }));
+    } else if (storedEmail) {
       pingVisitorSession(storedEmail);
     } else {
-      // First visit: Show welcome dialog after brief delay
+      // First visit / not remembered: Show student welcome registration modal
       const timer = setTimeout(() => {
         setIsWelcomeModalOpen(true);
-      }, 1000);
+      }, 800);
       return () => clearTimeout(timer);
     }
   }, []);
@@ -368,6 +381,7 @@ export default function App() {
             onOpenWeekDaysModal={() => setIsWeekDaysModalOpen(true)}
             onOpenUploadModal={() => setIsUploadModalOpen(true)}
             onOpenVisitorStats={() => setIsVisitorStatsOpen(true)}
+            onOpenLoginModal={() => setIsWelcomeModalOpen(true)}
             visitorStats={visitorStats}
             onNavigateToTab={setCurrentTab}
           />
@@ -487,11 +501,17 @@ export default function App() {
         savedUploadedFiles={uploadedFiles}
       />
 
-      {/* Visitor Welcome Registration Modal */}
+      {/* Visitor Welcome Registration Modal (Student Name-Only Login with Remember Feature) */}
       <VisitorWelcomeModal
         isOpen={isWelcomeModalOpen}
         onClose={() => setIsWelcomeModalOpen(false)}
-        onRegistered={() => {
+        selectedSection={selectedSection}
+        onSectionChange={handleSelectSection}
+        currentStudentName={student.name}
+        onRegistered={(vis) => {
+          if (vis.name) {
+            setStudent((prev) => ({ ...prev, name: vis.name }));
+          }
           fetchVisitorStats().then((data) => {
             if (data) setVisitorStats(data);
           });

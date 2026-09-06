@@ -60,7 +60,41 @@ export async function fetchVisitorStats(): Promise<VisitorStatsSummary | null> {
   }
 }
 
-// 2. Register visitor email
+// 2. Register visitor student by name
+export async function registerStudentLogin(
+  studentName: string,
+  studentGrade = 'Grade 2'
+): Promise<{ success: boolean; visitor?: VisitorItem; error?: string }> {
+  try {
+    const res = await fetch('/api/visitors/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        studentName: studentName.trim(),
+        name: studentName.trim(),
+        studentGrade,
+        userAgent: navigator.userAgent,
+        device: `${navigator.platform || 'Unknown'} - ${navigator.language || 'ar'}`,
+      }),
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      return { success: false, error: errData.error || 'فشل تسجيل الطالب' };
+    }
+
+    const data = await res.json();
+    if (data.success && data.visitor) {
+      setStoredVisitorInfo(data.visitor.email, data.visitor.name);
+    }
+    return data;
+  } catch (error) {
+    console.error('Registration failed:', error);
+    return { success: false, error: 'تعذر الاتصال بالخادم' };
+  }
+}
+
+// 2b. Register visitor email (legacy fallback)
 export async function registerVisitorEmail(
   email: string,
   name?: string,
@@ -81,7 +115,7 @@ export async function registerVisitorEmail(
 
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
-      return { success: false, error: errData.error || 'فشل تسجيل البريد' };
+      return { success: false, error: errData.error || 'فشل تسجيل البيانات' };
     }
 
     const data = await res.json();
@@ -95,13 +129,14 @@ export async function registerVisitorEmail(
   }
 }
 
-// 3. Ping visitor session
-export async function pingVisitorSession(email: string): Promise<void> {
+// 3. Ping visitor / student session
+export async function pingVisitorSession(identifier: string): Promise<void> {
   try {
+    const isEmail = identifier.includes('@');
     await fetch('/api/visitors/ping', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify(isEmail ? { email: identifier } : { studentName: identifier }),
     });
   } catch {
     // Ignore silent background ping errors

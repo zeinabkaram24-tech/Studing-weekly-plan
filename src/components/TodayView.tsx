@@ -3,6 +3,7 @@ import { DAYS_LIST, PERIODS_TIMING } from '../data/defaultData';
 import { DayOfWeek, GradeSection, PlanTask, StudentProfile, Subject, Timetable } from '../types';
 import { TaskCard } from './TaskCard';
 import { SubjectIcon } from './SubjectIcon';
+import { TodayPrepCard } from './TodayPrepCard';
 import { TomorrowPrepCard } from './TomorrowPrepCard';
 import { triggerAllDoneCelebration } from '../utils/celebration';
 import {
@@ -43,6 +44,7 @@ interface TodayViewProps {
   onOpenWeekDaysModal: () => void;
   onOpenUploadModal?: () => void;
   onOpenVisitorStats?: () => void;
+  onOpenLoginModal?: () => void;
   visitorStats?: VisitorStatsSummary | null;
   onNavigateToTab?: (tab: 'today' | 'weekly' | 'timetable') => void;
 }
@@ -76,8 +78,16 @@ export const TodayView: React.FC<TodayViewProps> = ({
   const currentDayInfo = DAYS_LIST.find((d) => d.key === selectedDay) || DAYS_LIST[0];
 
   // Tasks for the selected day filtered by class section and sorted by timetable period
+  // (Arts / Drawing classes are excluded from tasks as requested)
   const dayTasks = tasks
     .filter((t) => t.day === selectedDay && (!t.section || t.section === selectedSection))
+    .filter(
+      (t) =>
+        t.subjectId !== 'arts' &&
+        !t.title?.toLowerCase().includes('arts') &&
+        !t.title?.includes('التربية الفنية') &&
+        !t.title?.includes('الرسم')
+    )
     .sort((a, b) => {
       if (a.period !== undefined && b.period !== undefined) {
         return a.period - b.period;
@@ -254,17 +264,17 @@ export const TodayView: React.FC<TodayViewProps> = ({
             <span className="font-bold">أيام الأسبوع والمخطط</span>
           </button>
 
-          {/* Requested Feature: Visitor & Registered Emails Stats Button */}
+          {/* Requested Feature: Visitor & Registered Students Stats Button */}
           {onOpenVisitorStats && (
             <button
               type="button"
               id="btn-open-visitor-stats-header"
               onClick={onOpenVisitorStats}
-              className="px-4 py-2.5 rounded-2xl text-xs font-bold bg-emerald-700 hover:bg-emerald-600 text-white shadow-sm transition-all duration-150 flex items-center gap-2 font-sans active:scale-95 border border-emerald-500/40"
-              title="عرض عدد وإحصائيات الإيميلات التي استخدمت التطبيق"
+              className="px-4 py-2.5 rounded-2xl text-xs font-bold bg-emerald-700 hover:bg-emerald-600 text-white shadow-sm transition-all duration-150 flex items-center gap-2 font-sans active:scale-95 border border-emerald-500/40 cursor-pointer"
+              title="عرض سجل الطلاب والزوار المسجلين"
             >
               <Users className="w-4 h-4 text-emerald-200 stroke-[2.5]" />
-              <span className="font-bold">إحصائيات الإيميلات</span>
+              <span className="font-bold">سجل الطلاب والزوار</span>
               {visitorStats && (
                 <span className="px-2 py-0.5 rounded-full bg-emerald-950/70 text-emerald-300 font-mono text-[11px] font-bold">
                   {visitorStats.totalUniqueEmails}
@@ -434,6 +444,15 @@ export const TodayView: React.FC<TodayViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* 3. TODAY'S PREPARATIONS & SUPPLIES CARD (Especially Art & Drawing Kit) */}
+      <TodayPrepCard
+        dayNameAr={currentDayInfo.nameAr}
+        dayNameEn={currentDayInfo.nameEn}
+        section={selectedSection}
+        periods={dayPeriods}
+        subjects={subjects}
+      />
 
       {/* 4. CONTROLS & FILTER BAR (English Done & Pending tags) */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 sm:p-4 rounded-3xl border border-slate-200/80 shadow-xs">

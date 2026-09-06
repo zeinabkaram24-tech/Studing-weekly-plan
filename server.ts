@@ -107,20 +107,31 @@ async function startServer() {
     });
   });
 
-  // 3. Register or log a visitor email
+  // 3. Register or log a visitor/student by name or email
   app.post("/api/visitors/register", (req, res) => {
-    const { email, name, studentGrade, userAgent, device } = req.body || {};
+    const { email, name, studentName, studentGrade, userAgent, device } = req.body || {};
 
-    if (!email || typeof email !== "string" || !email.includes("@")) {
-      return res.status(400).json({ error: "Invalid email address" });
+    const cleanName = (typeof studentName === "string" && studentName.trim()) 
+      ? studentName.trim() 
+      : (typeof name === "string" && name.trim()) 
+      ? name.trim() 
+      : "";
+
+    let cleanEmail = typeof email === "string" && email.includes("@") ? email.trim().toLowerCase() : "";
+
+    // If no email provided, create a student identifier from name
+    if (!cleanEmail) {
+      if (!cleanName) {
+        return res.status(400).json({ error: "اسم الطالب مطلوب لتسجيل الدخول" });
+      }
+      cleanEmail = `${encodeURIComponent(cleanName.replace(/\s+/g, "_")).toLowerCase()}@student.app`;
     }
 
-    const cleanEmail = email.trim().toLowerCase();
-    const cleanName = typeof name === "string" ? name.trim() : "";
-    const cleanGrade = typeof studentGrade === "string" ? studentGrade.trim() : "";
+    const cleanGrade = typeof studentGrade === "string" ? studentGrade.trim() : "Grade 2";
 
     const existingIndex = db.visitors.findIndex(
-      (v) => v.email.toLowerCase() === cleanEmail
+      (v) => (cleanEmail && v.email.toLowerCase() === cleanEmail) || 
+             (cleanName && v.name && v.name.toLowerCase() === cleanName.toLowerCase())
     );
 
     let resultVisitor: VisitorItem;
@@ -131,22 +142,22 @@ async function startServer() {
       const existing = db.visitors[existingIndex];
       existing.lastSeenAt = Date.now();
       existing.visitCount = (existing.visitCount || 1) + 1;
-      if (cleanName && (!existing.name || existing.name === cleanEmail)) {
+      if (cleanName) {
         existing.name = cleanName;
       }
-      if (cleanGrade && !existing.studentGrade) {
+      if (cleanGrade) {
         existing.studentGrade = cleanGrade;
       }
       if (device) existing.device = device;
       resultVisitor = existing;
     } else {
-      // New visitor
+      // New visitor / student
       isNew = true;
       resultVisitor = {
         id: `vis-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         email: cleanEmail,
         name: cleanName || cleanEmail.split("@")[0],
-        studentGrade: cleanGrade || "Grade 2B",
+        studentGrade: cleanGrade || "Grade 2",
         firstSeenAt: Date.now(),
         lastSeenAt: Date.now(),
         visitCount: 1,
@@ -163,24 +174,31 @@ async function startServer() {
       isNew,
       visitor: resultVisitor,
       totalUniqueEmails: db.visitors.length,
+      totalStudents: db.visitors.length,
     });
   });
 
   // 4. Ping to keep visit record fresh when reopening app
   app.post("/api/visitors/ping", (req, res) => {
-    const { email } = req.body || {};
-    if (!email || typeof email !== "string") {
-      return res.status(400).json({ error: "Email is required" });
+    const { email, studentName, name } = req.body || {};
+    const cleanName = (typeof studentName === "string" && studentName.trim()) 
+      ? studentName.trim() 
+      : (typeof name === "string" && name.trim()) 
+      ? name.trim() 
+      : "";
+    const cleanEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
+
+    if (!cleanEmail && !cleanName) {
+      return res.status(400).json({ error: "Identifier is required" });
     }
 
-    const cleanEmail = email.trim().toLowerCase();
     const existing = db.visitors.find(
-      (v) => v.email.toLowerCase() === cleanEmail
+      (v) => (cleanEmail && v.email.toLowerCase() === cleanEmail) ||
+             (cleanName && v.name && v.name.toLowerCase() === cleanName.toLowerCase())
     );
 
     if (existing) {
       const now = Date.now();
-      // Only increment visit count if more than 30 minutes since last visit
       if (now - existing.lastSeenAt > 30 * 60 * 1000) {
         existing.visitCount = (existing.visitCount || 1) + 1;
       }

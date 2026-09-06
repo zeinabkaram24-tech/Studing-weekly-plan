@@ -15,6 +15,7 @@ import {
   CheckCheck,
   RotateCcw,
   BookOpen,
+  Palette,
 } from 'lucide-react';
 
 interface TomorrowPrepCardProps {
@@ -308,6 +309,32 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
               )}
             </div>
           </div>
+
+          {/* SPECIAL ART HIGHLIGHT IF SCHEDULED TOMORROW */}
+          {uniqueSubjectIds.includes('arts') && (
+            <div className="bg-gradient-to-r from-purple-100/90 via-pink-50 to-purple-50 p-3.5 rounded-2xl border-2 border-purple-300 shadow-xs">
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center gap-2 font-black text-sm text-purple-950">
+                  <Palette className="w-4 h-4 text-purple-700" />
+                  <span>🎨 تنبيه تجهيز حصة التربية الفنية والرسم غداً:</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  {(subjectPeriodsMap.get('arts') || []).map((p) => (
+                    <span
+                      key={p}
+                      className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-lg bg-purple-700 text-white"
+                    >
+                      الحصة P{p}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <p className="text-[11px] text-purple-900 font-medium leading-relaxed">
+                📌 حصة الرسم ليست ضمن قائمة التاسكات والواجبات، بل يلزم وضع المستلزمات التالية في الحقيبة هذا المساء:
+                <strong> كراسة الرسم الفنية الكبيرة</strong> + <strong>علبة الألوان (خشب / فلوماستر)</strong> + <strong>مسطرة الأشكال والممحاة</strong>.
+              </p>
+            </div>
+          )}
 
           {/* 1. Subject-by-Subject Books & Notebooks Checklist */}
           <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-amber-200/70 space-y-2.5">
