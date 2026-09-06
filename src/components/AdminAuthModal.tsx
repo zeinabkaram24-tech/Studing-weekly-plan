@@ -113,41 +113,7 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
               <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200 text-amber-950 text-xs flex items-start gap-2.5">
                 <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                 <div className="leading-relaxed">
-                  هذا الإجراء مخصص للأدمن فقط (المسؤولون المعتمدون: أ. زينب كرم & أ. فريدة فرغلي). يمكنك الدخول عبر البريد الإلكتروني أو رمز المرور السري.
-                </div>
-              </div>
-
-              {/* Quick Admin Email Selection */}
-              <div className="space-y-1.5">
-                <span className="text-[10px] text-slate-500 font-bold">الحسابات المعتمدة للأدمن:</span>
-                <div className="flex flex-col gap-1.5">
-                  {[
-                    'zeinabkaram909@gmail.com',
-                    'zeinabkaram24@gmail.com',
-                    'faridaferghali2019@gmail.com',
-                  ].map((email) => (
-                    <button
-                      key={email}
-                      type="button"
-                      onClick={() => {
-                        setPassword(email);
-                        setAdminLoggedIn(true);
-                        setIsSuccess(true);
-                        setTimeout(() => {
-                          setIsSuccess(false);
-                          setPassword('');
-                          if (onSuccess) onSuccess();
-                          onClose();
-                        }, 600);
-                      }}
-                      className="w-full text-right px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 text-[11px] font-bold text-slate-700 hover:text-indigo-700 flex items-center justify-between transition-colors cursor-pointer"
-                    >
-                      <span className="font-mono text-xs">{email}</span>
-                      <span className="text-[10px] text-indigo-600 bg-indigo-100/60 px-2 py-0.5 rounded-md">
-                        دخول مباشر
-                      </span>
-                    </button>
-                  ))}
+                  هذا الإجراء مخصص للأدمن فقط (المسؤولة: أ. زينب كرم). إذا كنتِ الأدمن، يرجى كتابة رمز المرور لتفعيل التعديل وإضافة الخطط.
                 </div>
               </div>
 

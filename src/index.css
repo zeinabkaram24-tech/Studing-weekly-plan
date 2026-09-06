@@ -7,26 +7,11 @@
 }
 
 @media print {
-  body.printing-sheet > *:not(#printable-sheet-container) {
-    display: none !important;
-  }
-  body.printing-sheet #printable-sheet-container {
-    display: block !important;
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
-    width: 100% !important;
-    margin: 0 !important;
-    padding: 16px !important;
-    background: #ffffff !important;
-    color: #0f172a !important;
-    z-index: 9999999 !important;
-  }
-  body:not(.printing-sheet) header,
-  body:not(.printing-sheet) nav,
-  body:not(.printing-sheet) aside,
-  body:not(.printing-sheet) button,
-  body:not(.printing-sheet) .no-print {
+  header,
+  nav,
+  aside,
+  button,
+  .no-print {
     display: none !important;
   }
   body {

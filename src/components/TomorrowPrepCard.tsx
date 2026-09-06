@@ -302,7 +302,7 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
               {targetArtTasks.length > 0 ? (
                 <div className="space-y-1.5 mt-2">
                   <span className="text-[11px] font-bold text-purple-900 block">
-                    المطلوب في Weekly Plan بالنص:
+                    المطلوب بالويكلي بلان بالنص:
                   </span>
                   {targetArtTasks.map((t) => (
                     <div key={t.id} className="text-xs text-purple-950 font-bold bg-white p-2 rounded-xl border border-purple-200">
@@ -312,34 +312,9 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
                 </div>
               ) : (
                 <p className="text-[11px] text-purple-900 font-medium leading-relaxed">
-                  📌 مستلزمات المادة (لا توجد أدوات إضافية مدونة في Weekly Plan).
+                  📌 مستلزمات المادة (لا توجد أدوات إضافية مدونة بالويكلي بلان).
                 </p>
               )}
-            </div>
-          )}
-
-          {/* SPECIAL PE (SPORTS / PHYSICAL EDUCATION) HIGHLIGHT IF SCHEDULED TOMORROW */}
-          {uniqueSubjectIds.includes('pe') && (
-            <div className="bg-emerald-50 p-3.5 rounded-2xl border border-emerald-200 shadow-xs">
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="flex items-center gap-2 font-black text-sm text-emerald-950">
-                  <span className="text-base">🏃‍♂️</span>
-                  <span>تجهيزات حصة التربية البدنية (PE / Sports) المقررة في جدول غداً:</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  {(subjectPeriodsMap.get('pe') || []).map((p) => (
-                    <span
-                      key={p}
-                      className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-lg bg-emerald-700 text-white"
-                    >
-                      الحصة P{p}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <p className="text-xs text-emerald-900 font-bold leading-relaxed bg-white/90 p-2.5 rounded-xl border border-emerald-200">
-                👟 يرجى ارتداء وتجهيز الزي الرياضي الكامل الخاص بمدارس النيل (التيشرت الرياضي + البنطال/الشورت الرياضي + حذاء الجري الرياضي + زجاجة المياه الشخصية) للحصص المقررة غداً.
-              </p>
             </div>
           )}
 
@@ -413,7 +388,7 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
                   <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
-                  <span>المطلوب في Weekly Plan لغداً بالنص ({targetHomeworks.length} تكليف):</span>
+                  <span>المطلوب في الويكلي بلان لغداً بالنص ({targetHomeworks.length} تكليف):</span>
                 </span>
               </div>
 
@@ -466,7 +441,7 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-indigo-900 flex items-center gap-1.5">
                   <Briefcase className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>مستلزمات وأدوات محددة في Weekly Plan بالنص:</span>
+                  <span>مستلزمات وأدوات محددة بالويكلي بلان بالنص:</span>
                 </span>
               </div>
               <div className="space-y-1.5">

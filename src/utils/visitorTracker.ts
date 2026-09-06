@@ -164,7 +164,6 @@ export async function fetchAllVisitorsAdmin(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         pin: activePin,
-        userEmail: activePin,
       }),
     });
 
