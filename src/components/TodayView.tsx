@@ -19,6 +19,7 @@ import {
   ChevronRight,
   ListTodo,
   FolderArchive,
+  FolderOpen,
 } from 'lucide-react';
 import { VisitorStatsSummary } from '../types';
 
@@ -38,6 +39,7 @@ interface TodayViewProps {
   onOpenTimetableModal: () => void;
   onOpenWeekDaysModal: () => void;
   onOpenArchiveModal?: () => void;
+  onOpenMaterialsModal?: () => void;
   activeBlockNumber?: number;
   activeWeekNumber?: number;
   activePlanTitle?: string;
@@ -59,6 +61,7 @@ export const TodayView: React.FC<TodayViewProps> = ({
   onOpenTimetableModal,
   onOpenWeekDaysModal,
   onOpenArchiveModal,
+  onOpenMaterialsModal,
   activeBlockNumber = 1,
   activeWeekNumber = 1,
   activePlanTitle,
@@ -225,6 +228,20 @@ export const TodayView: React.FC<TodayViewProps> = ({
             <span className="font-bold">أيام الأسبوع والمخطط</span>
           </button>
 
+          {/* Requested Icon 3: Fixed Material Button in this exact box */}
+          {onOpenMaterialsModal && (
+            <button
+              type="button"
+              id="btn-open-materials-box"
+              onClick={onOpenMaterialsModal}
+              className="px-4 py-2.5 rounded-2xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-sm transition-all duration-150 flex items-center gap-2 font-sans active:scale-95 cursor-pointer"
+              title="Material"
+            >
+              <FolderOpen className="w-4 h-4 text-blue-200 stroke-[2.5]" />
+              <span className="font-bold font-sans">Material</span>
+            </button>
+          )}
+
           {/* Requested Feature: Archive & Memory of Weeks Button */}
           {onOpenArchiveModal && (
             <button
@@ -238,6 +255,29 @@ export const TodayView: React.FC<TodayViewProps> = ({
               <span className="font-bold">أرشيف الأسابيع (B{activeBlockNumber} • W{activeWeekNumber})</span>
             </button>
           )}
+
+          {/* Requested Feature: Today's Progress Button in this exact box */}
+          <button
+            type="button"
+            id="btn-today-progress-box"
+            onClick={() => {
+              const el = document.getElementById('today-tasks-section');
+              if (el) {
+                el.scrollIntoView({ behavior: 'smooth' });
+              }
+            }}
+            className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all duration-150 flex items-center gap-2 font-sans active:scale-95 cursor-pointer shadow-sm ${
+              percentCompleted === 100 && totalCount > 0
+                ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                : 'bg-emerald-700 hover:bg-emerald-600 text-white'
+            }`}
+            title={`إنجاز اليوم: ${completedCount} من أصل ${totalCount} (${percentCompleted}%)`}
+          >
+            <CheckCircle2 className="w-4 h-4 text-emerald-200 stroke-[2.5]" />
+            <span className="font-bold font-sans">
+              إنجاز اليوم ({percentCompleted}%)
+            </span>
+          </button>
         </div>
       </div>
 
@@ -402,7 +442,7 @@ export const TodayView: React.FC<TodayViewProps> = ({
       )}
 
       {/* 3. CONTROLS & FILTER BAR (English Done & Pending tags) */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 sm:p-4 rounded-3xl border border-slate-200/80 shadow-xs">
+      <div id="today-tasks-section" className="flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 sm:p-4 rounded-3xl border border-slate-200/80 shadow-xs">
         {/* Filter Pills with English words */}
         <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-2xl text-xs font-semibold font-sans">
           <button

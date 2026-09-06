@@ -14,6 +14,7 @@ import {
   Layers,
   Printer,
   FolderArchive,
+  FolderOpen,
 } from 'lucide-react';
 
 interface WeeklyPlanViewProps {
@@ -29,6 +30,7 @@ interface WeeklyPlanViewProps {
   onOpenSmartPaste: () => void;
   onOpenTimetableModal: () => void;
   onOpenArchiveModal?: () => void;
+  onOpenMaterialsModal?: () => void;
   activeBlockNumber?: number;
   activeWeekNumber?: number;
 }
@@ -46,6 +48,7 @@ export const WeeklyPlanView: React.FC<WeeklyPlanViewProps> = ({
   onOpenSmartPaste,
   onOpenTimetableModal,
   onOpenArchiveModal,
+  onOpenMaterialsModal,
   activeBlockNumber = 1,
   activeWeekNumber = 1,
 }) => {
@@ -129,6 +132,20 @@ export const WeeklyPlanView: React.FC<WeeklyPlanViewProps> = ({
               >
                 <FolderArchive className="w-4 h-4 text-purple-600" />
                 <span>أرشيف الأسابيع (B{activeBlockNumber} • W{activeWeekNumber})</span>
+              </button>
+            )}
+
+            {/* Material button in weekly plan */}
+            {onOpenMaterialsModal && (
+              <button
+                type="button"
+                id="btn-materials-weekly"
+                onClick={onOpenMaterialsModal}
+                className="px-4 py-2.5 rounded-2xl text-xs font-bold bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 transition-colors flex items-center gap-2 shadow-2xs font-sans cursor-pointer"
+                title="Material"
+              >
+                <FolderOpen className="w-4 h-4 text-blue-600" />
+                <span className="font-bold font-sans">Material</span>
               </button>
             )}
 

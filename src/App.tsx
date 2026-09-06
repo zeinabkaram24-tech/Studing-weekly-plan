@@ -56,7 +56,6 @@ import { VisitorWelcomeModal } from './components/VisitorWelcomeModal';
 import { VisitorStatsModal } from './components/VisitorStatsModal';
 import { ClassSelectorModal } from './components/ClassSelectorModal';
 import { MaterialsModal } from './components/MaterialsModal';
-import { SideMaterialsButton } from './components/SideMaterialsButton';
 import { triggerAllDoneCelebration } from './utils/celebration';
 import {
   fetchVisitorStats,
@@ -573,9 +572,6 @@ export default function App() {
         onLogout={handleLogout}
       />
 
-      {/* Floating Side Materials Icon requested by user */}
-      <SideMaterialsButton onClick={() => setIsMaterialsModalOpen(true)} />
-
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col p-4 sm:p-6 lg:p-10 relative overflow-y-auto w-full max-w-7xl mx-auto">
         {currentTab === 'today' && (
@@ -595,6 +591,7 @@ export default function App() {
             onOpenTimetableModal={() => setIsTimetableModalOpen(true)}
             onOpenWeekDaysModal={() => setIsWeekDaysModalOpen(true)}
             onOpenArchiveModal={() => setIsArchiveModalOpen(true)}
+            onOpenMaterialsModal={() => setIsMaterialsModalOpen(true)}
             activeBlockNumber={activeBlockNumber}
             activeWeekNumber={activeWeekNumber}
             activePlanTitle={activePlan?.title || weekTitle}
@@ -615,6 +612,7 @@ export default function App() {
             onOpenSmartPaste={() => setIsSmartPasteOpen(true)}
             onOpenTimetableModal={() => setIsTimetableModalOpen(true)}
             onOpenArchiveModal={() => setIsArchiveModalOpen(true)}
+            onOpenMaterialsModal={() => setIsMaterialsModalOpen(true)}
             activeBlockNumber={activeBlockNumber}
             activeWeekNumber={activeWeekNumber}
           />

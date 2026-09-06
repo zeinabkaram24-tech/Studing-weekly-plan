@@ -21,7 +21,6 @@ import {
   Filter,
   Eye,
   Printer,
-  FileCheck2,
   CheckCircle2,
 } from 'lucide-react';
 import { MaterialItem, Subject, GradeSection } from '../types';
@@ -599,16 +598,10 @@ ${previewItems}
                         {item.title}
                       </h4>
 
-                      {/* Content preview tags or notes */}
-                      {item.contentPreview && item.contentPreview.items && (
-                        <div className="mt-2 space-y-1">
-                          <p className="text-[11px] font-bold text-slate-500 flex items-center gap-1">
-                            <FileCheck2 className="w-3 h-3 text-indigo-500" />
-                            <span>عينة من أسئلة ومحتويات الشيت:</span>
-                          </p>
-                          <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed bg-slate-50 p-2 rounded-xl border border-slate-100">
-                            {item.contentPreview.items[0]}
-                          </p>
+                      {/* Clean page range badge */}
+                      {item.pageRangeLabel && (
+                        <div className="mt-1.5 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-800 text-xs font-bold border border-indigo-100">
+                          <span>{item.pageRangeLabel}</span>
                         </div>
                       )}
 

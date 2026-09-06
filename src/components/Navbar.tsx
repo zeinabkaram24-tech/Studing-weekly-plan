@@ -307,69 +307,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span>جدول حصص فصل {selectedSection}</span>
           </button>
 
-          {/* SPECIAL QUICK POPUP SHORTCUTS AS REQUESTED */}
-          <div className="pt-3 mt-3 border-t border-slate-800/80 space-y-2">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 block font-sans">
-              ذاكرة وأرشيف الخطط (Memory & Archive)
-            </span>
-
-            {/* User Requested: Archive Navigation Button */}
-            <button
-              type="button"
-              id="sidebar-btn-archive"
-              onClick={onOpenArchiveModal}
-              className="w-full bg-gradient-to-r from-purple-950/60 to-indigo-950/60 hover:from-purple-900/80 hover:to-indigo-900/80 text-purple-200 border border-purple-700/50 p-2.5 rounded-xl text-xs flex items-center justify-between transition-all font-sans group shadow-xs active:scale-98"
-              title="ذاكرة وأرشيف الخطط الأسبوعية (الرجوع لأي بلوك أو أسبوع)"
-            >
-              <div className="flex items-center gap-2">
-                <FolderArchive className="w-4 h-4 text-purple-400 group-hover:scale-110 transition-transform" />
-                <span className="font-bold">أرشيف الأسابيع والبلوكات</span>
-              </div>
-              <span className="text-[10px] px-2 py-0.5 rounded-md bg-purple-500/30 text-purple-300 font-mono font-bold">
-                B{activeBlockNumber} • W{activeWeekNumber}
-              </span>
-            </button>
-
-            {/* User Requested: Materials Navigation Button */}
-            {onOpenMaterialsModal && (
-              <button
-                type="button"
-                id="sidebar-btn-materials"
-                onClick={onOpenMaterialsModal}
-                className="w-full bg-gradient-to-r from-blue-950/70 to-indigo-950/70 hover:from-blue-900/90 hover:to-indigo-900/90 text-blue-200 border border-blue-600/50 p-2.5 rounded-xl text-xs flex items-center justify-between transition-all font-sans group shadow-xs active:scale-98 cursor-pointer"
-                title="الماتيريال وشيتات المذاكرة (Block 1 والشيتات الرئيسية والأسابيع)"
-              >
-                <div className="flex items-center gap-2">
-                  <FolderOpen className="w-4 h-4 text-blue-400 group-hover:scale-110 transition-transform" />
-                  <span className="font-bold">الماتيريال (Materials)</span>
-                </div>
-                <span className="text-[10px] px-2 py-0.5 rounded-md bg-blue-500/30 text-blue-300 font-bold">
-                  Block 1
-                </span>
-              </button>
-            )}
-
-            {/* Timetable popup shortcut */}
-            <button
-              type="button"
-              onClick={onOpenTimetableModal}
-              className="w-full flex items-center gap-2 p-2.5 rounded-xl text-xs font-semibold text-indigo-300 bg-indigo-950/40 hover:bg-indigo-900/50 border border-indigo-800/40 transition-colors"
-            >
-              <FileSpreadsheet className="w-4 h-4 text-indigo-400" />
-              <span>نافذة الجدول الدراسي السريعة</span>
-            </button>
-
-            {/* Weekdays popup shortcut */}
-            <button
-              type="button"
-              onClick={onOpenWeekDaysModal}
-              className="w-full flex items-center gap-2 p-2.5 rounded-xl text-xs font-semibold text-purple-300 bg-purple-950/40 hover:bg-purple-900/50 border border-purple-800/40 transition-colors"
-            >
-              <ListTodo className="w-4 h-4 text-purple-400" />
-              <span>عرض كل أيام الأسبوع والمخطط</span>
-            </button>
-          </div>
-
           {/* Action Tools Section */}
           <div className="pt-3 mt-3 border-t border-slate-800/80 space-y-2">
             <button
@@ -416,26 +353,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
         </nav>
-
-        {/* Today's Goal Box (English Done status) */}
-        <div className="p-5 mt-auto border-t border-slate-800/80">
-          <div className="bg-slate-900/80 rounded-2xl p-4 border border-slate-800">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-slate-400 text-xs font-semibold">إنجاز اليوم (Progress)</span>
-              <span className="text-indigo-400 text-xs font-bold font-sans">{percentCompleted}%</span>
-            </div>
-            <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-              <div
-                className="bg-indigo-500 h-full rounded-full transition-all duration-500"
-                style={{ width: `${percentCompleted}%` }}
-              />
-            </div>
-            <div className="text-[11px] text-slate-400 mt-2 flex justify-between font-sans">
-              <span className="text-emerald-400 font-bold">{todayCompletedCount} Done</span>
-              <span className="text-amber-400 font-bold">{todayPendingCount} Pending</span>
-            </div>
-          </div>
-        </div>
       </aside>
 
       {/* 2. MOBILE TOP BAR & QUICK ACTIONS */}
@@ -500,30 +417,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <span>دخول</span>
                 </button>
               )}
-
-              {/* Materials button on mobile */}
-              {onOpenMaterialsModal && (
-                <button
-                  type="button"
-                  id="mobile-btn-materials"
-                  onClick={onOpenMaterialsModal}
-                  className="p-1.5 rounded-xl bg-blue-900/70 hover:bg-blue-800 text-blue-200 border border-blue-700/60 shadow-xs text-xs cursor-pointer flex items-center gap-1"
-                  title="الماتيريال والشيتات (Block 1)"
-                >
-                  <FolderOpen className="w-3.5 h-3.5" />
-                </button>
-              )}
-
-              {/* Archive button on mobile */}
-              <button
-                type="button"
-                id="mobile-btn-archive"
-                onClick={onOpenArchiveModal}
-                className="p-1.5 rounded-xl bg-purple-900/70 hover:bg-purple-800 text-purple-200 border border-purple-700/60 shadow-xs text-xs"
-                title="أرشيف وبلوكات الخطط الأسبوعية"
-              >
-                <FolderArchive className="w-3.5 h-3.5" />
-              </button>
 
               {/* Admin Tools: Upload Plan Files next to Visitor Records Icon */}
               <div className="flex items-center gap-1 bg-slate-950/80 p-0.5 rounded-xl border border-slate-800">

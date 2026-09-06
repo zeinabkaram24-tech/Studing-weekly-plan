@@ -6,7 +6,8 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   // =========================================================================
   {
     id: 'mat-sci-u1-study',
-    title: 'Science Study Sheet - Unit 1: Sound Sources (Pages 4–12)',
+    title: 'Unit 1 (Pages 4–12)',
+    pageRangeLabel: 'يونت 1 من بيج 4 لبيج 12',
     subjectId: 'science',
     blockNumber: 1,
     category: 'main_sheets',
@@ -43,7 +44,8 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   },
   {
     id: 'mat-sci-u1-work',
-    title: 'Science Practice Work Sheet - Unit 1: Sound Sources (Pages 13–25)',
+    title: 'Homework (Pages 13–25)',
+    pageRangeLabel: 'هوم ورك بيج 13 لبيج 25',
     subjectId: 'science',
     blockNumber: 1,
     category: 'main_sheets',
@@ -52,7 +54,7 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
     fileName: 'Science_Grade2_Block1_Unit1_Worksheet.pdf',
     fileSize: '5.6 MB',
     pageCount: 13,
-    unitTitle: 'Unit 1: Practice Sheets (Questions 1 to 10)',
+    unitTitle: 'Unit 1: Practice Sheets',
     contentPreview: {
       type: 'exercises',
       items: [
@@ -73,7 +75,8 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   },
   {
     id: 'mat-sci-u2-study',
-    title: 'Science Study Sheet - Unit 2: Getting to Know Plants (Pages 26–34)',
+    title: 'Unit 2 (Pages 26–34)',
+    pageRangeLabel: 'يونت 2 من بيج 26 لبيج 34',
     subjectId: 'science',
     blockNumber: 1,
     category: 'main_sheets',
@@ -100,7 +103,8 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   },
   {
     id: 'mat-sci-u2-work',
-    title: 'Science Practice Work Sheet - Unit 2: Getting to Know Plants (Pages 35–44)',
+    title: 'Homework (Pages 35–44)',
+    pageRangeLabel: 'هوم ورك بيج 35 لبيج 44',
     subjectId: 'science',
     blockNumber: 1,
     category: 'main_sheets',
@@ -109,7 +113,7 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
     fileName: 'Science_Grade2_Block1_Unit2_Worksheet.pdf',
     fileSize: '5.1 MB',
     pageCount: 10,
-    unitTitle: 'Unit 2: Practice Sheets (Questions 1 to 8)',
+    unitTitle: 'Unit 2: Practice Sheets',
     contentPreview: {
       type: 'exercises',
       items: [
@@ -132,7 +136,8 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   // =========================================================================
   {
     id: 'mat-eng-u1-classwork',
-    title: 'English Classwork Sheet - Unit 1: "Hello Again!" (Pages 1–12)',
+    title: 'Unit 1 (Pages 1–12)',
+    pageRangeLabel: 'يونت 1 من بيج 1 لبيج 12',
     subjectId: 'english',
     blockNumber: 1,
     category: 'main_sheets',
@@ -141,7 +146,7 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
     fileName: 'English_Grade2_Block1_Unit1_Classwork.pdf',
     fileSize: '6.4 MB',
     pageCount: 12,
-    unitTitle: 'Unit 1: "Hello Again!" Classwork',
+    unitTitle: 'Unit 1: "Hello Again!"',
     contentPreview: {
       type: 'exercises',
       items: [
@@ -164,7 +169,8 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   },
   {
     id: 'mat-eng-u2-classwork',
-    title: 'English Classwork Sheet - Unit 2: "Back to School" (Pages 13–32)',
+    title: 'Unit 2 (Pages 13–32)',
+    pageRangeLabel: 'يونت 2 من بيج 13 لبيج 32',
     subjectId: 'english',
     blockNumber: 1,
     category: 'main_sheets',
@@ -173,7 +179,7 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
     fileName: 'English_Grade2_Block1_Unit2_Classwork.pdf',
     fileSize: '9.2 MB',
     pageCount: 20,
-    unitTitle: 'Unit 2: "Back to School" Classwork',
+    unitTitle: 'Unit 2: "Back to School"',
     contentPreview: {
       type: 'exercises',
       items: [
@@ -191,7 +197,8 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   },
   {
     id: 'mat-eng-u3-u4-classwork',
-    title: 'English Classwork Sheet - Unit 3 "Play Time" & Unit 4 "At Home" (Pages 33–54)',
+    title: 'Unit 3 & 4 (Pages 33–54)',
+    pageRangeLabel: 'يونت 3 و 4 من بيج 33 لبيج 54',
     subjectId: 'english',
     blockNumber: 1,
     category: 'main_sheets',
@@ -200,7 +207,7 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
     fileName: 'English_Grade2_Block1_Unit3_4_Classwork.pdf',
     fileSize: '8.7 MB',
     pageCount: 22,
-    unitTitle: 'Unit 3 & 4: Classwork',
+    unitTitle: 'Unit 3 & 4',
     contentPreview: {
       type: 'exercises',
       items: [
@@ -217,7 +224,8 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   },
   {
     id: 'mat-eng-homework',
-    title: 'English Homework Sheet - Units 1, 2, 3 & 4 Complete (Pages 55–82)',
+    title: 'Homework (Pages 55–82)',
+    pageRangeLabel: 'هوم ورك بيج 55 لبيج 82',
     subjectId: 'english',
     blockNumber: 1,
     category: 'main_sheets',
@@ -226,7 +234,7 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
     fileName: 'English_Grade2_Block1_Homework_Booklet.pdf',
     fileSize: '7.8 MB',
     pageCount: 28,
-    unitTitle: 'Homework Table of Contents (Pages 55 to 82)',
+    unitTitle: 'Homework (Pages 55 to 82)',
     contentPreview: {
       type: 'exercises',
       items: [
@@ -242,7 +250,8 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   },
   {
     id: 'mat-eng-study-sheets',
-    title: 'English Study Sheets - Units 1, 2, 3 & 4 (Pages 83–135)',
+    title: 'Study Sheets (Pages 83–135)',
+    pageRangeLabel: 'شيت مذاكرة من بيج 83 لبيج 135',
     subjectId: 'english',
     blockNumber: 1,
     category: 'main_sheets',
@@ -251,7 +260,7 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
     fileName: 'English_Grade2_Block1_Study_Sheets.pdf',
     fileSize: '11.5 MB',
     pageCount: 53,
-    unitTitle: 'Study Sheets Table of Contents (Pages 83 to 135)',
+    unitTitle: 'Study Sheets (Pages 83 to 135)',
     contentPreview: {
       type: 'reading',
       items: [
@@ -270,7 +279,8 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   // =========================================================================
   {
     id: 'mat-math-u1-classwork',
-    title: 'Math Classwork Sheet - Unit 1: Place Value & Number Facts 1 (Pages 4–35)',
+    title: 'Unit 1 (Pages 4–35)',
+    pageRangeLabel: 'يونت 1 من بيج 4 لبيج 35',
     subjectId: 'math',
     blockNumber: 1,
     category: 'main_sheets',
@@ -279,7 +289,7 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
     fileName: 'Math_Grade2_Block1_Unit1_Classwork.pdf',
     fileSize: '7.2 MB',
     pageCount: 32,
-    unitTitle: 'Unit 1: Place value and number facts 1',
+    unitTitle: 'Unit 1: Place value',
     contentPreview: {
       type: 'exercises',
       items: [
@@ -297,7 +307,8 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   },
   {
     id: 'mat-math-u2-classwork',
-    title: 'Math Classwork Sheet - Unit 2: Addition, Subtraction & Egyptian Money (Pages 36–50)',
+    title: 'Unit 2 (Pages 36–50)',
+    pageRangeLabel: 'يونت 2 من بيج 36 لبيج 50',
     subjectId: 'math',
     blockNumber: 1,
     category: 'main_sheets',
@@ -306,7 +317,7 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
     fileName: 'Math_Grade2_Block1_Unit2_Classwork.pdf',
     fileSize: '5.9 MB',
     pageCount: 15,
-    unitTitle: 'Unit 2: Addition and Subtraction 1 & Money',
+    unitTitle: 'Unit 2: Addition, Subtraction & Money',
     contentPreview: {
       type: 'exercises',
       items: [
@@ -321,7 +332,8 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   },
   {
     id: 'mat-math-u3-u4-classwork',
-    title: 'Math Classwork Sheet - Unit 3: 2D Shapes & Unit 4: Problem Solving & Patterns (Pages 51–75)',
+    title: 'Unit 3 & 4 (Pages 51–75)',
+    pageRangeLabel: 'يونت 3 و 4 من بيج 51 لبيج 75',
     subjectId: 'math',
     blockNumber: 1,
     category: 'main_sheets',
@@ -330,7 +342,7 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
     fileName: 'Math_Grade2_Block1_Unit3_4_Classwork.pdf',
     fileSize: '6.8 MB',
     pageCount: 25,
-    unitTitle: 'Unit 3 & Unit 4: Shapes, Symmetry & Patterns',
+    unitTitle: 'Unit 3 & 4: Shapes & Patterns',
     contentPreview: {
       type: 'exercises',
       items: [
@@ -346,7 +358,8 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   },
   {
     id: 'mat-math-homework',
-    title: 'Math Homework Sheet - Units 1, 2, 3 & 4 Complete (Pages 76–96)',
+    title: 'Homework (Pages 76–96)',
+    pageRangeLabel: 'هوم ورك بيج 76 لبيج 96',
     subjectId: 'math',
     blockNumber: 1,
     category: 'main_sheets',
@@ -355,7 +368,7 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
     fileName: 'Math_Grade2_Block1_Homework_Booklet.pdf',
     fileSize: '6.1 MB',
     pageCount: 21,
-    unitTitle: 'Math Homework Table of Contents (Pages 76 to 96)',
+    unitTitle: 'Homework (Pages 76 to 96)',
     contentPreview: {
       type: 'exercises',
       items: [
@@ -374,7 +387,8 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   // =========================================================================
   {
     id: 'mat-arb-rev-w1',
-    title: 'شيت تدريبات اللغة العربية - مراجعة الأسبوع الأول (صفحات 2–7)',
+    title: 'مراجعة الأسبوع الأول (صفحات 2–7)',
+    pageRangeLabel: 'مراجعة من ص 2 لـ 7',
     subjectId: 'arabic',
     blockNumber: 1,
     category: 'main_sheets',
@@ -400,7 +414,8 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   },
   {
     id: 'mat-arb-u1-school',
-    title: 'شيت تدريبات الوحدة الأولى: "العودة إلى المدرسة" (صفحات 8–24)',
+    title: 'الوحدة الأولى (صفحات 8–24)',
+    pageRangeLabel: 'يونت 1 من بيج 8 لبيج 24',
     subjectId: 'arabic',
     blockNumber: 1,
     category: 'main_sheets',
@@ -426,7 +441,8 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   },
   {
     id: 'mat-arb-u2-living',
-    title: 'شيت تدريبات الوحدة الثانية: "المكان الذي أعيش فيه" (صفحات 25–43)',
+    title: 'الوحدة الثانية (صفحات 25–43)',
+    pageRangeLabel: 'يونت 2 من بيج 25 لبيج 43',
     subjectId: 'arabic',
     blockNumber: 1,
     category: 'main_sheets',
@@ -455,7 +471,8 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   },
   {
     id: 'mat-arb-homework',
-    title: 'كراسة التكليفات والتطبيقات المنزلية - Block 1 كاملة (صفحات 44–50)',
+    title: 'كراسة التكليفات المنزلية (صفحات 44–50)',
+    pageRangeLabel: 'هوم ورك بيج 44 لبيج 50',
     subjectId: 'arabic',
     blockNumber: 1,
     category: 'main_sheets',
@@ -464,7 +481,7 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
     fileName: 'Arabic_Grade2_Block1_Homework.pdf',
     fileSize: '4.5 MB',
     pageCount: 7,
-    unitTitle: 'التكليفات المنزلية لمادة اللغة العربية',
+    unitTitle: 'التكليفات المنزلية',
     contentPreview: {
       type: 'exercises',
       items: [
@@ -485,7 +502,8 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   // =========================================================================
   {
     id: 'mat-fr-sem1-2',
-    title: 'Fiche de Français - Semaine 1 & 2: Salutations, Fournitures & Nombres (Pages 3–21)',
+    title: 'Semaine 1 & 2 (Pages 3–21)',
+    pageRangeLabel: 'يونت 1 من بيج 3 لبيج 21',
     subjectId: 'french',
     blockNumber: 1,
     category: 'main_sheets',
@@ -511,7 +529,8 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   },
   {
     id: 'mat-fr-sem3-4',
-    title: 'Fiche de Français - Semaine 3 & 4: Activités, Famille & Animaux (Pages 22–36)',
+    title: 'Semaine 3 & 4 (Pages 22–36)',
+    pageRangeLabel: 'يونت 2 من بيج 22 لبيج 36',
     subjectId: 'french',
     blockNumber: 1,
     category: 'main_sheets',
@@ -541,7 +560,8 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   // =========================================================================
   {
     id: 'mat-ict-w1-2',
-    title: 'شيت تكنولوجيا المعلومات ICT - لوحة المفاتيح والكتابة (Week 1 & 2 • Pages 3–25)',
+    title: 'Unit 1 (Pages 3–25)',
+    pageRangeLabel: 'يونت 1 من بيج 3 لبيج 25',
     subjectId: 'ict',
     blockNumber: 1,
     category: 'main_sheets',
@@ -550,7 +570,7 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
     fileName: 'ICT_Grade2_Block1_Week1_2.pdf',
     fileSize: '4.9 MB',
     pageCount: 23,
-    unitTitle: 'ICT Week 1 & 2: Keyboard & Touch Typing',
+    unitTitle: 'ICT Unit 1',
     contentPreview: {
       type: 'exercises',
       items: [
@@ -563,7 +583,8 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   },
   {
     id: 'mat-ict-w3-4-5',
-    title: 'شيت تكنولوجيا المعلومات ICT - برنامج Word والخرائط الذهنية (Week 3, 4 & 5 • Pages 26–60)',
+    title: 'Unit 2 & Revision (Pages 26–60)',
+    pageRangeLabel: 'يونت 2 من بيج 26 لبيج 60',
     subjectId: 'ict',
     blockNumber: 1,
     category: 'main_sheets',
@@ -572,7 +593,7 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
     fileName: 'ICT_Grade2_Block1_Week3_4_5.pdf',
     fileSize: '6.2 MB',
     pageCount: 35,
-    unitTitle: 'ICT Week 3, 4 & 5: Presenting Work & Revision',
+    unitTitle: 'ICT Unit 2 & Revision',
     contentPreview: {
       type: 'exercises',
       items: [
@@ -590,7 +611,8 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   // =========================================================================
   {
     id: 'mat-soc-u1',
-    title: 'شيت الدراسات الاجتماعية - الوحدة الأولى: مدرستي وبيئتي (صفحات 1–30)',
+    title: 'الوحدة الأولى (صفحات 1–30)',
+    pageRangeLabel: 'يونت 1 من بيج 1 لبيج 30',
     subjectId: 'social_studies',
     blockNumber: 1,
     category: 'main_sheets',

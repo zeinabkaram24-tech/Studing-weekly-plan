@@ -1,7 +1,7 @@
 import { MaterialItem } from '../types';
 import { INITIAL_MATERIALS_DATA } from '../data/materialsData';
 
-const STORAGE_KEY = 'g2b_school_materials_v2';
+const STORAGE_KEY = 'g2b_school_materials_v3';
 
 export function getSavedMaterials(): MaterialItem[] {
   try {

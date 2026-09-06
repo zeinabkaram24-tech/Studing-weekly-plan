@@ -30,14 +30,9 @@ export const SideMaterialsButton: React.FC<SideMaterialsButtonProps> = ({
           )}
         </div>
 
-        <div className="flex flex-col text-right pr-0.5">
-          <div className="flex items-center gap-1">
-            <span className="text-xs font-black tracking-wide">الماتيريال</span>
-            <Sparkles className="w-2.5 h-2.5 text-amber-300 animate-pulse" />
-          </div>
-          <span className="text-[9px] font-bold text-blue-200 font-sans">
-            شيتات Block 1
-          </span>
+        <div className="flex items-center gap-1 pr-0.5">
+          <span className="text-xs font-black tracking-wide font-sans">Material</span>
+          <Sparkles className="w-2.5 h-2.5 text-amber-300" />
         </div>
       </button>
     </div>

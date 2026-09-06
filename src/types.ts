@@ -142,6 +142,7 @@ export interface MaterialItem {
   notes?: string;
   pageCount?: number;
   unitTitle?: string;
+  pageRangeLabel?: string;
   contentPreview?: {
     type: 'exercises' | 'topics' | 'reading';
     items: string[];

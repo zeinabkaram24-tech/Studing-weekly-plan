@@ -27,53 +27,27 @@ interface TomorrowPrepCardProps {
   onSelectDay: (day: DayOfWeek) => void;
 }
 
-// Subject-specific essential books and notebooks (الكتب والكشاكيل الخاصة بكل مادة فقط طبقاً للخطة)
-const SUBJECT_REQUIREMENTS: Record<string, { booksAr: string; booksEn: string }> = {
-  math: {
-    booksAr: 'كتاب الرياضيات (Maths Book) + كشكول الرياضيات',
-    booksEn: 'Math Student Book & Notebook',
-  },
-  english: {
-    booksAr: 'كتاب Connect Plus + كشكول اللغة الإنجليزية',
-    booksEn: 'Connect Plus Book & Notebook',
-  },
-  arabic: {
-    booksAr: 'كتاب اللغة العربية + كشكول الحصة والإملاء',
-    booksEn: 'Arabic Book & Class Notebook',
-  },
-  science: {
-    booksAr: 'كتاب العلوم (Science Book) + كشكول العلوم',
-    booksEn: 'Science Student Book & Notebook',
-  },
-  french: {
-    booksAr: 'مذكرة وكشكول اللغة الفرنسية (Fiche de classe)',
-    booksEn: 'French Class Sheet & Notebook',
-  },
-  social_studies: {
-    booksAr: 'كتاب الدراسات الاجتماعية',
-    booksEn: 'Social Studies Book',
-  },
-  religion: {
-    booksAr: 'كتاب التربية الدينية',
-    booksEn: 'Religion Book',
-  },
-  ict: {
-    booksAr: 'كشكول مادة الحاسب الآلي (ICT)',
-    booksEn: 'ICT Notebook',
-  },
-  pe: {
-    booksAr: 'الزي الرياضي المدرسي (PE Kit)',
-    booksEn: 'PE Sportswear Kit',
-  },
-  arts: {
-    booksAr: 'كراسة الرسم وألوان الرسم (Art)',
-    booksEn: 'Drawing Sketchbook & Colors',
-  },
-  music: {
-    booksAr: 'كشكول التربية الموسيقية',
-    booksEn: 'Music Notebook',
-  },
+// Helper to format period numbers into clean Arabic ordinal text (e.g., الحصص السابعة والثامنة)
+const PERIOD_ORDINALS_AR: Record<number, string> = {
+  1: 'الأولى',
+  2: 'الثانية',
+  3: 'الثالثة',
+  4: 'الرابعة',
+  5: 'الخامسة',
+  6: 'السادسة',
+  7: 'السابعة',
+  8: 'الثامنة',
 };
+
+function formatPeriodsAr(periods: number[]): string {
+  if (!periods || periods.length === 0) return '';
+  const sorted = [...periods].sort((a, b) => a - b);
+  const words = sorted.map((p) => PERIOD_ORDINALS_AR[p] || `P${p}`);
+  if (words.length === 1) {
+    return `الحصة ${words[0]}`;
+  }
+  return `الحصص ${words.join(' و')}`;
+}
 
 export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
   currentDay,
@@ -338,18 +312,18 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
                 </div>
               ) : (
                 <p className="text-[11px] text-purple-900 font-medium leading-relaxed">
-                  📌 المستلزمات الخاصة بالمادة: <strong>كراسة الرسم وألوان الرسم فقط</strong> (لا توجد مستلزمات أو أدوات إضافية مقررة بالويكلي بلان).
+                  📌 مستلزمات المادة (لا توجد أدوات إضافية مدونة بالويكلي بلان).
                 </p>
               )}
             </div>
           )}
 
-          {/* 1. Subject-by-Subject Books & Notebooks Checklist */}
+          {/* 1. Subject-by-Subject Books & Materials Checklist */}
           <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-amber-200/70 space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                 <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
-                <span>الكتب والكشاكيل الخاصة بالمواد المقررة لغداً (فصل {section}):</span>
+                <span>مستلزمات وكتب المواد المقررة لغداً (فصل {section}):</span>
               </span>
               <span className="text-[11px] font-sans text-slate-400">
                 {uniqueSubjectIds.length} مواد مقررة غداً
@@ -359,10 +333,15 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               {uniqueSubjectIds.map((subjId) => {
                 const subj = subjectMap.get(subjId);
-                const req = SUBJECT_REQUIREMENTS[subjId];
                 const periods = subjectPeriodsMap.get(subjId) || [];
                 const itemId = `subject-book-${subjId}`;
                 const isChecked = !!checkedItems[itemId];
+
+                // Check if the weekly plan explicitly specifies supplies or tools for this subject tomorrow
+                const subjectPlanSupplies = targetSupplies.filter((s) => s.subjectId === subjId);
+                const suppliesText = subjectPlanSupplies.length > 0
+                  ? subjectPlanSupplies.map((s) => s.title + (s.details ? ` (${s.details})` : '')).join(' • ')
+                  : 'كتب المادة أو مستلزمات المادة';
 
                 return (
                   <div
@@ -382,18 +361,22 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <SubjectIcon name={subj?.iconName || 'BookOpen'} className={`w-3.5 h-3.5 ${subj?.color.text}`} />
-                        <span className="font-bold text-xs text-slate-900 font-sans">
-                          {subj?.nameEn}
-                          <span className="text-slate-400 font-normal ms-1">({subj?.nameAr})</span>
-                        </span>
-                        <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-100 font-bold ms-auto shrink-0">
-                          {periods.length === 1 ? `الحصة P${periods[0]}` : `الحصص P${periods.join(', P')}`}
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <SubjectIcon name={subj?.iconName || 'BookOpen'} className={`w-4 h-4 ${subj?.color.text}`} />
+                          <span className="font-bold text-xs text-slate-900 font-sans truncate">
+                            الـ {subj?.nameEn || subjId}
+                          </span>
+                          {subj?.nameAr && (
+                            <span className="text-[11px] text-slate-400 font-normal shrink-0">({subj.nameAr})</span>
+                          )}
+                        </div>
+                        <span className="text-[11px] font-sans font-bold px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100 shrink-0">
+                          {formatPeriodsAr(periods)}
                         </span>
                       </div>
                       <div className="text-[11px] text-slate-700 leading-snug">
-                        {req?.booksAr || 'كتاب المادة وكشكول الفصل'}
+                        {suppliesText}
                       </div>
                     </div>
                   </div>
