@@ -28,6 +28,16 @@ import {
   getSavedStudentName,
   isUserLoggedIn,
   clearStudentLogin,
+  WeeklyPlanArchiveEntry,
+  loadWeeklyPlansArchive,
+  saveWeeklyPlansArchive,
+  getActiveWeeklyPlanId,
+  setActiveWeeklyPlanId,
+  addOrUpdateWeeklyPlanInArchive,
+  deleteWeeklyPlanFromArchive,
+  isAdminLoggedIn,
+  setAdminLoggedIn,
+  clearAdminLogin,
 } from './utils/storage';
 import { DEFAULT_TIMETABLE, GRADE_TIMETABLES } from './data/defaultData';
 import { Navbar } from './components/Navbar';
@@ -40,6 +50,8 @@ import { EditProfileModal } from './components/EditProfileModal';
 import { QuickTimetableModal } from './components/QuickTimetableModal';
 import { WeekDaysPickerModal } from './components/WeekDaysPickerModal';
 import { UploadPlanFilesModal } from './components/UploadPlanFilesModal';
+import { WeeklyPlanArchiveModal } from './components/WeeklyPlanArchiveModal';
+import { AdminAuthModal } from './components/AdminAuthModal';
 import { VisitorWelcomeModal } from './components/VisitorWelcomeModal';
 import { VisitorStatsModal } from './components/VisitorStatsModal';
 import { ClassSelectorModal } from './components/ClassSelectorModal';
@@ -60,9 +72,30 @@ export default function App() {
     return '2A';
   });
 
+  // Admin & Security State
+  const [isAdmin, setIsAdmin] = useState<boolean>(() => isAdminLoggedIn());
+  const [isAdminAuthModalOpen, setIsAdminAuthModalOpen] = useState(false);
+  const [adminReason, setAdminReason] = useState<{ title: string; message: string } | undefined>();
+
+  // Weekly Plan Archive & Memory State
+  const [archive, setArchive] = useState<WeeklyPlanArchiveEntry[]>(() => loadWeeklyPlansArchive());
+  const [activePlanId, setActivePlanIdState] = useState<string>(() => getActiveWeeklyPlanId());
+  const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
+
+  // Active Plan Metadata
+  const activePlan = archive.find((p) => p.id === activePlanId) || archive[0];
+  const activeBlockNumber = activePlan?.blockNumber || 1;
+  const activeWeekNumber = activePlan?.weekNumber || 1;
+
   const [tasks, setTasks] = useState<PlanTask[]>(() => {
-    const savedSec = loadSavedGradeSection();
-    return loadSavedTasks(savedSec || '2A');
+    const savedSec = loadSavedGradeSection() || '2A';
+    const initialArchive = loadWeeklyPlansArchive();
+    const activeId = getActiveWeeklyPlanId();
+    const current = initialArchive.find((p) => p.id === activeId) || initialArchive[0];
+    if (current?.tasksBySection?.[savedSec] && current.tasksBySection[savedSec].length > 0) {
+      return current.tasksBySection[savedSec];
+    }
+    return loadSavedTasks(savedSec);
   });
   const [timetable, setTimetable] = useState<Timetable>(() => {
     const savedSec = loadSavedGradeSection();
@@ -77,8 +110,21 @@ export default function App() {
     }
     return s;
   });
-  const [weekTitle, setWeekTitle] = useState<string>(() => loadWeekTitle());
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedPlanFile[]>(() => loadSavedUploadedFiles());
+  const [weekTitle, setWeekTitle] = useState<string>(() => {
+    const initialArchive = loadWeeklyPlansArchive();
+    const activeId = getActiveWeeklyPlanId();
+    const current = initialArchive.find((p) => p.id === activeId) || initialArchive[0];
+    return current?.title || loadWeekTitle();
+  });
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedPlanFile[]>(() => {
+    const initialArchive = loadWeeklyPlansArchive();
+    const activeId = getActiveWeeklyPlanId();
+    const current = initialArchive.find((p) => p.id === activeId) || initialArchive[0];
+    if (current?.uploadedFiles && current.uploadedFiles.length > 0) {
+      return current.uploadedFiles;
+    }
+    return loadSavedUploadedFiles();
+  });
 
   // Class Selection Modal (Initial first-entry prompt or triggered from button)
   const [isClassSelectorOpen, setIsClassSelectorOpen] = useState(false);
@@ -188,10 +234,84 @@ export default function App() {
     saveUploadedFiles(uploadedFiles);
   }, [uploadedFiles]);
 
+  // Admin actions
+  const handleAdminSuccess = () => {
+    setIsAdmin(true);
+    setAdminLoggedIn(true);
+    setIsAdminAuthModalOpen(false);
+  };
+
+  const handleAdminLogout = () => {
+    setIsAdmin(false);
+    clearAdminLogin();
+  };
+
+  const handleOpenAdminLogin = (title?: string, message?: string) => {
+    setAdminReason(title ? { title, message: message || '' } : undefined);
+    setIsAdminAuthModalOpen(true);
+  };
+
+  // Sync tasks to active plan in archive
+  const syncTasksWithActivePlan = (updatedTasks: PlanTask[], targetSec: GradeSection = selectedSection) => {
+    setArchive((prevArchive) => {
+      const next = prevArchive.map((plan) => {
+        if (plan.id === activePlanId) {
+          return {
+            ...plan,
+            tasksBySection: {
+              ...plan.tasksBySection,
+              [targetSec]: updatedTasks,
+            },
+          };
+        }
+        return plan;
+      });
+      saveWeeklyPlansArchive(next);
+      return next;
+    });
+  };
+
+  // Switching & Navigating Archives
+  const handleSelectPlan = (planId: string) => {
+    const selected = archive.find((p) => p.id === planId);
+    if (!selected) return;
+    setActivePlanIdState(planId);
+    setActiveWeeklyPlanId(planId);
+    setWeekTitle(selected.title);
+    const secTasks = selected.tasksBySection?.[selectedSection] || [];
+    setTasks(secTasks);
+    saveTasks(secTasks, selectedSection);
+    if (selected.uploadedFiles && selected.uploadedFiles.length > 0) {
+      setUploadedFiles(selected.uploadedFiles);
+    }
+  };
+
+  const handleSetPlanAsCurrent = (planId: string) => {
+    const updated = archive.map((p) => ({
+      ...p,
+      isCurrent: p.id === planId,
+    }));
+    saveWeeklyPlansArchive(updated);
+    setArchive(updated);
+    handleSelectPlan(planId);
+  };
+
+  const handleDeletePlan = (planId: string) => {
+    const updated = deleteWeeklyPlanFromArchive(planId);
+    setArchive(updated);
+    if (activePlanId === planId) {
+      const fallback = updated[0];
+      if (fallback) {
+        handleSelectPlan(fallback.id);
+      }
+    }
+  };
+
   // Section switcher handler
   const handleSelectSection = (newSection: GradeSection) => {
     // Save current section tasks first
     saveTasks(tasks, selectedSection);
+    syncTasksWithActivePlan(tasks, selectedSection);
 
     setSelectedSection(newSection);
     saveGradeSection(newSection);
@@ -202,8 +322,16 @@ export default function App() {
     }));
     const loadedTimetable = loadSavedTimetable(newSection);
     setTimetable(loadedTimetable);
-    const loadedTasks = loadSavedTasks(newSection);
-    setTasks(loadedTasks);
+
+    // Retrieve tasks for new section from active plan if present
+    const currActive = archive.find((p) => p.id === activePlanId) || archive[0];
+    if (currActive?.tasksBySection?.[newSection] && currActive.tasksBySection[newSection].length > 0) {
+      setTasks(currActive.tasksBySection[newSection]);
+      saveTasks(currActive.tasksBySection[newSection], newSection);
+    } else {
+      const loadedTasks = loadSavedTasks(newSection);
+      setTasks(loadedTasks);
+    }
     setShowInitialClassPrompt(false);
     setIsClassSelectorOpen(false);
   };
@@ -223,6 +351,8 @@ export default function App() {
         return t;
       });
 
+      syncTasksWithActivePlan(updated);
+
       // Check if all tasks of the selected day are now completed
       const dayTasks = updated.filter((t) => t.day === selectedDay);
       if (dayTasks.length > 0 && dayTasks.every((t) => t.isDone)) {
@@ -237,8 +367,8 @@ export default function App() {
   const handleSaveTask = (taskData: Omit<PlanTask, 'id' | 'createdAt'> & { id?: string }) => {
     if (taskData.id) {
       // Edit existing
-      setTasks((prev) =>
-        prev.map((t) =>
+      setTasks((prev) => {
+        const updated = prev.map((t) =>
           t.id === taskData.id
             ? {
                 ...t,
@@ -252,8 +382,10 @@ export default function App() {
                 completedAt: taskData.completedAt,
               }
             : t
-        )
-      );
+        );
+        syncTasksWithActivePlan(updated);
+        return updated;
+      });
     } else {
       // Add new
       const newTask: PlanTask = {
@@ -270,13 +402,21 @@ export default function App() {
         createdAt: Date.now(),
         completedAt: taskData.isDone ? Date.now() : undefined,
       };
-      setTasks((prev) => [newTask, ...prev]);
+      setTasks((prev) => {
+        const updated = [newTask, ...prev];
+        syncTasksWithActivePlan(updated);
+        return updated;
+      });
     }
   };
 
   // Handler: Delete Task
   const handleDeleteTask = (taskId: string) => {
-    setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    setTasks((prev) => {
+      const updated = prev.filter((t) => t.id !== taskId);
+      syncTasksWithActivePlan(updated);
+      return updated;
+    });
   };
 
   // Handler: Import Parsed Tasks from Smart Paste
@@ -287,19 +427,26 @@ export default function App() {
       id: `task-imported-${Date.now()}-${index}`,
       createdAt: Date.now(),
     }));
-    setTasks((prev) => [...formatted, ...prev]);
+    setTasks((prev) => {
+      const updated = [...formatted, ...prev];
+      syncTasksWithActivePlan(updated);
+      return updated;
+    });
   };
 
-  // Handler: Apply New Weekly Plan from Uploaded Files
+  // Handler: Apply New Weekly Plan from Uploaded Files (Admin Friday Workflow)
   const handleApplyNewWeeklyPlan = (
     newTasks: PlanTask[],
     newWeekTitle: string,
     mode: 'keep_pending_and_add' | 'replace' | 'append',
-    newFiles: UploadedPlanFile[]
+    newFiles: UploadedPlanFile[],
+    blockNumber: number,
+    weekNumber: number,
+    targetSection: 'all' | GradeSection,
+    setAsCurrent: boolean
   ) => {
-    setWeekTitle(newWeekTitle);
+    let finalSectionTasks: PlanTask[] = [];
     if (mode === 'keep_pending_and_add') {
-      // Carry over only unfinished tasks from the previous week and mark them as old/carried-over
       const carriedOverPendingTasks: PlanTask[] = tasks
         .filter((t) => !t.isDone)
         .map((t) => ({
@@ -307,15 +454,44 @@ export default function App() {
           isCarriedOver: true,
           previousWeekNote: 'مهمة متبقية من الأسبوع الماضي لم تُنجز',
         }));
-      setTasks([...carriedOverPendingTasks, ...newTasks]);
+      finalSectionTasks = [...carriedOverPendingTasks, ...newTasks];
     } else if (mode === 'replace') {
-      setTasks(newTasks);
+      finalSectionTasks = newTasks;
     } else {
-      setTasks((prev) => [...newTasks, ...prev]);
+      finalSectionTasks = [...tasks, ...newTasks];
     }
+
+    const newPlanId = `plan-b${blockNumber}-w${weekNumber}-${Date.now()}`;
+    const newEntry: WeeklyPlanArchiveEntry = {
+      id: newPlanId,
+      blockNumber,
+      weekNumber,
+      title: newWeekTitle,
+      createdAt: Date.now(),
+      isCurrent: setAsCurrent,
+      uploadedFiles: newFiles,
+      tasksBySection: {
+        '2A': targetSection === 'all' || targetSection === '2A' ? finalSectionTasks : (activePlan?.tasksBySection?.['2A'] || []),
+        '2B': targetSection === 'all' || targetSection === '2B' ? finalSectionTasks : (activePlan?.tasksBySection?.['2B'] || []),
+        '2C': targetSection === 'all' || targetSection === '2C' ? finalSectionTasks : (activePlan?.tasksBySection?.['2C'] || []),
+      },
+    };
+
+    const updatedArchive = addOrUpdateWeeklyPlanInArchive(newEntry);
+    setArchive(updatedArchive);
+
+    if (setAsCurrent) {
+      setActiveWeeklyPlanId(newPlanId);
+      setActivePlanIdState(newPlanId);
+      setWeekTitle(newWeekTitle);
+      setTasks(finalSectionTasks);
+      saveTasks(finalSectionTasks, selectedSection);
+    }
+
     if (newFiles.length > 0) {
       setUploadedFiles((prev) => [...newFiles, ...prev]);
     }
+
     setTimeout(() => triggerAllDoneCelebration(), 200);
   };
 
@@ -374,6 +550,16 @@ export default function App() {
         onOpenTimetableModal={() => setIsTimetableModalOpen(true)}
         onOpenWeekDaysModal={() => setIsWeekDaysModalOpen(true)}
         onOpenUploadModal={() => setIsUploadModalOpen(true)}
+        onOpenArchiveModal={() => setIsArchiveModalOpen(true)}
+        isAdmin={isAdmin}
+        onOpenAdminLogin={() =>
+          handleOpenAdminLogin(
+            'تسجيل دخول الأدمن',
+            'رفع ملفات الخطة وتعديل الجداول مقتصر على الأدمن فقط'
+          )
+        }
+        activeBlockNumber={activeBlockNumber}
+        activeWeekNumber={activeWeekNumber}
         onOpenVisitorStats={() => setIsVisitorStatsOpen(true)}
         visitorStats={visitorStats}
         onResetData={handleResetData}
@@ -405,6 +591,17 @@ export default function App() {
             onOpenTimetableModal={() => setIsTimetableModalOpen(true)}
             onOpenWeekDaysModal={() => setIsWeekDaysModalOpen(true)}
             onOpenUploadModal={() => setIsUploadModalOpen(true)}
+            onOpenArchiveModal={() => setIsArchiveModalOpen(true)}
+            activeBlockNumber={activeBlockNumber}
+            activeWeekNumber={activeWeekNumber}
+            activePlanTitle={activePlan?.title || weekTitle}
+            isAdmin={isAdmin}
+            onOpenAdminLogin={() =>
+              handleOpenAdminLogin(
+                'رفع ملفات الخطة الأسبوعية',
+                'رفع وإضافة خطط جديدة مقتصر على المشرف (الأدمن)'
+              )
+            }
             onOpenVisitorStats={() => setIsVisitorStatsOpen(true)}
             onOpenLoginModal={() => setIsWelcomeModalOpen(true)}
             visitorStats={visitorStats}
@@ -430,6 +627,16 @@ export default function App() {
             onOpenSmartPaste={() => setIsSmartPasteOpen(true)}
             onOpenTimetableModal={() => setIsTimetableModalOpen(true)}
             onOpenUploadModal={() => setIsUploadModalOpen(true)}
+            onOpenArchiveModal={() => setIsArchiveModalOpen(true)}
+            activeBlockNumber={activeBlockNumber}
+            activeWeekNumber={activeWeekNumber}
+            isAdmin={isAdmin}
+            onOpenAdminLogin={() =>
+              handleOpenAdminLogin(
+                'رفع ملفات الخطة الأسبوعية',
+                'رفع وإضافة خطط جديدة مقتصر على المشرف (الأدمن)'
+              )
+            }
           />
         )}
 
@@ -441,6 +648,13 @@ export default function App() {
             onSelectSection={handleSelectSection}
             onUpdateTimetable={setTimetable}
             onResetTimetable={handleResetTimetable}
+            isAdmin={isAdmin}
+            onOpenAdminLogin={() =>
+              handleOpenAdminLogin(
+                'تعديل الجدول الدراسي',
+                'تعديل وتخصيص حصص الجدول الدراسي مقتصر على الأدمن فقط'
+              )
+            }
           />
         )}
       </main>
@@ -518,15 +732,63 @@ export default function App() {
         onOpenFullWeeklyView={() => setCurrentTab('weekly')}
       />
 
-      {/* Requested Modal 3: Weekly Plan Files Uploader Modal */}
+      {/* Requested Modal 3: Weekly Plan Files Uploader Modal (Admin Protected) */}
       <UploadPlanFilesModal
         isOpen={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
         subjects={subjects}
         currentWeekTitle={weekTitle}
         currentTasks={tasks}
+        isAdmin={isAdmin}
+        onAdminUnlock={() =>
+          handleOpenAdminLogin(
+            'صلاحية رفع ملفات الخطة الأسبوعية',
+            'إضافة ملفات الـ Weekly Plan مقتصر على المشرف (الأدمن) فقط'
+          )
+        }
         onApplyNewWeeklyPlan={handleApplyNewWeeklyPlan}
         savedUploadedFiles={uploadedFiles}
+        suggestedBlock={activeBlockNumber}
+        suggestedWeek={activeWeekNumber + 1}
+      />
+
+      {/* User Requested: Memory & Archive Modal for Blocks and Weeks */}
+      <WeeklyPlanArchiveModal
+        isOpen={isArchiveModalOpen}
+        onClose={() => setIsArchiveModalOpen(false)}
+        archive={archive}
+        activePlanId={activePlanId}
+        currentSection={selectedSection}
+        isAdmin={isAdmin}
+        onSelectPlan={(planId) => {
+          handleSelectPlan(planId);
+          setIsArchiveModalOpen(false);
+        }}
+        onSetAsCurrent={(planId) => {
+          handleSetPlanAsCurrent(planId);
+        }}
+        onDeletePlan={(planId) => {
+          handleDeletePlan(planId);
+        }}
+        onOpenUploadNewPlan={() => {
+          setIsArchiveModalOpen(false);
+          setIsUploadModalOpen(true);
+        }}
+        onOpenAdminLogin={() => {
+          handleOpenAdminLogin(
+            'صلاحية إدارة الأرشيف',
+            'إضافة الخطط وتعيين الأسبوع النشط مقتصر على الأدمن'
+          )
+        }}
+      />
+
+      {/* Admin Authentication Modal */}
+      <AdminAuthModal
+        isOpen={isAdminAuthModalOpen}
+        onClose={() => setIsAdminAuthModalOpen(false)}
+        onSuccess={handleAdminSuccess}
+        reasonTitle={adminReason?.title}
+        reasonMessage={adminReason?.message}
       />
 
       {/* Visitor Welcome Registration Modal (Student Name-Only Login with Remember Feature) */}

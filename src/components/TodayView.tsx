@@ -22,6 +22,8 @@ import {
   School,
   LogIn,
   LogOut,
+  FolderArchive,
+  Lock,
 } from 'lucide-react';
 import { VisitorStatsSummary } from '../types';
 
@@ -43,6 +45,12 @@ interface TodayViewProps {
   onOpenTimetableModal: () => void;
   onOpenWeekDaysModal: () => void;
   onOpenUploadModal?: () => void;
+  onOpenArchiveModal?: () => void;
+  activeBlockNumber?: number;
+  activeWeekNumber?: number;
+  activePlanTitle?: string;
+  isAdmin?: boolean;
+  onOpenAdminLogin?: () => void;
   onOpenVisitorStats?: () => void;
   onOpenLoginModal?: () => void;
   isLoggedIn?: boolean;
@@ -70,6 +78,12 @@ export const TodayView: React.FC<TodayViewProps> = ({
   onOpenTimetableModal,
   onOpenWeekDaysModal,
   onOpenUploadModal,
+  onOpenArchiveModal,
+  activeBlockNumber = 1,
+  activeWeekNumber = 1,
+  activePlanTitle,
+  isAdmin = false,
+  onOpenAdminLogin,
   onOpenVisitorStats,
   visitorStats,
   onNavigateToTab,
@@ -78,6 +92,16 @@ export const TodayView: React.FC<TodayViewProps> = ({
   onLogout,
 }) => {
   const [filter, setFilter] = useState<'all' | 'pending' | 'completed'>('all');
+
+  const handleUploadClick = () => {
+    if (isAdmin && onOpenUploadModal) {
+      onOpenUploadModal();
+    } else if (onOpenAdminLogin) {
+      onOpenAdminLogin();
+    } else if (onOpenUploadModal) {
+      onOpenUploadModal();
+    }
+  };
   const [copiedText, setCopiedText] = useState(false);
 
   // Current day metadata
@@ -238,17 +262,32 @@ export const TodayView: React.FC<TodayViewProps> = ({
             ))}
           </div>
 
-          {/* Requested Feature: Upload Weekly Plan Files Button */}
+          {/* Requested Feature: Archive & Memory of Weeks Button */}
+          {onOpenArchiveModal && (
+            <button
+              type="button"
+              id="btn-archive-header"
+              onClick={onOpenArchiveModal}
+              className="px-4 py-2.5 rounded-2xl text-xs font-bold bg-purple-950/70 hover:bg-purple-900 text-purple-200 border border-purple-700/60 shadow-xs transition-all duration-150 flex items-center gap-2 font-sans active:scale-95 cursor-pointer"
+              title="الرجوع لذاكرة وأرشيف الأسابيع والبلوكات السابقة"
+            >
+              <FolderArchive className="w-4 h-4 text-purple-400 stroke-[2.2]" />
+              <span className="font-bold">أرشيف الأسابيع (B{activeBlockNumber} • W{activeWeekNumber})</span>
+            </button>
+          )}
+
+          {/* Requested Feature: Upload Weekly Plan Files Button (Admin Protected) */}
           {onOpenUploadModal && (
             <button
               type="button"
               id="btn-upload-plan-files-header"
-              onClick={onOpenUploadModal}
+              onClick={handleUploadClick}
               className="px-4 py-2.5 rounded-2xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm transition-all duration-150 flex items-center gap-2 font-sans active:scale-95"
-              title="رفع ملفات الخطة الأسبوعية الجديدة (PDFs وصور)"
+              title={isAdmin ? 'رفع ملفات الخطة الأسبوعية الجديدة (الأدمن)' : 'رفع ملفات الخطة مقتصر على الأدمن'}
             >
               <UploadCloud className="w-4 h-4 text-white stroke-[2.5]" />
               <span>إضافة ملفات الخطة</span>
+              {!isAdmin && <Lock className="w-3 h-3 text-indigo-200" />}
             </button>
           )}
 

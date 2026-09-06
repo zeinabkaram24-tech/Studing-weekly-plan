@@ -103,3 +103,17 @@ export interface VisitorStatsSummary {
   lastUpdated: number;
 }
 
+export interface WeeklyPlanArchiveEntry {
+  id: string; // e.g. "b1-w1", "b1-w2"
+  blockNumber: number; // e.g. 1
+  weekNumber: number; // e.g. 1
+  title: string; // e.g. "خطة الأسبوع الأول (Block 1 - Week 1)"
+  createdAt: number;
+  startDate?: string;
+  endDate?: string;
+  tasksBySection: Record<GradeSection, PlanTask[]>;
+  uploadedFiles?: UploadedPlanFile[];
+  isCurrent: boolean;
+  notes?: string;
+}
+

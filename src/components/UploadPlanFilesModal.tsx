@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { DAYS_LIST } from '../data/defaultData';
-import { DayOfWeek, PlanTask, Subject, TaskType, UploadedPlanFile } from '../types';
+import { DayOfWeek, GradeSection, PlanTask, Subject, TaskType, UploadedPlanFile } from '../types';
 import { SubjectIcon } from './SubjectIcon';
 import {
   X,
@@ -16,7 +16,11 @@ import {
   FileCheck,
   History,
   AlertCircle,
+  Lock,
+  ShieldCheck,
+  KeyRound,
 } from 'lucide-react';
+import { verifyAdminPassword, setAdminLoggedIn } from '../utils/storage';
 
 interface UploadPlanFilesModalProps {
   isOpen: boolean;
@@ -24,13 +28,21 @@ interface UploadPlanFilesModalProps {
   subjects: Subject[];
   currentWeekTitle: string;
   currentTasks: PlanTask[];
+  isAdmin?: boolean;
+  onAdminUnlock?: () => void;
   onApplyNewWeeklyPlan: (
     newTasks: PlanTask[],
     newWeekTitle: string,
     mode: 'keep_pending_and_add' | 'replace' | 'append',
-    uploadedFiles: UploadedPlanFile[]
+    uploadedFiles: UploadedPlanFile[],
+    blockNumber: number,
+    weekNumber: number,
+    targetSection: 'all' | GradeSection,
+    setAsCurrent: boolean
   ) => void;
   savedUploadedFiles: UploadedPlanFile[];
+  suggestedBlock?: number;
+  suggestedWeek?: number;
 }
 
 export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
@@ -39,15 +51,20 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
   subjects,
   currentWeekTitle,
   currentTasks,
+  isAdmin = false,
+  onAdminUnlock,
   onApplyNewWeeklyPlan,
   savedUploadedFiles,
+  suggestedBlock = 1,
+  suggestedWeek = 2,
 }) => {
+  const [blockNumber, setBlockNumber] = useState<number>(suggestedBlock);
+  const [weekNumber, setWeekNumber] = useState<number>(suggestedWeek);
+  const [targetSection, setTargetSection] = useState<'all' | GradeSection>('all');
+  const [setAsCurrent, setSetAsCurrent] = useState<boolean>(true);
+
   const [weekTitle, setWeekTitle] = useState(() => {
-    // Generate next suggested week
-    if (currentWeekTitle.includes('1')) {
-      return currentWeekTitle.replace('1', '2').replace('الأول', 'الثاني');
-    }
-    return 'خطة الأسبوع الجديد (New Weekly Plan)';
+    return `خطة الأسبوع ${suggestedWeek} (Block ${suggestedBlock} - Week ${suggestedWeek})`;
   });
 
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>('all');
@@ -57,9 +74,30 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
   const [generatedTasks, setGeneratedTasks] = useState<Omit<PlanTask, 'id' | 'createdAt'>[]>([]);
   const [activeTab, setActiveTab] = useState<'upload' | 'history'>('upload');
 
+  // Admin lock inline auth
+  const [adminPinInput, setAdminPinInput] = useState('');
+  const [adminPinError, setAdminPinError] = useState<string | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
+
+  const handleUnlockAdmin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (verifyAdminPassword(adminPinInput)) {
+      setAdminLoggedIn(true);
+      setAdminPinError(null);
+      if (onAdminUnlock) onAdminUnlock();
+    } else {
+      setAdminPinError('رمز المرور غير صحيح. يرجى التأكد والمحاولة ثانية.');
+    }
+  };
+
+  const handleBlockWeekChange = (newBlock: number, newWeek: number) => {
+    setBlockNumber(newBlock);
+    setWeekNumber(newWeek);
+    setWeekTitle(`خطة الأسبوع ${newWeek} (Block ${newBlock} - Week ${newWeek})`);
+  };
 
   const subjectMap = new Map<string, Subject>();
   subjects.forEach((s) => subjectMap.set(s.id, s));
@@ -154,11 +192,21 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
   const handleApply = () => {
     const formatted: PlanTask[] = generatedTasks.map((t, idx) => ({
       ...t,
+      section: targetSection === 'all' ? undefined : targetSection,
       id: `task-uploaded-${Date.now()}-${idx}`,
       createdAt: Date.now(),
     }));
 
-    onApplyNewWeeklyPlan(formatted, weekTitle, updateMode, uploadedFilesList);
+    onApplyNewWeeklyPlan(
+      formatted,
+      weekTitle,
+      updateMode,
+      uploadedFilesList,
+      blockNumber,
+      weekNumber,
+      targetSection,
+      setAsCurrent
+    );
     onClose();
   };
 
@@ -174,14 +222,14 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-lg sm:text-xl font-black text-slate-900">
-                  رفع ملفات الـ Weekly Plan للأسبوع الجديد
+                  رفع وإضافة خطة أسبوعية جديدة (Weekly Plan)
                 </h3>
                 <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800 font-bold font-sans">
-                  Files Uploader
+                  Block & Week Uploader
                 </span>
               </div>
               <p className="text-xs text-slate-500">
-                أضيفي ملفات الخطط الأسبوعية (PDF أو صور) كل يوم جمعة أو في أي وقت لتحديث مهام الأسبوع
+                إضافة الخطط وتحديد البلوك والأسبوع مخصص للأدمن فقط كل يوم جمعة أو عند تحديث الخطة
               </p>
             </div>
           </div>
@@ -195,7 +243,7 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
                   activeTab === 'upload' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600'
                 }`}
               >
-                رفع ملفات
+                رفع وإعداد الخطة
               </button>
               <button
                 type="button"
@@ -204,7 +252,7 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
                   activeTab === 'history' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600'
                 }`}
               >
-                أرشيف الملفات ({savedUploadedFiles.length})
+                الملفات المرفوعة ({savedUploadedFiles.length})
               </button>
             </div>
 
@@ -218,38 +266,161 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
           </div>
         </div>
 
-        {activeTab === 'upload' ? (
-          <div className="overflow-y-auto p-5 sm:p-6 space-y-5 flex-1">
-            {/* Week Title & Update Mode Selector */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-200">
-              <div className="md:col-span-2">
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  اسم / عنوان الأسبوع الجديد:
-                </label>
+        {/* If user is not Admin: show lock gate */}
+        {!isAdmin ? (
+          <div className="p-8 text-center space-y-5 flex-1 flex flex-col items-center justify-center bg-[#F8FAFC]">
+            <div className="w-16 h-16 rounded-3xl bg-amber-100 border border-amber-200 flex items-center justify-center shadow-xs">
+              <Lock className="w-8 h-8 text-amber-700" />
+            </div>
+
+            <div className="max-w-md space-y-2">
+              <h4 className="text-lg font-black text-slate-900">
+                خاص بالأدمن فقط (أ. زينب كرم) 🔒
+              </h4>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                إضافة ملفات الويكلي بلان وتحديث خطط البلوكات والأسابيع مقتصر على حساب المشرف العام.
+                يرجى إدخال رمز مرور الأدمن للمتابعة.
+              </p>
+            </div>
+
+            <form onSubmit={handleUnlockAdmin} className="w-full max-w-sm space-y-3">
+              <div className="relative">
+                <KeyRound className="w-4 h-4 text-slate-400 absolute start-3.5 top-1/2 -translate-y-1/2" />
                 <input
-                  type="text"
-                  value={weekTitle}
-                  onChange={(e) => setWeekTitle(e.target.value)}
-                  placeholder="مثال: خطة الأسبوع الثاني (Block 1 - Week 2)..."
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 text-sm font-bold text-slate-900 bg-white"
+                  type="password"
+                  value={adminPinInput}
+                  onChange={(e) => {
+                    setAdminPinInput(e.target.value);
+                    setAdminPinError(null);
+                  }}
+                  placeholder="أدخلي رمز المرور (Admin PIN)..."
+                  className="w-full ps-10 pe-4 py-3 rounded-2xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 text-sm font-bold text-center tracking-wider bg-white"
+                  autoFocus
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  طريقة تحديث الخطة:
-                </label>
-                <select
-                  value={updateMode}
-                  onChange={(e) => setUpdateMode(e.target.value as 'keep_pending_and_add' | 'replace' | 'append')}
-                  className="w-full px-3 py-2 rounded-xl border border-indigo-300 bg-white text-xs font-bold text-slate-800 shadow-2xs focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="keep_pending_and_add">
-                    ⭐ ترحيل المهام غير المنجزة من الأسبوع الماضي + الخطة الجديدة
-                  </option>
-                  <option value="replace">استبدال مهام الأسبوع بالكامل (بدء أسبوع جديد)</option>
-                  <option value="append">إضافة إلى كافة المهام الحالية دون حذف</option>
-                </select>
+              {adminPinError && (
+                <p className="text-xs text-rose-600 font-bold">{adminPinError}</p>
+              )}
+
+              <button
+                type="submit"
+                className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2"
+              >
+                <ShieldCheck className="w-4 h-4" />
+                <span>تأكيد صلاحية الأدمن وفتح إضافة الخطة</span>
+              </button>
+            </form>
+          </div>
+        ) : activeTab === 'upload' ? (
+          <div className="overflow-y-auto p-5 sm:p-6 space-y-5 flex-1">
+            {/* Block & Week Selector Fields */}
+            <div className="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-200/80 space-y-3">
+              <div className="flex items-center gap-2">
+                <Layers className="w-4 h-4 text-indigo-700 stroke-[2.25]" />
+                <h4 className="text-xs font-black text-indigo-950 uppercase tracking-wider">
+                  بيانات تصنيف الخطة (Block & Week)
+                </h4>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-indigo-900 mb-1">
+                    رقم البلوك (Block):
+                  </label>
+                  <select
+                    value={blockNumber}
+                    onChange={(e) => handleBlockWeekChange(Number(e.target.value), weekNumber)}
+                    className="w-full px-3 py-2 rounded-xl border border-indigo-300 bg-white text-xs font-bold text-slate-800 shadow-2xs focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value={1}>Block 1</option>
+                    <option value={2}>Block 2</option>
+                    <option value={3}>Block 3</option>
+                    <option value={4}>Block 4</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-indigo-900 mb-1">
+                    رقم الأسبوع (Week):
+                  </label>
+                  <select
+                    value={weekNumber}
+                    onChange={(e) => handleBlockWeekChange(blockNumber, Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-xl border border-indigo-300 bg-white text-xs font-bold text-slate-800 shadow-2xs focus:ring-2 focus:ring-indigo-500"
+                  >
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((num) => (
+                      <option key={num} value={num}>
+                        Week {num} (الأسبوع {num})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-indigo-900 mb-1">
+                    تطبيق على فصل:
+                  </label>
+                  <select
+                    value={targetSection}
+                    onChange={(e) => setTargetSection(e.target.value as 'all' | GradeSection)}
+                    className="w-full px-3 py-2 rounded-xl border border-indigo-300 bg-white text-xs font-bold text-slate-800 shadow-2xs focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="all">🌟 جميع الفصول (2A, 2B, 2C)</option>
+                    <option value="2A">فصل Grade 2A فقط</option>
+                    <option value="2B">فصل Grade 2B فقط</option>
+                    <option value="2C">فصل Grade 2C فقط</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-indigo-900 mb-1">
+                    طريقة تحديث المهام:
+                  </label>
+                  <select
+                    value={updateMode}
+                    onChange={(e) =>
+                      setUpdateMode(
+                        e.target.value as 'keep_pending_and_add' | 'replace' | 'append'
+                      )
+                    }
+                    className="w-full px-3 py-2 rounded-xl border border-indigo-300 bg-white text-xs font-bold text-slate-800 shadow-2xs focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="keep_pending_and_add">⭐ ترحيل المهام غير المنجزة</option>
+                    <option value="replace">استبدال مهام الأسبوع بالكامل</option>
+                    <option value="append">إضافة دون حذف</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Title & Set as Current */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-bold text-indigo-900 mb-1">
+                    عنوان ومسمى الخطة المعروض في التطبيق:
+                  </label>
+                  <input
+                    type="text"
+                    value={weekTitle}
+                    onChange={(e) => setWeekTitle(e.target.value)}
+                    placeholder="مثال: خطة الأسبوع الثاني (Block 1 - Week 2)..."
+                    className="w-full px-3.5 py-2 rounded-xl border border-indigo-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 text-xs font-bold text-slate-900 bg-white"
+                  />
+                </div>
+
+                <div className="flex items-center sm:pt-5">
+                  <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 rounded-xl border border-indigo-200 w-full">
+                    <input
+                      type="checkbox"
+                      checked={setAsCurrent}
+                      onChange={(e) => setSetAsCurrent(e.target.checked)}
+                      className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                    />
+                    <span className="text-xs font-bold text-indigo-950">
+                      تعيين كأسبوع حالي للطلاب ⭐
+                    </span>
+                  </label>
+                </div>
               </div>
             </div>
 

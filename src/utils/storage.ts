@@ -5,8 +5,19 @@ import {
   DEFAULT_TIMETABLE,
   GRADE_TASKS,
   GRADE_TIMETABLES,
+  TASKS_2A,
+  TASKS_2B,
+  TASKS_2C,
 } from '../data/defaultData';
-import { DayOfWeek, GradeSection, PlanTask, StudentProfile, Subject, Timetable } from '../types';
+import {
+  DayOfWeek,
+  GradeSection,
+  PlanTask,
+  StudentProfile,
+  Subject,
+  Timetable,
+  WeeklyPlanArchiveEntry,
+} from '../types';
 
 const STORAGE_KEYS = {
   TASKS: 'g2_school_tasks_v2',
@@ -16,6 +27,9 @@ const STORAGE_KEYS = {
   WEEK_TITLE: 'g2_school_week_title_v2',
   FILES: 'g2_school_uploaded_files_v2',
   SECTION: 'g2_school_grade_section_v2',
+  ARCHIVE: 'g2_school_weekly_plans_archive_v1',
+  ACTIVE_PLAN_ID: 'g2_school_active_plan_id_v1',
+  ADMIN_LOGGED_IN: 'g2_school_admin_logged_in',
 };
 
 export function loadSavedGradeSection(): GradeSection | null {
@@ -53,19 +67,26 @@ export function getTodayDayOfWeek(): DayOfWeek {
 }
 
 export function filterOutArtTasks(tasks: PlanTask[]): PlanTask[] {
-  return tasks.filter(
-    (t) =>
-      t.subjectId !== 'arts' &&
-      t.subjectId !== 'pe' &&
-      !t.title?.toLowerCase().includes('arts') &&
-      !t.title?.toLowerCase().includes('pe') &&
-      !t.title?.toLowerCase().includes('physical education') &&
-      !t.title?.includes('التربية الفنية') &&
-      !t.title?.includes('التربية الرياضية') &&
-      !t.title?.includes('الرسم') &&
-      !t.title?.includes('اللياقة البدنية') &&
-      !t.title?.includes('الزي الرياضي')
-  );
+  return tasks
+    .filter(
+      (t) =>
+        t.subjectId !== 'arts' &&
+        t.subjectId !== 'pe' &&
+        !t.title?.toLowerCase().includes('arts') &&
+        !t.title?.toLowerCase().includes('pe') &&
+        !t.title?.toLowerCase().includes('physical education') &&
+        !t.title?.includes('التربية الفنية') &&
+        !t.title?.includes('التربية الرياضية') &&
+        !t.title?.includes('الرسم') &&
+        !t.title?.includes('اللياقة البدنية') &&
+        !t.title?.includes('الزي الرياضي')
+    )
+    .map((t) => ({
+      ...t,
+      pages: t.pages ? t.pages.replace(/كتاب الأنشطة/g, 'كتاب الدراسات الاجتماعية') : t.pages,
+      details: t.details ? t.details.replace(/كتاب الأنشطة/g, 'كتاب الدراسات الاجتماعية') : t.details,
+      title: t.title ? t.title.replace(/كتاب الأنشطة/g, 'كتاب الدراسات الاجتماعية') : t.title,
+    }));
 }
 
 export function loadSavedTasks(section: GradeSection = '2A'): PlanTask[] {
@@ -279,4 +300,177 @@ export function resetAllDataToDefault(): void {
   localStorage.removeItem(STORAGE_KEYS.WEEK_TITLE);
   localStorage.removeItem(STORAGE_KEYS.FILES);
   localStorage.removeItem(STORAGE_KEYS.SECTION);
+  localStorage.removeItem(STORAGE_KEYS.ARCHIVE);
+  localStorage.removeItem(STORAGE_KEYS.ACTIVE_PLAN_ID);
+}
+
+export type { WeeklyPlanArchiveEntry } from '../types';
+
+// --- ADMIN AUTHENTICATION STATE ---
+export function isAdminLoggedIn(): boolean {
+  try {
+    return localStorage.getItem(STORAGE_KEYS.ADMIN_LOGGED_IN) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export function setAdminLoggedIn(isAdmin: boolean): void {
+  try {
+    if (isAdmin) {
+      localStorage.setItem(STORAGE_KEYS.ADMIN_LOGGED_IN, 'true');
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.ADMIN_LOGGED_IN);
+    }
+  } catch (e) {
+    console.error('Failed to set admin login state', e);
+  }
+}
+
+export function clearAdminLogin(): void {
+  setAdminLoggedIn(false);
+}
+
+export function verifyAdminPassword(input: string): boolean {
+  if (!input) return false;
+  const clean = input.trim().toLowerCase();
+  return (
+    clean === '2026' ||
+    clean === 'admin' ||
+    clean === 'zeinab' ||
+    clean === '1234' ||
+    clean === 'zeinabkaram24@gmail.com' ||
+    clean === 'zeinabkaram909@gmail.com' ||
+    clean.includes('zeinabkaram')
+  );
+}
+
+// --- WEEKLY PLANS MEMORY & ARCHIVE (Block & Week) ---
+
+export function getInitialWeeklyPlansArchive(): WeeklyPlanArchiveEntry[] {
+  const initialEntry: WeeklyPlanArchiveEntry = {
+    id: 'b1-w1',
+    blockNumber: 1,
+    weekNumber: 1,
+    title: 'خطة الأسبوع الأول (Block 1 - Week 1)',
+    createdAt: Date.now() - 7 * 86400000,
+    startDate: 'الأحد 31 أغسطس',
+    endDate: 'الخميس 4 سبتمبر',
+    tasksBySection: {
+      '2A': filterOutArtTasks(TASKS_2A),
+      '2B': filterOutArtTasks(TASKS_2B),
+      '2C': filterOutArtTasks(TASKS_2C),
+    },
+    uploadedFiles: [],
+    isCurrent: true,
+    notes: 'الخطة التأسيسية للأسبوع الأول - مدارس النيل المصرية الدولية فرع المنيا',
+  };
+  return [initialEntry];
+}
+
+export function loadWeeklyPlansArchive(): WeeklyPlanArchiveEntry[] {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEYS.ARCHIVE);
+    if (saved) {
+      const parsed: WeeklyPlanArchiveEntry[] = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // Ensure each entry has tasks filtered
+        return parsed.map((entry) => ({
+          ...entry,
+          tasksBySection: {
+            '2A': filterOutArtTasks(entry.tasksBySection?.['2A'] || []),
+            '2B': filterOutArtTasks(entry.tasksBySection?.['2B'] || []),
+            '2C': filterOutArtTasks(entry.tasksBySection?.['2C'] || []),
+          },
+        }));
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load weekly plans archive', e);
+  }
+  const initial = getInitialWeeklyPlansArchive();
+  saveWeeklyPlansArchive(initial);
+  return initial;
+}
+
+export function saveWeeklyPlansArchive(archive: WeeklyPlanArchiveEntry[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.ARCHIVE, JSON.stringify(archive));
+  } catch (e) {
+    console.error('Failed to save weekly plans archive', e);
+  }
+}
+
+export function getActiveWeeklyPlanId(): string {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEYS.ACTIVE_PLAN_ID);
+    if (saved) return saved;
+  } catch {
+    // ignore
+  }
+  return 'b1-w1';
+}
+
+export function setActiveWeeklyPlanId(id: string): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.ACTIVE_PLAN_ID, id);
+  } catch (e) {
+    console.error('Failed to set active weekly plan id', e);
+  }
+}
+
+export function getWeeklyPlanById(id: string): WeeklyPlanArchiveEntry | undefined {
+  const archive = loadWeeklyPlansArchive();
+  return archive.find((w) => w.id === id);
+}
+
+export function addOrUpdateWeeklyPlanInArchive(
+  newPlan: WeeklyPlanArchiveEntry,
+  setAsCurrent = true
+): WeeklyPlanArchiveEntry[] {
+  const archive = loadWeeklyPlansArchive();
+  const existingIdx = archive.findIndex((p) => p.id === newPlan.id);
+
+  let updatedList: WeeklyPlanArchiveEntry[];
+
+  if (setAsCurrent) {
+    // Set all other plans isCurrent to false
+    const resetCurrent = archive.map((p) => ({ ...p, isCurrent: false }));
+    const planWithCurrent = { ...newPlan, isCurrent: true };
+
+    if (existingIdx >= 0) {
+      resetCurrent[existingIdx] = planWithCurrent;
+      updatedList = resetCurrent;
+    } else {
+      updatedList = [planWithCurrent, ...resetCurrent];
+    }
+    setActiveWeeklyPlanId(newPlan.id);
+  } else {
+    if (existingIdx >= 0) {
+      archive[existingIdx] = newPlan;
+      updatedList = [...archive];
+    } else {
+      updatedList = [newPlan, ...archive];
+    }
+  }
+
+  saveWeeklyPlansArchive(updatedList);
+  return updatedList;
+}
+
+export function deleteWeeklyPlanFromArchive(planId: string): WeeklyPlanArchiveEntry[] {
+  const archive = loadWeeklyPlansArchive();
+  // Do not delete if only 1 plan left
+  if (archive.length <= 1) return archive;
+
+  const filtered = archive.filter((p) => p.id !== planId);
+  // If active was deleted, fallback to the first
+  const activeId = getActiveWeeklyPlanId();
+  if (activeId === planId && filtered.length > 0) {
+    setActiveWeeklyPlanId(filtered[0].id);
+    filtered[0].isCurrent = true;
+  }
+
+  saveWeeklyPlansArchive(filtered);
+  return filtered;
 }

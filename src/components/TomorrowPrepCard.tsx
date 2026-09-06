@@ -27,33 +27,31 @@ interface TomorrowPrepCardProps {
   onSelectDay: (day: DayOfWeek) => void;
 }
 
-// Subject-specific book, notebook, and kit requirements
-const SUBJECT_REQUIREMENTS: Record<string, { booksAr: string; booksEn: string; kitAr?: string }> = {
+// Subject-specific essential books and notebooks (الكتب والكشاكيل الخاصة بكل مادة فقط طبقاً للخطة)
+const SUBJECT_REQUIREMENTS: Record<string, { booksAr: string; booksEn: string }> = {
   math: {
     booksAr: 'كتاب الرياضيات (Maths Book) + كشكول الرياضيات',
     booksEn: 'Math Student Book & Notebook',
-    kitAr: 'السبورة البيضاء الصغيرة والماركر ومخطط الـ 100',
   },
   english: {
-    booksAr: 'كتاب Connect Plus (Student Book & Activity Book) + كشكول الإنجليزي',
-    booksEn: 'Connect Plus Student & Activity Book + Notebook',
+    booksAr: 'كتاب Connect Plus + كشكول اللغة الإنجليزية',
+    booksEn: 'Connect Plus Book & Notebook',
   },
   arabic: {
     booksAr: 'كتاب اللغة العربية + كشكول الحصة والإملاء',
     booksEn: 'Arabic Book & Class Notebook',
   },
   science: {
-    booksAr: 'كتاب العلوم (Science Book) + كشكول الملاحظات والتجارب',
+    booksAr: 'كتاب العلوم (Science Book) + كشكول العلوم',
     booksEn: 'Science Student Book & Notebook',
-    kitAr: 'متابعة أدوات التجارب المعملية المطلوبة',
   },
   french: {
     booksAr: 'مذكرة وكشكول اللغة الفرنسية (Fiche de classe)',
     booksEn: 'French Class Sheet & Notebook',
   },
   social_studies: {
-    booksAr: 'كتاب الدراسات الاجتماعية + كتاب الأنشطة',
-    booksEn: 'Social Studies Book & Activities',
+    booksAr: 'كتاب الدراسات الاجتماعية',
+    booksEn: 'Social Studies Book',
   },
   religion: {
     booksAr: 'كتاب التربية الدينية',
@@ -62,17 +60,14 @@ const SUBJECT_REQUIREMENTS: Record<string, { booksAr: string; booksEn: string; k
   ict: {
     booksAr: 'كشكول مادة الحاسب الآلي (ICT)',
     booksEn: 'ICT Notebook',
-    kitAr: 'الالتزام بقواعد السلامة داخل معمل الحاسب الآلي',
   },
   pe: {
-    booksAr: 'الترنج والزي الرياضي المدرسي الكامل + الحذاء الرياضي',
-    booksEn: 'PE Sportswear Kit & Running Shoes',
-    kitAr: 'زجاجة مياه إضافية لممارسة التمارين الرياضية',
+    booksAr: 'الزي الرياضي المدرسي (PE Kit)',
+    booksEn: 'PE Sportswear Kit',
   },
   arts: {
-    booksAr: 'كراسة الرسم الفنية الكبيرة',
-    booksEn: 'Drawing Sketchbook',
-    kitAr: 'علبة ألوان خشب / فلوماستر ومسطرة الأشكال',
+    booksAr: 'كراسة الرسم وألوان الرسم (Art)',
+    booksEn: 'Drawing Sketchbook & Colors',
   },
   music: {
     booksAr: 'كشكول التربية الموسيقية',
@@ -135,6 +130,13 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
   const targetHomeworks = targetTasks.filter((t) => t.type === 'homework');
   const targetSupplies = targetTasks.filter((t) => t.type === 'supplies');
   const targetQuizzes = targetTasks.filter((t) => t.type === 'quiz' || t.type === 'dictation');
+  const targetArtTasks = targetTasks.filter(
+    (t) =>
+      t.subjectId === 'arts' ||
+      t.title?.includes('التربية الفنية') ||
+      t.title?.includes('الرسم') ||
+      t.title?.toLowerCase().includes('art')
+  );
 
   // Build checklist items
   const checkableItemIds: string[] = [];
@@ -149,17 +151,10 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
     checkableItemIds.push(`hw-${hw.id}`);
   });
 
-  // 3. Special tools & supplies
+  // 3. Special tools & supplies specified in weekly plan
   targetSupplies.forEach((supp) => {
     checkableItemIds.push(`supp-${supp.id}`);
   });
-
-  if (uniqueSubjectIds.includes('pe')) {
-    checkableItemIds.push('pe-kit-reminder');
-  }
-  if (uniqueSubjectIds.includes('math')) {
-    checkableItemIds.push('math-tools-reminder');
-  }
 
   const toggleItem = (id: string) => {
     setCheckedItems((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -312,11 +307,11 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
 
           {/* SPECIAL ART HIGHLIGHT IF SCHEDULED TOMORROW */}
           {uniqueSubjectIds.includes('arts') && (
-            <div className="bg-gradient-to-r from-purple-100/90 via-pink-50 to-purple-50 p-3.5 rounded-2xl border-2 border-purple-300 shadow-xs">
+            <div className="bg-purple-50 p-3.5 rounded-2xl border border-purple-200 shadow-xs">
               <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-2 font-black text-sm text-purple-950">
                   <Palette className="w-4 h-4 text-purple-700" />
-                  <span>🎨 تنبيه تجهيز حصة التربية الفنية والرسم غداً:</span>
+                  <span>🎨 مستلزمات حصة التربية الفنية (Art) المقررة في جدول غداً:</span>
                 </div>
                 <div className="flex items-center gap-1">
                   {(subjectPeriodsMap.get('arts') || []).map((p) => (
@@ -329,10 +324,23 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
                   ))}
                 </div>
               </div>
-              <p className="text-[11px] text-purple-900 font-medium leading-relaxed">
-                📌 حصة الرسم ليست ضمن قائمة التاسكات والواجبات، بل يلزم وضع المستلزمات التالية في الحقيبة هذا المساء:
-                <strong> كراسة الرسم الفنية الكبيرة</strong> + <strong>علبة الألوان (خشب / فلوماستر)</strong> + <strong>مسطرة الأشكال والممحاة</strong>.
-              </p>
+
+              {targetArtTasks.length > 0 ? (
+                <div className="space-y-1.5 mt-2">
+                  <span className="text-[11px] font-bold text-purple-900 block">
+                    المطلوب بالويكلي بلان بالنص:
+                  </span>
+                  {targetArtTasks.map((t) => (
+                    <div key={t.id} className="text-xs text-purple-950 font-bold bg-white p-2 rounded-xl border border-purple-200">
+                      • {t.title} {t.details ? `- ${t.details}` : ''} {t.pages ? `(${t.pages})` : ''}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[11px] text-purple-900 font-medium leading-relaxed">
+                  📌 المستلزمات الخاصة بالمادة: <strong>كراسة الرسم وألوان الرسم فقط</strong> (لا توجد مستلزمات أو أدوات إضافية مقررة بالويكلي بلان).
+                </p>
+              )}
             </div>
           )}
 
@@ -341,7 +349,7 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                 <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
-                <span>الكتب والكشاكيل المطلوبة لحصص جدول غداً (فصل {section}):</span>
+                <span>الكتب والكشاكيل الخاصة بالمواد المقررة لغداً (فصل {section}):</span>
               </span>
               <span className="text-[11px] font-sans text-slate-400">
                 {uniqueSubjectIds.length} مواد مقررة غداً
@@ -387,11 +395,6 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
                       <div className="text-[11px] text-slate-700 leading-snug">
                         {req?.booksAr || 'كتاب المادة وكشكول الفصل'}
                       </div>
-                      {req?.kitAr && (
-                        <div className="text-[10px] text-amber-800 font-medium mt-1 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/60 inline-block">
-                          💡 {req.kitAr}
-                        </div>
-                      )}
                     </div>
                   </div>
                 );
@@ -405,7 +408,7 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
                   <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
-                  <span>الواجبات والتكليفات المطلوب تسليمها غداً ({targetHomeworks.length} واجب):</span>
+                  <span>المطلوب في الويكلي بلان لغداً بالنص ({targetHomeworks.length} تكليف):</span>
                 </span>
               </div>
 
@@ -443,6 +446,58 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
                         </div>
                         {hw.details && (
                           <p className="text-[11px] text-slate-600 mt-0.5">{hw.details}</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* 3. Special Supplies Specified in Weekly Plan (if any) */}
+          {targetSupplies.length > 0 && (
+            <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-indigo-200/70 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-indigo-900 flex items-center gap-1.5">
+                  <Briefcase className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>مستلزمات وأدوات محددة بالويكلي بلان بالنص:</span>
+                </span>
+              </div>
+              <div className="space-y-1.5">
+                {targetSupplies.map((supp) => {
+                  const s = subjectMap.get(supp.subjectId);
+                  const itemId = `supp-${supp.id}`;
+                  const isChecked = !!checkedItems[itemId];
+                  return (
+                    <div
+                      key={supp.id}
+                      onClick={() => toggleItem(itemId)}
+                      className={`p-2.5 rounded-xl border flex items-start gap-2.5 cursor-pointer transition-all ${
+                        isChecked
+                          ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
+                          : 'bg-indigo-50/50 hover:bg-indigo-100/60 border-indigo-200 text-slate-800'
+                      }`}
+                    >
+                      <div className="mt-0.5 shrink-0">
+                        {isChecked ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 stroke-[2.5]" />
+                        ) : (
+                          <Circle className="w-4 h-4 text-indigo-500" />
+                        )}
+                      </div>
+                      <div className="flex-1 text-xs">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-indigo-950 font-sans">{s?.nameEn}:</span>
+                          <span className="font-medium text-slate-900">{supp.title}</span>
+                          {supp.pages && (
+                            <span className="text-[10px] font-mono font-bold bg-white px-1.5 py-0.2 rounded border border-indigo-200 text-indigo-800">
+                              {supp.pages}
+                            </span>
+                          )}
+                        </div>
+                        {supp.details && (
+                          <p className="text-[11px] text-slate-600 mt-0.5">{supp.details}</p>
                         )}
                       </div>
                     </div>

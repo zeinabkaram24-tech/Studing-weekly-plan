@@ -17,6 +17,9 @@ import {
   LogIn,
   LogOut,
   User,
+  FolderArchive,
+  ShieldCheck,
+  Lock,
 } from 'lucide-react';
 import { VisitorStatsSummary } from '../types';
 
@@ -33,6 +36,11 @@ interface NavbarProps {
   onOpenTimetableModal: () => void;
   onOpenWeekDaysModal: () => void;
   onOpenUploadModal: () => void;
+  onOpenArchiveModal: () => void;
+  isAdmin?: boolean;
+  onOpenAdminLogin?: () => void;
+  activeBlockNumber?: number;
+  activeWeekNumber?: number;
   onOpenVisitorStats: () => void;
   visitorStats: VisitorStatsSummary | null;
   onResetData: () => void;
@@ -56,6 +64,11 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenTimetableModal,
   onOpenWeekDaysModal,
   onOpenUploadModal,
+  onOpenArchiveModal,
+  isAdmin = false,
+  onOpenAdminLogin,
+  activeBlockNumber = 1,
+  activeWeekNumber = 1,
   onOpenVisitorStats,
   visitorStats,
   onResetData,
@@ -67,6 +80,16 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const totalToday = todayPendingCount + todayCompletedCount;
   const percentCompleted = totalToday > 0 ? Math.round((todayCompletedCount / totalToday) * 100) : 0;
+
+  const handleUploadClick = () => {
+    if (isAdmin) {
+      onOpenUploadModal();
+    } else if (onOpenAdminLogin) {
+      onOpenAdminLogin();
+    } else {
+      onOpenUploadModal();
+    }
+  };
 
   return (
     <>
@@ -256,8 +279,25 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* SPECIAL QUICK POPUP SHORTCUTS AS REQUESTED */}
           <div className="pt-3 mt-3 border-t border-slate-800/80 space-y-2">
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 block font-sans">
-              Quick Popups (أيقونات الفتح السريع)
+              ذاكرة وأرشيف الخطط (Memory & Archive)
             </span>
+
+            {/* User Requested: Archive Navigation Button */}
+            <button
+              type="button"
+              id="sidebar-btn-archive"
+              onClick={onOpenArchiveModal}
+              className="w-full bg-gradient-to-r from-purple-950/60 to-indigo-950/60 hover:from-purple-900/80 hover:to-indigo-900/80 text-purple-200 border border-purple-700/50 p-2.5 rounded-xl text-xs flex items-center justify-between transition-all font-sans group shadow-xs active:scale-98"
+              title="ذاكرة وأرشيف الخطط الأسبوعية (الرجوع لأي بلوك أو أسبوع)"
+            >
+              <div className="flex items-center gap-2">
+                <FolderArchive className="w-4 h-4 text-purple-400 group-hover:scale-110 transition-transform" />
+                <span className="font-bold">أرشيف الأسابيع والبلوكات</span>
+              </div>
+              <span className="text-[10px] px-2 py-0.5 rounded-md bg-purple-500/30 text-purple-300 font-mono font-bold">
+                B{activeBlockNumber} • W{activeWeekNumber}
+              </span>
+            </button>
 
             {/* Timetable popup shortcut */}
             <button
@@ -282,16 +322,25 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Action Tools Section */}
           <div className="pt-3 mt-3 border-t border-slate-800/80 space-y-2">
-            {/* Primary Requested Upload Button */}
+            {/* Primary Requested Upload Button (Admin Protected) */}
             <button
               type="button"
               id="sidebar-upload-plan-files"
-              onClick={onOpenUploadModal}
-              className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-bold p-3 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-indigo-950/80 transition-all active:scale-98 font-sans"
-              title="رفع ملفات الخطة الأسبوعية (PDFs والصور)"
+              onClick={handleUploadClick}
+              className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-bold p-3 rounded-2xl text-xs flex items-center justify-between shadow-lg shadow-indigo-950/80 transition-all active:scale-98 font-sans"
+              title={isAdmin ? 'رفع ملفات الخطة الأسبوعية (الأدمن)' : 'رفع ملفات الخطة مقتصر على الأدمن'}
             >
-              <UploadCloud className="w-4 h-4 stroke-[2.5]" />
-              <span>📁 رفع ملفات الـ Weekly Plan</span>
+              <div className="flex items-center gap-2">
+                <UploadCloud className="w-4 h-4 stroke-[2.5]" />
+                <span>📁 رفع ملفات الـ Weekly Plan</span>
+              </div>
+              {isAdmin ? (
+                <span className="text-[10px] bg-emerald-500/30 border border-emerald-400/40 text-emerald-200 px-1.5 py-0.5 rounded-md font-bold">
+                  أدمن 👑
+                </span>
+              ) : (
+                <Lock className="w-3.5 h-3.5 text-indigo-300" />
+              )}
             </button>
 
             <button
@@ -423,13 +472,25 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
               )}
 
+              {/* Archive button on mobile */}
               <button
                 type="button"
-                onClick={onOpenUploadModal}
-                className="p-1.5 rounded-xl bg-indigo-600 text-white shadow-xs text-xs"
-                title="رفع ملفات الخطة الأسبوعية"
+                id="mobile-btn-archive"
+                onClick={onOpenArchiveModal}
+                className="p-1.5 rounded-xl bg-purple-900/70 hover:bg-purple-800 text-purple-200 border border-purple-700/60 shadow-xs text-xs"
+                title="أرشيف وبلوكات الخطط الأسبوعية"
+              >
+                <FolderArchive className="w-3.5 h-3.5" />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleUploadClick}
+                className="p-1.5 rounded-xl bg-indigo-600 text-white shadow-xs text-xs flex items-center gap-1"
+                title={isAdmin ? 'رفع ملفات الخطة الأسبوعية (الأدمن)' : 'رفع ملفات الخطة مقتصر على الأدمن'}
               >
                 <UploadCloud className="w-3.5 h-3.5" />
+                {!isAdmin && <Lock className="w-2.5 h-2.5 text-indigo-200" />}
               </button>
 
               <button

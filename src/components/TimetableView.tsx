@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { DAYS_LIST, PERIODS_TIMING } from '../data/defaultData';
 import { DayOfWeek, GradeSection, Subject, Timetable } from '../types';
 import { SubjectIcon } from './SubjectIcon';
-import { RotateCcw, Plus, Check, Printer, Clock, School } from 'lucide-react';
+import { RotateCcw, Plus, Check, Printer, Clock, School, Lock, ShieldCheck } from 'lucide-react';
 
 interface TimetableViewProps {
   timetable: Timetable;
   subjects: Subject[];
   currentSection?: GradeSection;
+  isAdmin?: boolean;
+  onOpenAdminLogin?: () => void;
   onSelectSection?: (section: GradeSection) => void;
   onUpdateTimetable: (timetable: Timetable) => void;
   onResetTimetable: () => void;
@@ -17,6 +19,8 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
   timetable,
   subjects,
   currentSection = '2A',
+  isAdmin = false,
+  onOpenAdminLogin,
   onSelectSection,
   onUpdateTimetable,
   onResetTimetable,
@@ -30,6 +34,12 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
   const schoolDays = DAYS_LIST.filter((d) => d.isSchoolDay);
 
   const handleOpenEdit = (day: DayOfWeek, period: number, currentSubjId: string) => {
+    if (!isAdmin) {
+      if (onOpenAdminLogin) {
+        onOpenAdminLogin();
+      }
+      return;
+    }
     setEditingSlot({ day, period });
     setSelectedSubjectId(currentSubjId);
   };
@@ -109,15 +119,27 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
               <Printer className="w-4 h-4 text-slate-500" />
               <span>طباعة الجدول</span>
             </button>
-            <button
-              type="button"
-              onClick={onResetTimetable}
-              className="px-4 py-2.5 rounded-2xl text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition-colors flex items-center gap-2"
-              title="إعادة ضبط الجدول للقيم الأصلية"
-            >
-              <RotateCcw className="w-4 h-4 text-amber-600" />
-              <span>استعادة جدول فصل {currentSection} الأصلي</span>
-            </button>
+            {isAdmin ? (
+              <button
+                type="button"
+                onClick={onResetTimetable}
+                className="px-4 py-2.5 rounded-2xl text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition-colors flex items-center gap-2"
+                title="إعادة ضبط الجدول للقيم الأصلية"
+              >
+                <RotateCcw className="w-4 h-4 text-amber-600" />
+                <span>استعادة جدول فصل {currentSection} الأصلي</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onOpenAdminLogin}
+                className="px-4 py-2.5 rounded-2xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors flex items-center gap-1.5"
+                title="تعديل أو استعادة الجدول متاح للأدمن فقط"
+              >
+                <Lock className="w-3.5 h-3.5 text-slate-400" />
+                <span>تعديل الجدول (للأدمن فقط)</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -131,9 +153,23 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
             <span>•</span>
             <span><strong>غداء (Lunch break):</strong> 13:05 - 13:25</span>
           </div>
-          <span className="text-slate-500 font-sans">
-            اضغط على أي حصة لتعديل المادة في الجدول
-          </span>
+          <div className="flex items-center gap-1.5 font-sans">
+            {isAdmin ? (
+              <span className="text-indigo-800 font-bold flex items-center gap-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+                <span>وضع الأدمن نشط: يمكنك النقر على أي حصة لتعديل المادة</span>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={onOpenAdminLogin}
+                className="text-slate-500 hover:text-indigo-600 font-medium flex items-center gap-1"
+              >
+                <Lock className="w-3 h-3 text-slate-400" />
+                <span>عرض الجدول الرسمي (تعديل الحصص مقتصر على الأدمن)</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

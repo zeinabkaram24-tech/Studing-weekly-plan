@@ -15,6 +15,8 @@ import {
   Printer,
   UploadCloud,
   School,
+  FolderArchive,
+  Lock,
 } from 'lucide-react';
 
 interface WeeklyPlanViewProps {
@@ -31,6 +33,11 @@ interface WeeklyPlanViewProps {
   onOpenSmartPaste: () => void;
   onOpenTimetableModal: () => void;
   onOpenUploadModal?: () => void;
+  onOpenArchiveModal?: () => void;
+  activeBlockNumber?: number;
+  activeWeekNumber?: number;
+  isAdmin?: boolean;
+  onOpenAdminLogin?: () => void;
 }
 
 export const WeeklyPlanView: React.FC<WeeklyPlanViewProps> = ({
@@ -47,9 +54,24 @@ export const WeeklyPlanView: React.FC<WeeklyPlanViewProps> = ({
   onOpenSmartPaste,
   onOpenTimetableModal,
   onOpenUploadModal,
+  onOpenArchiveModal,
+  activeBlockNumber = 1,
+  activeWeekNumber = 1,
+  isAdmin = false,
+  onOpenAdminLogin,
 }) => {
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>('all');
   const [collapsedDays, setCollapsedDays] = useState<Record<string, boolean>>({});
+
+  const handleUploadClick = () => {
+    if (isAdmin && onOpenUploadModal) {
+      onOpenUploadModal();
+    } else if (onOpenAdminLogin) {
+      onOpenAdminLogin();
+    } else if (onOpenUploadModal) {
+      onOpenUploadModal();
+    }
+  };
 
   const subjectMap = new Map<string, Subject>();
   subjects.forEach((s) => subjectMap.set(s.id, s));
@@ -139,16 +161,31 @@ export const WeeklyPlanView: React.FC<WeeklyPlanViewProps> = ({
               <span>Done: {completedTasks}/{totalTasks} ({completionRate}%)</span>
             </div>
 
+            {/* Archive button in weekly plan */}
+            {onOpenArchiveModal && (
+              <button
+                type="button"
+                id="btn-archive-weekly"
+                onClick={onOpenArchiveModal}
+                className="px-4 py-2.5 rounded-2xl text-xs font-bold bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 transition-colors flex items-center gap-2 shadow-2xs font-sans"
+                title="أرشيف وبلوكات الخطط الأسبوعية (الرجوع لأي أسبوع سابق)"
+              >
+                <FolderArchive className="w-4 h-4 text-purple-600" />
+                <span>أرشيف الأسابيع (B{activeBlockNumber} • W{activeWeekNumber})</span>
+              </button>
+            )}
+
             {onOpenUploadModal && (
               <button
                 type="button"
                 id="btn-upload-plan-files-weekly"
-                onClick={onOpenUploadModal}
+                onClick={handleUploadClick}
                 className="px-4 py-2.5 rounded-2xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors flex items-center gap-2 shadow-xs font-sans"
-                title="رفع ملفات الخطة الأسبوعية الجديدة للأسبوع القادم"
+                title={isAdmin ? 'رفع ملفات الخطة الأسبوعية (الأدمن)' : 'رفع ملفات الخطة مقتصر على الأدمن'}
               >
                 <UploadCloud className="w-4 h-4" />
                 <span>رفع ملفات الخطة</span>
+                {!isAdmin && <Lock className="w-3 h-3 text-indigo-200" />}
               </button>
             )}
 
