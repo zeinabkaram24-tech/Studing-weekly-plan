@@ -598,13 +598,6 @@ ${previewItems}
                         {item.title}
                       </h4>
 
-                      {/* Clean page range badge */}
-                      {item.pageRangeLabel && (
-                        <div className="mt-1.5 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-800 text-xs font-bold border border-indigo-100">
-                          <span>{item.pageRangeLabel}</span>
-                        </div>
-                      )}
-
                       {/* File Name Tag */}
                       {item.fileName && (
                         <div className="mt-2 text-[11px] text-slate-400 font-mono flex items-center gap-1">

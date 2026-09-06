@@ -20,6 +20,7 @@ interface VisitorItem {
   firstSeenAt: number;
   lastSeenAt: number;
   visitCount: number;
+  dailyVisits?: Record<string, number>;
   device?: string;
   email?: string;
   userAgent?: string;
@@ -30,14 +31,64 @@ interface VisitorsDatabase {
   lastUpdated: number;
 }
 
+// Calendar day string in Egypt timezone (Africa/Cairo): "YYYY-MM-DD"
+// Midnight (12:00 AM) strictly starts a new calendar date
+function getCairoDateKey(timestamp: number = Date.now()): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Cairo' }).format(new Date(timestamp));
+  } catch {
+    const d = new Date(timestamp);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+}
+
+// Descriptive Arabic label for Egypt date: e.g. "الأحد، 6 سبتمبر 2026"
+function getCairoDateLabel(timestamp: number = Date.now()): string {
+  try {
+    return new Intl.DateTimeFormat('ar-EG', {
+      timeZone: 'Africa/Cairo',
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    }).format(new Date(timestamp));
+  } catch {
+    return new Date(timestamp).toLocaleDateString('ar-EG');
+  }
+}
+
 function calculateStats(visitors: VisitorItem[], lastUpdated: number) {
+  const todayKey = getCairoDateKey();
+  const todayDateLabel = getCairoDateLabel();
+
+  // Cumulative all-time stats
   const totalUsers = visitors.length;
   const totalStudentsNamed = visitors.filter((v) => v.loginType === 'student').length;
   const totalVisitorsGuest = visitors.filter((v) => v.loginType === 'visitor').length;
   const totalVisits = visitors.reduce((acc, v) => acc + (v.visitCount || 1), 0);
-  const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-  const todayVisits = visitors.filter((v) => v.lastSeenAt >= oneDayAgo).length;
 
+  // STRICT DAILY CENSUS: from 12:00 AM midnight to 12:00 AM next day
+  // Resets completely to 0 at 12:00 AM for the new day
+  const activeTodayVisitors = visitors.filter((v) => {
+    if (v.dailyVisits && typeof v.dailyVisits[todayKey] === 'number' && v.dailyVisits[todayKey] > 0) {
+      return true;
+    }
+    return getCairoDateKey(v.lastSeenAt) === todayKey;
+  });
+
+  const todayStudentsNamed = activeTodayVisitors.filter((v) => v.loginType === 'student').length;
+  const todayVisitorsGuest = activeTodayVisitors.filter((v) => v.loginType === 'visitor').length;
+  const todayTotalUsers = activeTodayVisitors.length;
+
+  // Total session/platform visits recorded today since 12:00 AM midnight
+  const todayVisits = activeTodayVisitors.reduce((acc, v) => {
+    if (v.dailyVisits && typeof v.dailyVisits[todayKey] === 'number') {
+      return acc + v.dailyVisits[todayKey];
+    }
+    return acc + (getCairoDateKey(v.lastSeenAt) === todayKey ? 1 : 0);
+  }, 0);
+
+  // Cumulative Section Counts
   const sectionCounts = {
     '2A': visitors.filter((v) => v.section === '2A' || (v.studentGrade && v.studentGrade.includes('2A'))).length,
     '2B': visitors.filter((v) => v.section === '2B' || (v.studentGrade && v.studentGrade.includes('2B'))).length,
@@ -50,14 +101,33 @@ function calculateStats(visitors: VisitorItem[], lastUpdated: number) {
     }).length,
   };
 
+  // Today's Section Counts
+  const todaySectionCounts = {
+    '2A': activeTodayVisitors.filter((v) => v.section === '2A' || (v.studentGrade && v.studentGrade.includes('2A'))).length,
+    '2B': activeTodayVisitors.filter((v) => v.section === '2B' || (v.studentGrade && v.studentGrade.includes('2B'))).length,
+    '2C': activeTodayVisitors.filter((v) => v.section === '2C' || (v.studentGrade && v.studentGrade.includes('2C'))).length,
+    other: activeTodayVisitors.filter((v) => {
+      const isA = v.section === '2A' || (v.studentGrade && v.studentGrade.includes('2A'));
+      const isB = v.section === '2B' || (v.studentGrade && v.studentGrade.includes('2B'));
+      const isC = v.section === '2C' || (v.studentGrade && v.studentGrade.includes('2C'));
+      return !isA && !isB && !isC;
+    }).length,
+  };
+
   return {
     totalUsers,
     totalStudentsNamed,
     totalVisitorsGuest,
     totalVisits,
+    todayDateString: todayKey,
+    todayDateLabel,
+    todayTotalUsers,
+    todayStudentsNamed,
+    todayVisitorsGuest,
     todayVisits,
     lastUpdated,
     sectionCounts,
+    todaySectionCounts,
   };
 }
 
@@ -88,6 +158,7 @@ function initDatabase(): VisitorsDatabase {
             firstSeenAt: v.firstSeenAt || Date.now(),
             lastSeenAt: v.lastSeenAt || Date.now(),
             visitCount: v.visitCount || 1,
+            dailyVisits: v.dailyVisits || {},
             device: v.device || 'متصفح ويب',
             email: v.email,
             userAgent: v.userAgent,
@@ -185,6 +256,7 @@ async function startServer() {
 
     let resultVisitor: VisitorItem;
     let isNew = false;
+    const todayKey = getCairoDateKey();
 
     if (isExplicitGuest && !cleanName) {
       // Guest Visitor without name
@@ -196,11 +268,15 @@ async function startServer() {
         const existing = db.visitors[existingGuestIndex];
         existing.lastSeenAt = Date.now();
         existing.visitCount = (existing.visitCount || 1) + 1;
+        if (!existing.dailyVisits) existing.dailyVisits = {};
+        existing.dailyVisits[todayKey] = (existing.dailyVisits[todayKey] || 0) + 1;
         if (cleanSection) existing.section = cleanSection;
         if (device) existing.device = device;
         resultVisitor = existing;
       } else {
         isNew = true;
+        const dailyVisits: Record<string, number> = {};
+        dailyVisits[todayKey] = 1;
         resultVisitor = {
           id: visitorId || `vis-guest-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
           name: "زائر",
@@ -210,6 +286,7 @@ async function startServer() {
           firstSeenAt: Date.now(),
           lastSeenAt: Date.now(),
           visitCount: 1,
+          dailyVisits,
           userAgent: typeof userAgent === "string" ? userAgent.substring(0, 150) : undefined,
           device: typeof device === "string" ? device : "متصفح ويب",
         };
@@ -233,12 +310,16 @@ async function startServer() {
         existing.loginType = "student";
         existing.lastSeenAt = Date.now();
         existing.visitCount = (existing.visitCount || 1) + 1;
+        if (!existing.dailyVisits) existing.dailyVisits = {};
+        existing.dailyVisits[todayKey] = (existing.dailyVisits[todayKey] || 0) + 1;
         if (cleanGrade) existing.studentGrade = cleanGrade;
         if (cleanSection) existing.section = cleanSection;
         if (device) existing.device = device;
         resultVisitor = existing;
       } else {
         isNew = true;
+        const dailyVisits: Record<string, number> = {};
+        dailyVisits[todayKey] = 1;
         resultVisitor = {
           id: visitorId || `std-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
           name: cleanName,
@@ -248,6 +329,7 @@ async function startServer() {
           firstSeenAt: Date.now(),
           lastSeenAt: Date.now(),
           visitCount: 1,
+          dailyVisits,
           userAgent: typeof userAgent === "string" ? userAgent.substring(0, 150) : undefined,
           device: typeof device === "string" ? device : "متصفح ويب",
         };
@@ -279,6 +361,8 @@ async function startServer() {
       ? name.trim()
       : "";
 
+    const todayKey = getCairoDateKey();
+
     let existing = db.visitors.find(
       (v) => (cleanName && v.name && v.name.toLowerCase() === cleanName.toLowerCase()) ||
              (visitorId && v.id === visitorId)
@@ -286,14 +370,23 @@ async function startServer() {
 
     if (existing) {
       const now = Date.now();
-      if (now - existing.lastSeenAt > 20 * 60 * 1000) {
+      if (!existing.dailyVisits) existing.dailyVisits = {};
+      const lastSeenDay = getCairoDateKey(existing.lastSeenAt);
+
+      // Increment visit if last seen on another day or more than 15 mins ago
+      if (lastSeenDay !== todayKey || now - existing.lastSeenAt > 15 * 60 * 1000) {
         existing.visitCount = (existing.visitCount || 1) + 1;
+        existing.dailyVisits[todayKey] = (existing.dailyVisits[todayKey] || 0) + 1;
+      } else if (!existing.dailyVisits[todayKey]) {
+        existing.dailyVisits[todayKey] = 1;
       }
       existing.lastSeenAt = now;
       if (section && !existing.section) existing.section = section;
       saveDatabase(db);
     } else if (visitorId) {
       // Auto-register guest on ping if not yet recorded
+      const dailyVisits: Record<string, number> = {};
+      dailyVisits[todayKey] = 1;
       const newGuest: VisitorItem = {
         id: visitorId,
         name: cleanName || "زائر",
@@ -303,6 +396,7 @@ async function startServer() {
         firstSeenAt: Date.now(),
         lastSeenAt: Date.now(),
         visitCount: 1,
+        dailyVisits,
         device: "متصفح ويب",
       };
       db.visitors.unshift(newGuest);
@@ -333,9 +427,26 @@ async function startServer() {
     }
 
     const stats = calculateStats(db.visitors, db.lastUpdated);
+    const todayKey = stats.todayDateString;
 
-    // Sort by most recent activity (admin at top if recent, then latest activity)
-    const sorted = [...db.visitors].sort((a, b) => b.lastSeenAt - a.lastSeenAt);
+    // Enhance each visitor with today's status:
+    const enriched = db.visitors.map((v) => {
+      const isToday = (v.dailyVisits && typeof v.dailyVisits[todayKey] === 'number' && v.dailyVisits[todayKey] > 0) ||
+                      getCairoDateKey(v.lastSeenAt) === todayKey;
+      return {
+        ...v,
+        visitedToday: isToday,
+        todayVisitsCount: v.dailyVisits?.[todayKey] || (isToday ? 1 : 0),
+      };
+    });
+
+    // Sort: people who attended today first (sorted by lastSeenAt desc), then others by lastSeenAt desc
+    const sorted = enriched.sort((a, b) => {
+      if (a.visitedToday !== b.visitedToday) {
+        return a.visitedToday ? -1 : 1;
+      }
+      return b.lastSeenAt - a.lastSeenAt;
+    });
 
     res.json({
       authorized: true,

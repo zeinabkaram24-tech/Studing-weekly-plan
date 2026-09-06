@@ -397,15 +397,6 @@ export const TodayView: React.FC<TodayViewProps> = ({
                 </span>
               </div>
             </div>
-
-            <button
-              type="button"
-              onClick={onOpenTimetableModal}
-              className="text-xs font-bold text-indigo-600 hover:text-indigo-800 px-3 py-1 rounded-lg hover:bg-indigo-50 transition-colors flex items-center gap-1 font-sans"
-            >
-              <span>الجدول كاملاً</span>
-              <ExternalLink className="w-3 h-3" />
-            </button>
           </div>
 
           {/* Periods Strip */}

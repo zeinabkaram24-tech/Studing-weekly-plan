@@ -7,7 +7,6 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   {
     id: 'mat-sci-u1-study',
     title: 'Unit 1 (Pages 4–12)',
-    pageRangeLabel: 'يونت 1 من بيج 4 لبيج 12',
     subjectId: 'science',
     blockNumber: 1,
     category: 'main_sheets',
@@ -45,7 +44,6 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   {
     id: 'mat-sci-u1-work',
     title: 'Homework (Pages 13–25)',
-    pageRangeLabel: 'هوم ورك بيج 13 لبيج 25',
     subjectId: 'science',
     blockNumber: 1,
     category: 'main_sheets',
@@ -76,7 +74,6 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   {
     id: 'mat-sci-u2-study',
     title: 'Unit 2 (Pages 26–34)',
-    pageRangeLabel: 'يونت 2 من بيج 26 لبيج 34',
     subjectId: 'science',
     blockNumber: 1,
     category: 'main_sheets',
@@ -104,7 +101,6 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   {
     id: 'mat-sci-u2-work',
     title: 'Homework (Pages 35–44)',
-    pageRangeLabel: 'هوم ورك بيج 35 لبيج 44',
     subjectId: 'science',
     blockNumber: 1,
     category: 'main_sheets',
@@ -137,7 +133,6 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   {
     id: 'mat-eng-u1-classwork',
     title: 'Unit 1 (Pages 1–12)',
-    pageRangeLabel: 'يونت 1 من بيج 1 لبيج 12',
     subjectId: 'english',
     blockNumber: 1,
     category: 'main_sheets',
@@ -170,7 +165,6 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   {
     id: 'mat-eng-u2-classwork',
     title: 'Unit 2 (Pages 13–32)',
-    pageRangeLabel: 'يونت 2 من بيج 13 لبيج 32',
     subjectId: 'english',
     blockNumber: 1,
     category: 'main_sheets',
@@ -198,7 +192,6 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   {
     id: 'mat-eng-u3-u4-classwork',
     title: 'Unit 3 & 4 (Pages 33–54)',
-    pageRangeLabel: 'يونت 3 و 4 من بيج 33 لبيج 54',
     subjectId: 'english',
     blockNumber: 1,
     category: 'main_sheets',
@@ -225,7 +218,6 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   {
     id: 'mat-eng-homework',
     title: 'Homework (Pages 55–82)',
-    pageRangeLabel: 'هوم ورك بيج 55 لبيج 82',
     subjectId: 'english',
     blockNumber: 1,
     category: 'main_sheets',
@@ -251,7 +243,6 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   {
     id: 'mat-eng-study-sheets',
     title: 'Study Sheets (Pages 83–135)',
-    pageRangeLabel: 'شيت مذاكرة من بيج 83 لبيج 135',
     subjectId: 'english',
     blockNumber: 1,
     category: 'main_sheets',
@@ -280,7 +271,6 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   {
     id: 'mat-math-u1-classwork',
     title: 'Unit 1 (Pages 4–35)',
-    pageRangeLabel: 'يونت 1 من بيج 4 لبيج 35',
     subjectId: 'math',
     blockNumber: 1,
     category: 'main_sheets',
@@ -308,7 +298,6 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   {
     id: 'mat-math-u2-classwork',
     title: 'Unit 2 (Pages 36–50)',
-    pageRangeLabel: 'يونت 2 من بيج 36 لبيج 50',
     subjectId: 'math',
     blockNumber: 1,
     category: 'main_sheets',
@@ -333,7 +322,6 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   {
     id: 'mat-math-u3-u4-classwork',
     title: 'Unit 3 & 4 (Pages 51–75)',
-    pageRangeLabel: 'يونت 3 و 4 من بيج 51 لبيج 75',
     subjectId: 'math',
     blockNumber: 1,
     category: 'main_sheets',
@@ -359,7 +347,6 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   {
     id: 'mat-math-homework',
     title: 'Homework (Pages 76–96)',
-    pageRangeLabel: 'هوم ورك بيج 76 لبيج 96',
     subjectId: 'math',
     blockNumber: 1,
     category: 'main_sheets',
@@ -388,7 +375,6 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   {
     id: 'mat-arb-rev-w1',
     title: 'مراجعة الأسبوع الأول (صفحات 2–7)',
-    pageRangeLabel: 'مراجعة من ص 2 لـ 7',
     subjectId: 'arabic',
     blockNumber: 1,
     category: 'main_sheets',
@@ -415,7 +401,6 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   {
     id: 'mat-arb-u1-school',
     title: 'الوحدة الأولى (صفحات 8–24)',
-    pageRangeLabel: 'يونت 1 من بيج 8 لبيج 24',
     subjectId: 'arabic',
     blockNumber: 1,
     category: 'main_sheets',
@@ -442,7 +427,6 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   {
     id: 'mat-arb-u2-living',
     title: 'الوحدة الثانية (صفحات 25–43)',
-    pageRangeLabel: 'يونت 2 من بيج 25 لبيج 43',
     subjectId: 'arabic',
     blockNumber: 1,
     category: 'main_sheets',
@@ -472,7 +456,6 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   {
     id: 'mat-arb-homework',
     title: 'كراسة التكليفات المنزلية (صفحات 44–50)',
-    pageRangeLabel: 'هوم ورك بيج 44 لبيج 50',
     subjectId: 'arabic',
     blockNumber: 1,
     category: 'main_sheets',
@@ -503,7 +486,6 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   {
     id: 'mat-fr-sem1-2',
     title: 'Semaine 1 & 2 (Pages 3–21)',
-    pageRangeLabel: 'يونت 1 من بيج 3 لبيج 21',
     subjectId: 'french',
     blockNumber: 1,
     category: 'main_sheets',
@@ -530,7 +512,6 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   {
     id: 'mat-fr-sem3-4',
     title: 'Semaine 3 & 4 (Pages 22–36)',
-    pageRangeLabel: 'يونت 2 من بيج 22 لبيج 36',
     subjectId: 'french',
     blockNumber: 1,
     category: 'main_sheets',
@@ -561,7 +542,6 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   {
     id: 'mat-ict-w1-2',
     title: 'Unit 1 (Pages 3–25)',
-    pageRangeLabel: 'يونت 1 من بيج 3 لبيج 25',
     subjectId: 'ict',
     blockNumber: 1,
     category: 'main_sheets',
@@ -584,7 +564,6 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   {
     id: 'mat-ict-w3-4-5',
     title: 'Unit 2 & Revision (Pages 26–60)',
-    pageRangeLabel: 'يونت 2 من بيج 26 لبيج 60',
     subjectId: 'ict',
     blockNumber: 1,
     category: 'main_sheets',
@@ -612,7 +591,6 @@ export const INITIAL_MATERIALS_DATA: MaterialItem[] = [
   {
     id: 'mat-soc-u1',
     title: 'الوحدة الأولى (صفحات 1–30)',
-    pageRangeLabel: 'يونت 1 من بيج 1 لبيج 30',
     subjectId: 'social_studies',
     blockNumber: 1,
     category: 'main_sheets',

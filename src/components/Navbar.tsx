@@ -117,19 +117,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Discreet top icons for creator / admin */}
             <div className="flex items-center gap-1.5 shrink-0">
-              {/* Materials Button */}
-              {onOpenMaterialsModal && (
-                <button
-                  type="button"
-                  id="desktop-header-materials"
-                  onClick={onOpenMaterialsModal}
-                  className="p-2 rounded-xl bg-blue-950/60 hover:bg-blue-900/80 text-blue-300 hover:text-white border border-blue-800/50 transition-colors shadow-xs active:scale-95 flex items-center gap-1 cursor-pointer"
-                  title="الماتيريال والشيتات (Block 1 - الشيتات الرئيسية والأسابيع)"
-                >
-                  <FolderOpen className="w-4 h-4 text-blue-400" />
-                </button>
-              )}
-
               {/* Upload Weekly Plan Button placed next to visitor records icon */}
               <button
                 type="button"

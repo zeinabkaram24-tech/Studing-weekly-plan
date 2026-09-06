@@ -94,6 +94,7 @@ export interface VisitorItem {
   firstSeenAt: number;
   lastSeenAt: number;
   visitCount: number;
+  dailyVisits?: Record<string, number>;
   device?: string;
   email?: string;
   userAgent?: string;
@@ -104,9 +105,21 @@ export interface VisitorStatsSummary {
   totalStudentsNamed: number;
   totalVisitorsGuest: number;
   totalVisits: number;
+  // Daily census strictly starting from 12:00 AM midnight to 12:00 AM next day
+  todayDateString?: string;
+  todayDateLabel?: string;
+  todayTotalUsers: number;
+  todayStudentsNamed: number;
+  todayVisitorsGuest: number;
   todayVisits: number;
   lastUpdated: number;
   sectionCounts?: {
+    '2A': number;
+    '2B': number;
+    '2C': number;
+    other: number;
+  };
+  todaySectionCounts?: {
     '2A': number;
     '2B': number;
     '2C': number;
@@ -142,7 +155,6 @@ export interface MaterialItem {
   notes?: string;
   pageCount?: number;
   unitTitle?: string;
-  pageRangeLabel?: string;
   contentPreview?: {
     type: 'exercises' | 'topics' | 'reading';
     items: string[];

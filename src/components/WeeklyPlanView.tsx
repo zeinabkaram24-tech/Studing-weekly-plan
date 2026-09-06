@@ -158,24 +158,6 @@ export const WeeklyPlanView: React.FC<WeeklyPlanViewProps> = ({
               <Calendar className="w-4 h-4 text-indigo-600" />
               <span>الجدول الدراسي ({currentSection})</span>
             </button>
-
-            <button
-              type="button"
-              onClick={onOpenSmartPaste}
-              className="px-4 py-2.5 rounded-2xl text-xs font-bold bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 transition-colors flex items-center gap-2 shadow-2xs font-sans"
-            >
-              <Sparkles className="w-4 h-4 text-purple-600" />
-              <span>Smart Paste (لصق ذكي)</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="p-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
-              title="طباعة الخطة الأسبوعية"
-            >
-              <Printer className="w-4 h-4" />
-            </button>
           </div>
         </div>
 
