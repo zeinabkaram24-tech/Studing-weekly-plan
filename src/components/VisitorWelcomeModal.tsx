@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, Sparkles, CheckCircle2, ShieldCheck, X, School, BookmarkCheck, LogOut, LogIn } from 'lucide-react';
-import { registerStudentLogin } from '../utils/visitorTracker';
+import { registerStudentLogin, registerGuestVisitor } from '../utils/visitorTracker';
 import { GradeSection, VisitorItem } from '../types';
 import { GRADE_SECTIONS } from '../data/defaultData';
 import { getSavedStudentName, isStudentRemembered, saveStudentLogin } from '../utils/storage';
@@ -60,7 +60,7 @@ export const VisitorWelcomeModal: React.FC<VisitorWelcomeModalProps> = ({
 
     setLoading(true);
     // 2. Register with the backend for visit tracking
-    const res = await registerStudentLogin(cleanName, `Grade ${selectedSection}`);
+    const res = await registerStudentLogin(cleanName, `Grade ${selectedSection}`, selectedSection);
     setLoading(false);
 
     if (res.success && res.visitor) {
@@ -69,9 +69,10 @@ export const VisitorWelcomeModal: React.FC<VisitorWelcomeModalProps> = ({
       // Even if server is offline or fails, local login succeeded
       onRegistered({
         id: `local-${Date.now()}`,
-        email: `${encodeURIComponent(cleanName.replace(/\s+/g, '_')).toLowerCase()}@student.app`,
         name: cleanName,
+        loginType: 'student',
         studentGrade: `Grade ${selectedSection}`,
+        section: selectedSection,
         firstSeenAt: Date.now(),
         lastSeenAt: Date.now(),
         visitCount: 1,
@@ -82,7 +83,8 @@ export const VisitorWelcomeModal: React.FC<VisitorWelcomeModalProps> = ({
   };
 
   const handleQuickEnter = () => {
-    // Enter as visitor without saving credentials
+    // Enter as visitor without saving credentials - also register visitor in backend so admin sees visitor count
+    registerGuestVisitor(selectedSection);
     onClose();
   };
 

@@ -1,14 +1,19 @@
 import { VisitorItem, VisitorStatsSummary } from '../types';
 
-const STORAGE_EMAIL_KEY = 'g2b_visitor_email';
-const STORAGE_NAME_KEY = 'g2b_visitor_name';
+const STORAGE_NAME_KEY = 'g2b_student_name';
+const STORAGE_VISITOR_ID_KEY = 'g2b_visitor_id';
 const STORAGE_ADMIN_PIN_KEY = 'g2b_admin_pin';
 
-export function getStoredVisitorEmail(): string | null {
+export function getOrCreateVisitorId(): string {
   try {
-    return localStorage.getItem(STORAGE_EMAIL_KEY);
+    let id = localStorage.getItem(STORAGE_VISITOR_ID_KEY);
+    if (!id) {
+      id = `vis-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+      localStorage.setItem(STORAGE_VISITOR_ID_KEY, id);
+    }
+    return id;
   } catch {
-    return null;
+    return `vis-${Date.now()}`;
   }
 }
 
@@ -20,14 +25,11 @@ export function getStoredVisitorName(): string | null {
   }
 }
 
-export function setStoredVisitorInfo(email: string, name?: string): void {
+export function setStoredVisitorName(name: string): void {
   try {
-    localStorage.setItem(STORAGE_EMAIL_KEY, email.trim().toLowerCase());
-    if (name) {
-      localStorage.setItem(STORAGE_NAME_KEY, name.trim());
-    }
+    localStorage.setItem(STORAGE_NAME_KEY, name.trim());
   } catch (e) {
-    console.error('Could not save visitor info to local storage', e);
+    console.error('Could not save student name to local storage', e);
   }
 }
 
@@ -47,7 +49,7 @@ export function setStoredAdminPin(pin: string): void {
   }
 }
 
-// 1. Fetch live public stats
+// 1. Fetch live public summary stats
 export async function fetchVisitorStats(): Promise<VisitorStatsSummary | null> {
   try {
     const res = await fetch('/api/visitors/stats');
@@ -60,12 +62,14 @@ export async function fetchVisitorStats(): Promise<VisitorStatsSummary | null> {
   }
 }
 
-// 2. Register visitor student by name
+// 2. Register student login by name
 export async function registerStudentLogin(
   studentName: string,
-  studentGrade = 'Grade 2'
-): Promise<{ success: boolean; visitor?: VisitorItem; error?: string }> {
+  studentGrade = 'Grade 2',
+  section?: string
+): Promise<{ success: boolean; visitor?: VisitorItem; stats?: VisitorStatsSummary; error?: string }> {
   try {
+    const visitorId = getOrCreateVisitorId();
     const res = await fetch('/api/visitors/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -73,8 +77,10 @@ export async function registerStudentLogin(
         studentName: studentName.trim(),
         name: studentName.trim(),
         studentGrade,
+        section,
+        visitorId,
         userAgent: navigator.userAgent,
-        device: `${navigator.platform || 'Unknown'} - ${navigator.language || 'ar'}`,
+        device: `${navigator.platform || 'الجهاز'} (${navigator.language || 'ar'})`,
       }),
     });
 
@@ -85,7 +91,7 @@ export async function registerStudentLogin(
 
     const data = await res.json();
     if (data.success && data.visitor) {
-      setStoredVisitorInfo(data.visitor.email, data.visitor.name);
+      setStoredVisitorName(data.visitor.name);
     }
     return data;
   } catch (error) {
@@ -94,73 +100,70 @@ export async function registerStudentLogin(
   }
 }
 
-// 2b. Register visitor email (legacy fallback)
-export async function registerVisitorEmail(
-  email: string,
-  name?: string,
-  studentGrade = 'Grade 2B'
-): Promise<{ success: boolean; visitor?: VisitorItem; error?: string }> {
+// 2b. Register guest visitor (automatic tracking for visitors who do not log in)
+export async function registerGuestVisitor(
+  section?: string
+): Promise<{ success: boolean; visitor?: VisitorItem; stats?: VisitorStatsSummary }> {
   try {
+    const visitorId = getOrCreateVisitorId();
     const res = await fetch('/api/visitors/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email: email.trim().toLowerCase(),
-        name: name?.trim(),
-        studentGrade,
+        isGuest: true,
+        visitorId,
+        section,
         userAgent: navigator.userAgent,
-        device: `${navigator.platform || 'Unknown'} - ${navigator.language || 'ar'}`,
+        device: `${navigator.platform || 'الجهاز'} (${navigator.language || 'ar'})`,
       }),
     });
 
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      return { success: false, error: errData.error || 'فشل تسجيل البيانات' };
-    }
-
+    if (!res.ok) return { success: false };
     const data = await res.json();
-    if (data.success && data.visitor) {
-      setStoredVisitorInfo(data.visitor.email, data.visitor.name);
-    }
     return data;
-  } catch (error) {
-    console.error('Registration failed:', error);
-    return { success: false, error: 'تعذر الاتصال بالخادم' };
+  } catch {
+    return { success: false };
   }
 }
 
-// 3. Ping visitor / student session
-export async function pingVisitorSession(identifier: string): Promise<void> {
+// 3. Ping visitor / student session to keep active count accurate
+export async function pingVisitorSession(identifier?: string, section?: string): Promise<void> {
   try {
-    const isEmail = identifier.includes('@');
+    const visitorId = getOrCreateVisitorId();
     await fetch('/api/visitors/ping', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(isEmail ? { email: identifier } : { studentName: identifier }),
+      body: JSON.stringify({
+        studentName: identifier || undefined,
+        visitorId,
+        section,
+      }),
     });
   } catch {
     // Ignore silent background ping errors
   }
 }
 
-// 4. Fetch full visitors list for Admin
+// 4. Fetch full report of students and visitors for Admin
 export async function fetchAllVisitorsAdmin(
-  pin?: string,
-  userEmail?: string
+  pin?: string
 ): Promise<{
   authorized: boolean;
-  totalUniqueEmails: number;
-  totalVisits: number;
+  stats?: VisitorStatsSummary;
+  totalUsers?: number;
+  totalStudentsNamed?: number;
+  totalVisitorsGuest?: number;
+  totalVisits?: number;
   visitors: VisitorItem[];
   error?: string;
 }> {
   try {
+    const activePin = pin || getStoredAdminPin() || '';
     const res = await fetch('/api/visitors/all', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        pin: pin || getStoredAdminPin() || '',
-        userEmail: userEmail || getStoredVisitorEmail() || '',
+        pin: activePin,
       }),
     });
 
@@ -168,10 +171,8 @@ export async function fetchAllVisitorsAdmin(
       const err = await res.json().catch(() => ({}));
       return {
         authorized: false,
-        totalUniqueEmails: 0,
-        totalVisits: 0,
         visitors: [],
-        error: err.error || 'غير مصرح لك بعرض هذه القائمة',
+        error: err.error || 'غير مصرح لك بعرض هذا التقرير',
       };
     }
 
@@ -181,19 +182,16 @@ export async function fetchAllVisitorsAdmin(
     console.error('Fetch all visitors failed:', error);
     return {
       authorized: false,
-      totalUniqueEmails: 0,
-      totalVisits: 0,
       visitors: [],
       error: 'تعذر الاتصال بالخادم',
     };
   }
 }
 
-// 5. Delete visitor record (Admin)
+// 5. Delete visitor/student record (Admin)
 export async function deleteVisitorRecord(
   id: string,
-  pin?: string,
-  userEmail?: string
+  pin?: string
 ): Promise<boolean> {
   try {
     const res = await fetch(`/api/visitors/${id}`, {
@@ -201,7 +199,6 @@ export async function deleteVisitorRecord(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         pin: pin || getStoredAdminPin() || '',
-        userEmail: userEmail || getStoredVisitorEmail() || '',
       }),
     });
     return res.ok;

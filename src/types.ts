@@ -87,20 +87,31 @@ export interface UploadedPlanFile {
 
 export interface VisitorItem {
   id: string;
-  email: string;
-  name?: string;
+  name: string;
+  loginType: 'student' | 'visitor' | 'admin';
   studentGrade?: string;
+  section?: GradeSection | string;
   firstSeenAt: number;
   lastSeenAt: number;
   visitCount: number;
   device?: string;
+  email?: string;
+  userAgent?: string;
 }
 
 export interface VisitorStatsSummary {
-  totalUniqueEmails: number;
+  totalUsers: number;
+  totalStudentsNamed: number;
+  totalVisitorsGuest: number;
   totalVisits: number;
   todayVisits: number;
   lastUpdated: number;
+  sectionCounts?: {
+    '2A': number;
+    '2B': number;
+    '2C': number;
+    other: number;
+  };
 }
 
 export interface WeeklyPlanArchiveEntry {

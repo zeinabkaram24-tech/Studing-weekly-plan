@@ -131,8 +131,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 type="button"
                 id="desktop-header-visitor-stats"
                 onClick={onOpenVisitorStats}
-                className="p-2 rounded-xl bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-400 border border-emerald-800/50 transition-colors shadow-xs active:scale-95"
-                title="سجل الحضور والمتابعة (Admin)"
+                className="p-2 rounded-xl bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-400 border border-emerald-800/50 transition-colors shadow-xs active:scale-95 cursor-pointer"
+                title="تقرير تسجيل الدخول ومتابعة الطلاب والزوار (Admin)"
               >
                 <Users className="w-4 h-4" />
               </button>
@@ -493,8 +493,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                   type="button"
                   id="mobile-btn-visitor-stats"
                   onClick={onOpenVisitorStats}
-                  className="p-1.5 rounded-lg bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-800/70 text-xs flex items-center justify-center active:scale-95"
-                  title="سجل الحضور والمتابعة (Admin)"
+                  className="p-1.5 rounded-lg bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-800/70 text-xs flex items-center justify-center active:scale-95 cursor-pointer"
+                  title="تقرير تسجيل الدخول ومتابعة الطلاب والزوار (Admin)"
                 >
                   <Users className="w-3.5 h-3.5 text-emerald-400" />
                 </button>

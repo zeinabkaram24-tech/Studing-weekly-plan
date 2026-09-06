@@ -59,7 +59,8 @@ import { triggerAllDoneCelebration } from './utils/celebration';
 import {
   fetchVisitorStats,
   pingVisitorSession,
-  getStoredVisitorEmail,
+  registerGuestVisitor,
+  getStoredVisitorName,
 } from './utils/visitorTracker';
 import { VisitorStatsSummary } from './types';
 
@@ -189,29 +190,27 @@ export default function App() {
     // Check if student login is remembered
     const isRemembered = isStudentRemembered();
     const savedStudentName = getSavedStudentName();
-    const storedEmail = getStoredVisitorEmail();
+    const storedName = getStoredVisitorName();
+    const activeStudentName = savedStudentName || storedName;
 
-    if (savedStudentName && isRemembered) {
+    if (activeStudentName && isRemembered) {
       // Student is remembered on this browser: ping session and do not show welcome prompt
-      pingVisitorSession(savedStudentName);
+      pingVisitorSession(activeStudentName, selectedSection);
       setStudent((prev) => ({
         ...prev,
-        name: savedStudentName,
+        name: activeStudentName,
       }));
       setIsLoggedIn(true);
     } else {
       setIsLoggedIn(false);
-      if (storedEmail) {
-        pingVisitorSession(storedEmail);
-      } else {
-        // First visit / not remembered: Show student welcome registration modal
-        const timer = setTimeout(() => {
-          setIsWelcomeModalOpen(true);
-        }, 800);
-        return () => clearTimeout(timer);
-      }
+      // Automatically register guest visitor session so admin dashboard accurately counts everyone who opens the app
+      registerGuestVisitor(selectedSection);
+      const timer = setTimeout(() => {
+        setIsWelcomeModalOpen(true);
+      }, 800);
+      return () => clearTimeout(timer);
     }
-  }, []);
+  }, [selectedSection]);
 
   // Sync to localStorage
   useEffect(() => {

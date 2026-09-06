@@ -13,19 +13,52 @@ const DB_FILE = path.join(DATA_DIR, "visitors.json");
 
 interface VisitorItem {
   id: string;
-  email: string;
-  name?: string;
+  name: string;
+  loginType: 'student' | 'visitor' | 'admin';
   studentGrade?: string;
+  section?: string;
   firstSeenAt: number;
   lastSeenAt: number;
   visitCount: number;
-  userAgent?: string;
   device?: string;
+  email?: string;
+  userAgent?: string;
 }
 
 interface VisitorsDatabase {
   visitors: VisitorItem[];
   lastUpdated: number;
+}
+
+function calculateStats(visitors: VisitorItem[], lastUpdated: number) {
+  const totalUsers = visitors.length;
+  const totalStudentsNamed = visitors.filter((v) => v.loginType === 'student').length;
+  const totalVisitorsGuest = visitors.filter((v) => v.loginType === 'visitor').length;
+  const totalVisits = visitors.reduce((acc, v) => acc + (v.visitCount || 1), 0);
+  const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+  const todayVisits = visitors.filter((v) => v.lastSeenAt >= oneDayAgo).length;
+
+  const sectionCounts = {
+    '2A': visitors.filter((v) => v.section === '2A' || (v.studentGrade && v.studentGrade.includes('2A'))).length,
+    '2B': visitors.filter((v) => v.section === '2B' || (v.studentGrade && v.studentGrade.includes('2B'))).length,
+    '2C': visitors.filter((v) => v.section === '2C' || (v.studentGrade && v.studentGrade.includes('2C'))).length,
+    other: visitors.filter((v) => {
+      const isA = v.section === '2A' || (v.studentGrade && v.studentGrade.includes('2A'));
+      const isB = v.section === '2B' || (v.studentGrade && v.studentGrade.includes('2B'));
+      const isC = v.section === '2C' || (v.studentGrade && v.studentGrade.includes('2C'));
+      return !isA && !isB && !isC;
+    }).length,
+  };
+
+  return {
+    totalUsers,
+    totalStudentsNamed,
+    totalVisitorsGuest,
+    totalVisits,
+    todayVisits,
+    lastUpdated,
+    sectionCounts,
+  };
 }
 
 // Ensure data folder and database file exist
@@ -36,7 +69,32 @@ function initDatabase(): VisitorsDatabase {
     }
     if (fs.existsSync(DB_FILE)) {
       const content = fs.readFileSync(DB_FILE, "utf-8");
-      return JSON.parse(content);
+      const parsed: VisitorsDatabase = JSON.parse(content);
+      // Normalize existing records
+      if (Array.isArray(parsed.visitors)) {
+        parsed.visitors = parsed.visitors.map((v: any) => {
+          let loginType: 'student' | 'visitor' | 'admin' = v.loginType || 'student';
+          if (v.id === 'owner-zeinab' || (v.name && v.name.includes('المسؤول'))) {
+            loginType = 'admin';
+          } else if (!v.name || v.name.trim() === 'زائر' || v.name.startsWith('زائر') || v.name === 'Guest') {
+            loginType = 'visitor';
+          }
+          return {
+            id: v.id || `vis-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            name: v.name || (loginType === 'visitor' ? 'زائر' : 'طالب'),
+            loginType,
+            studentGrade: v.studentGrade || (loginType === 'visitor' ? 'زائر' : 'Grade 2'),
+            section: v.section || (v.studentGrade && v.studentGrade.includes('2A') ? '2A' : v.studentGrade && v.studentGrade.includes('2B') ? '2B' : v.studentGrade && v.studentGrade.includes('2C') ? '2C' : undefined),
+            firstSeenAt: v.firstSeenAt || Date.now(),
+            lastSeenAt: v.lastSeenAt || Date.now(),
+            visitCount: v.visitCount || 1,
+            device: v.device || 'متصفح ويب',
+            email: v.email,
+            userAgent: v.userAgent,
+          };
+        });
+      }
+      return parsed;
     }
   } catch (err) {
     console.error("Error initializing visitors db:", err);
@@ -46,13 +104,15 @@ function initDatabase(): VisitorsDatabase {
     visitors: [
       {
         id: "owner-zeinab",
-        email: "zeinabkaram909@gmail.com",
         name: "الأستاذة زينب (المسؤول)",
-        studentGrade: "Grade 2B",
+        loginType: "admin",
+        studentGrade: "Grade 2",
+        section: "all",
         firstSeenAt: Date.now() - 86400000 * 5,
         lastSeenAt: Date.now(),
         visitCount: 15,
         device: "Admin Account",
+        email: "zeinabkaram909@gmail.com",
       },
     ],
     lastUpdated: Date.now(),
@@ -90,154 +150,200 @@ async function startServer() {
     res.json({ status: "ok", timestamp: Date.now() });
   });
 
-  // 2. Public / summary stats (count of visitors and total visits)
+  // 2. Public summary stats (Total users, students logged in by name, visitors, total visits)
   app.get("/api/visitors/stats", (_req, res) => {
-    const totalUniqueEmails = db.visitors.length;
-    const totalVisits = db.visitors.reduce((acc, v) => acc + (v.visitCount || 1), 0);
-
-    // Active today (within last 24 hours)
-    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-    const todayVisits = db.visitors.filter((v) => v.lastSeenAt >= oneDayAgo).length;
-
-    res.json({
-      totalUniqueEmails,
-      totalVisits,
-      todayVisits,
-      lastUpdated: db.lastUpdated,
-    });
+    const stats = calculateStats(db.visitors, db.lastUpdated);
+    res.json(stats);
   });
 
-  // 3. Register or log a visitor/student by name or email
+  // 3. Register or log a student by name OR guest visitor
   app.post("/api/visitors/register", (req, res) => {
-    const { email, name, studentName, studentGrade, userAgent, device } = req.body || {};
+    const {
+      name,
+      studentName,
+      studentGrade,
+      section,
+      isGuest,
+      visitorId,
+      userAgent,
+      device,
+    } = req.body || {};
 
-    const cleanName = (typeof studentName === "string" && studentName.trim()) 
-      ? studentName.trim() 
-      : (typeof name === "string" && name.trim()) 
-      ? name.trim() 
+    const cleanName = (typeof studentName === "string" && studentName.trim())
+      ? studentName.trim()
+      : (typeof name === "string" && name.trim())
+      ? name.trim()
       : "";
 
-    let cleanEmail = typeof email === "string" && email.includes("@") ? email.trim().toLowerCase() : "";
-
-    // If no email provided, create a student identifier from name
-    if (!cleanEmail) {
-      if (!cleanName) {
-        return res.status(400).json({ error: "اسم الطالب مطلوب لتسجيل الدخول" });
-      }
-      cleanEmail = `${encodeURIComponent(cleanName.replace(/\s+/g, "_")).toLowerCase()}@student.app`;
-    }
-
-    const cleanGrade = typeof studentGrade === "string" ? studentGrade.trim() : "Grade 2";
-
-    const existingIndex = db.visitors.findIndex(
-      (v) => (cleanEmail && v.email.toLowerCase() === cleanEmail) || 
-             (cleanName && v.name && v.name.toLowerCase() === cleanName.toLowerCase())
-    );
+    const isExplicitGuest = Boolean(isGuest) || (!cleanName && Boolean(visitorId));
+    const cleanSection = typeof section === "string" && ['2A', '2B', '2C'].includes(section) ? section : undefined;
+    const cleanGrade = typeof studentGrade === "string" && studentGrade.trim()
+      ? studentGrade.trim()
+      : cleanSection
+      ? `Grade ${cleanSection}`
+      : "Grade 2";
 
     let resultVisitor: VisitorItem;
     let isNew = false;
 
-    if (existingIndex >= 0) {
-      // Update existing record
-      const existing = db.visitors[existingIndex];
-      existing.lastSeenAt = Date.now();
-      existing.visitCount = (existing.visitCount || 1) + 1;
-      if (cleanName) {
-        existing.name = cleanName;
+    if (isExplicitGuest && !cleanName) {
+      // Guest Visitor without name
+      const existingGuestIndex = db.visitors.findIndex(
+        (v) => (visitorId && v.id === visitorId)
+      );
+
+      if (existingGuestIndex >= 0) {
+        const existing = db.visitors[existingGuestIndex];
+        existing.lastSeenAt = Date.now();
+        existing.visitCount = (existing.visitCount || 1) + 1;
+        if (cleanSection) existing.section = cleanSection;
+        if (device) existing.device = device;
+        resultVisitor = existing;
+      } else {
+        isNew = true;
+        resultVisitor = {
+          id: visitorId || `vis-guest-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          name: "زائر",
+          loginType: "visitor",
+          studentGrade: cleanSection ? `زائر (فصل ${cleanSection})` : "زائر",
+          section: cleanSection,
+          firstSeenAt: Date.now(),
+          lastSeenAt: Date.now(),
+          visitCount: 1,
+          userAgent: typeof userAgent === "string" ? userAgent.substring(0, 150) : undefined,
+          device: typeof device === "string" ? device : "متصفح ويب",
+        };
+        db.visitors.unshift(resultVisitor);
       }
-      if (cleanGrade) {
-        existing.studentGrade = cleanGrade;
-      }
-      if (device) existing.device = device;
-      resultVisitor = existing;
     } else {
-      // New visitor / student
-      isNew = true;
-      resultVisitor = {
-        id: `vis-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-        email: cleanEmail,
-        name: cleanName || cleanEmail.split("@")[0],
-        studentGrade: cleanGrade || "Grade 2",
-        firstSeenAt: Date.now(),
-        lastSeenAt: Date.now(),
-        visitCount: 1,
-        userAgent: typeof userAgent === "string" ? userAgent.substring(0, 150) : undefined,
-        device: typeof device === "string" ? device : "Web Browser",
-      };
-      db.visitors.unshift(resultVisitor);
+      // Student Logging In By Name
+      if (!cleanName || cleanName.length < 2) {
+        return res.status(400).json({ error: "اسم الطالب مطلوب لتسجيل الدخول (حرفين على الأقل)" });
+      }
+
+      // Check if student with same name exists, or promote existing guest with visitorId
+      const existingIndex = db.visitors.findIndex(
+        (v) => (v.name && v.name.toLowerCase() === cleanName.toLowerCase()) ||
+               (visitorId && v.id === visitorId)
+      );
+
+      if (existingIndex >= 0) {
+        const existing = db.visitors[existingIndex];
+        existing.name = cleanName;
+        existing.loginType = "student";
+        existing.lastSeenAt = Date.now();
+        existing.visitCount = (existing.visitCount || 1) + 1;
+        if (cleanGrade) existing.studentGrade = cleanGrade;
+        if (cleanSection) existing.section = cleanSection;
+        if (device) existing.device = device;
+        resultVisitor = existing;
+      } else {
+        isNew = true;
+        resultVisitor = {
+          id: visitorId || `std-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          name: cleanName,
+          loginType: "student",
+          studentGrade: cleanGrade,
+          section: cleanSection,
+          firstSeenAt: Date.now(),
+          lastSeenAt: Date.now(),
+          visitCount: 1,
+          userAgent: typeof userAgent === "string" ? userAgent.substring(0, 150) : undefined,
+          device: typeof device === "string" ? device : "متصفح ويب",
+        };
+        db.visitors.unshift(resultVisitor);
+      }
     }
 
     saveDatabase(db);
+
+    const stats = calculateStats(db.visitors, db.lastUpdated);
 
     res.json({
       success: true,
       isNew,
       visitor: resultVisitor,
-      totalUniqueEmails: db.visitors.length,
-      totalStudents: db.visitors.length,
+      stats,
+      totalUsers: db.visitors.length,
+      totalStudentsNamed: stats.totalStudentsNamed,
+      totalVisitorsGuest: stats.totalVisitorsGuest,
     });
   });
 
   // 4. Ping to keep visit record fresh when reopening app
   app.post("/api/visitors/ping", (req, res) => {
-    const { email, studentName, name } = req.body || {};
-    const cleanName = (typeof studentName === "string" && studentName.trim()) 
-      ? studentName.trim() 
-      : (typeof name === "string" && name.trim()) 
-      ? name.trim() 
+    const { studentName, name, visitorId, section } = req.body || {};
+    const cleanName = (typeof studentName === "string" && studentName.trim())
+      ? studentName.trim()
+      : (typeof name === "string" && name.trim())
+      ? name.trim()
       : "";
-    const cleanEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
 
-    if (!cleanEmail && !cleanName) {
-      return res.status(400).json({ error: "Identifier is required" });
-    }
-
-    const existing = db.visitors.find(
-      (v) => (cleanEmail && v.email.toLowerCase() === cleanEmail) ||
-             (cleanName && v.name && v.name.toLowerCase() === cleanName.toLowerCase())
+    let existing = db.visitors.find(
+      (v) => (cleanName && v.name && v.name.toLowerCase() === cleanName.toLowerCase()) ||
+             (visitorId && v.id === visitorId)
     );
 
     if (existing) {
       const now = Date.now();
-      if (now - existing.lastSeenAt > 30 * 60 * 1000) {
+      if (now - existing.lastSeenAt > 20 * 60 * 1000) {
         existing.visitCount = (existing.visitCount || 1) + 1;
       }
       existing.lastSeenAt = now;
+      if (section && !existing.section) existing.section = section;
+      saveDatabase(db);
+    } else if (visitorId) {
+      // Auto-register guest on ping if not yet recorded
+      const newGuest: VisitorItem = {
+        id: visitorId,
+        name: cleanName || "زائر",
+        loginType: cleanName ? "student" : "visitor",
+        studentGrade: section ? `فصل ${section}` : "زائر",
+        section: section,
+        firstSeenAt: Date.now(),
+        lastSeenAt: Date.now(),
+        visitCount: 1,
+        device: "متصفح ويب",
+      };
+      db.visitors.unshift(newGuest);
       saveDatabase(db);
     }
 
     res.json({ success: true, count: db.visitors.length });
   });
 
-  // 5. Admin retrieval of all visitors (Full list with details)
-  // Protected with either admin email or PIN "2026" / "admin"
+  // 5. Admin retrieval of all visitors & students login report
+  // Protected with either admin email or PIN "2026" / "admin" / "zeinab"
   app.post("/api/visitors/all", (req, res) => {
     const { pin, userEmail } = req.body || {};
 
     const normalizedEmail = typeof userEmail === "string" ? userEmail.trim().toLowerCase() : "";
     const isAdminEmail =
       normalizedEmail === "zeinabkaram909@gmail.com" ||
-      normalizedEmail === "zeinabkaram24@gmail.com";
+      normalizedEmail === "zeinabkaram24@gmail.com" ||
+      normalizedEmail.includes("admin");
 
     const isPinCorrect = pin === "2026" || pin === "admin" || pin === "zeinab";
 
     if (!isAdminEmail && !isPinCorrect) {
       return res.status(403).json({
         authorized: false,
-        error: "غير مصرح لك بعرض هذه البيانات. يرجى إدخال رمز المرور أو بريد المسؤول.",
+        error: "غير مصرح لك بعرض تقرير الدخول. يرجى إدخال رمز المرور السري للمسؤول.",
       });
     }
 
-    const totalUniqueEmails = db.visitors.length;
-    const totalVisits = db.visitors.reduce((acc, v) => acc + (v.visitCount || 1), 0);
+    const stats = calculateStats(db.visitors, db.lastUpdated);
 
-    // Sort by most recent activity
+    // Sort by most recent activity (admin at top if recent, then latest activity)
     const sorted = [...db.visitors].sort((a, b) => b.lastSeenAt - a.lastSeenAt);
 
     res.json({
       authorized: true,
-      totalUniqueEmails,
-      totalVisits,
+      stats,
+      totalUsers: stats.totalUsers,
+      totalStudentsNamed: stats.totalStudentsNamed,
+      totalVisitorsGuest: stats.totalVisitorsGuest,
+      totalVisits: stats.totalVisits,
       visitors: sorted,
     });
   });
@@ -254,6 +360,11 @@ async function startServer() {
 
     if (!isAdminEmail && !isPinCorrect) {
       return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    // Do not delete primary admin owner
+    if (id === "owner-zeinab") {
+      return res.status(400).json({ error: "لا يمكن حذف حساب المسؤول الرئيسي" });
     }
 
     db.visitors = db.visitors.filter((v) => v.id !== id);
