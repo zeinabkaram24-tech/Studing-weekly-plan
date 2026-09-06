@@ -56,9 +56,15 @@ export function filterOutArtTasks(tasks: PlanTask[]): PlanTask[] {
   return tasks.filter(
     (t) =>
       t.subjectId !== 'arts' &&
+      t.subjectId !== 'pe' &&
       !t.title?.toLowerCase().includes('arts') &&
+      !t.title?.toLowerCase().includes('pe') &&
+      !t.title?.toLowerCase().includes('physical education') &&
       !t.title?.includes('التربية الفنية') &&
-      !t.title?.includes('الرسم')
+      !t.title?.includes('التربية الرياضية') &&
+      !t.title?.includes('الرسم') &&
+      !t.title?.includes('اللياقة البدنية') &&
+      !t.title?.includes('الزي الرياضي')
   );
 }
 

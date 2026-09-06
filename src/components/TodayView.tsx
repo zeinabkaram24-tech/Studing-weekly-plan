@@ -3,7 +3,6 @@ import { DAYS_LIST, PERIODS_TIMING } from '../data/defaultData';
 import { DayOfWeek, GradeSection, PlanTask, StudentProfile, Subject, Timetable } from '../types';
 import { TaskCard } from './TaskCard';
 import { SubjectIcon } from './SubjectIcon';
-import { TodayPrepCard } from './TodayPrepCard';
 import { TomorrowPrepCard } from './TomorrowPrepCard';
 import { triggerAllDoneCelebration } from '../utils/celebration';
 import {
@@ -78,15 +77,21 @@ export const TodayView: React.FC<TodayViewProps> = ({
   const currentDayInfo = DAYS_LIST.find((d) => d.key === selectedDay) || DAYS_LIST[0];
 
   // Tasks for the selected day filtered by class section and sorted by timetable period
-  // (Arts / Drawing classes are excluded from tasks as requested)
+  // (Arts & PE classes are excluded from tasks as requested)
   const dayTasks = tasks
     .filter((t) => t.day === selectedDay && (!t.section || t.section === selectedSection))
     .filter(
       (t) =>
         t.subjectId !== 'arts' &&
+        t.subjectId !== 'pe' &&
         !t.title?.toLowerCase().includes('arts') &&
+        !t.title?.toLowerCase().includes('pe') &&
+        !t.title?.toLowerCase().includes('physical education') &&
         !t.title?.includes('التربية الفنية') &&
-        !t.title?.includes('الرسم')
+        !t.title?.includes('التربية الرياضية') &&
+        !t.title?.includes('الرسم') &&
+        !t.title?.includes('اللياقة البدنية') &&
+        !t.title?.includes('الزي الرياضي')
     )
     .sort((a, b) => {
       if (a.period !== undefined && b.period !== undefined) {
@@ -445,16 +450,7 @@ export const TodayView: React.FC<TodayViewProps> = ({
         </div>
       )}
 
-      {/* 3. TODAY'S PREPARATIONS & SUPPLIES CARD (Especially Art & Drawing Kit) */}
-      <TodayPrepCard
-        dayNameAr={currentDayInfo.nameAr}
-        dayNameEn={currentDayInfo.nameEn}
-        section={selectedSection}
-        periods={dayPeriods}
-        subjects={subjects}
-      />
-
-      {/* 4. CONTROLS & FILTER BAR (English Done & Pending tags) */}
+      {/* 3. CONTROLS & FILTER BAR (English Done & Pending tags) */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 sm:p-4 rounded-3xl border border-slate-200/80 shadow-xs">
         {/* Filter Pills with English words */}
         <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-2xl text-xs font-semibold font-sans">

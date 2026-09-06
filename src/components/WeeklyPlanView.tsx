@@ -58,8 +58,22 @@ export const WeeklyPlanView: React.FC<WeeklyPlanViewProps> = ({
     setCollapsedDays((prev) => ({ ...prev, [dayKey]: !prev[dayKey] }));
   };
 
-  // Filter tasks if a subject filter is selected and match section
-  const sectionTasks = tasks.filter((t) => !t.section || t.section === currentSection);
+  // Filter tasks if a subject filter is selected and match section (excluding arts and pe)
+  const sectionTasks = tasks
+    .filter((t) => !t.section || t.section === currentSection)
+    .filter(
+      (t) =>
+        t.subjectId !== 'arts' &&
+        t.subjectId !== 'pe' &&
+        !t.title?.toLowerCase().includes('arts') &&
+        !t.title?.toLowerCase().includes('pe') &&
+        !t.title?.toLowerCase().includes('physical education') &&
+        !t.title?.includes('التربية الفنية') &&
+        !t.title?.includes('التربية الرياضية') &&
+        !t.title?.includes('الرسم') &&
+        !t.title?.includes('اللياقة البدنية') &&
+        !t.title?.includes('الزي الرياضي')
+    );
   const filteredTasks = selectedSubjectFilter === 'all'
     ? sectionTasks
     : sectionTasks.filter((t) => t.subjectId === selectedSubjectFilter);

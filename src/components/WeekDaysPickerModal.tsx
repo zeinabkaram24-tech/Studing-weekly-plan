@@ -50,8 +50,22 @@ export const WeekDaysPickerModal: React.FC<WeekDaysPickerModalProps> = ({
   // Get active day metadata
   const activeDayInfo = DAYS_LIST.find((d) => d.key === activeDay) || DAYS_LIST[0];
 
-  // Tasks for the active day
-  const dayTasks = tasks
+  // Tasks for the active day (excluding arts and pe)
+  const filteredTasks = tasks.filter(
+    (t) =>
+      t.subjectId !== 'arts' &&
+      t.subjectId !== 'pe' &&
+      !t.title?.toLowerCase().includes('arts') &&
+      !t.title?.toLowerCase().includes('pe') &&
+      !t.title?.toLowerCase().includes('physical education') &&
+      !t.title?.includes('التربية الفنية') &&
+      !t.title?.includes('التربية الرياضية') &&
+      !t.title?.includes('الرسم') &&
+      !t.title?.includes('اللياقة البدنية') &&
+      !t.title?.includes('الزي الرياضي')
+  );
+
+  const dayTasks = filteredTasks
     .filter((t) => t.day === activeDay)
     .sort((a, b) => {
       if (a.period !== undefined && b.period !== undefined) {
@@ -132,7 +146,7 @@ export const WeekDaysPickerModal: React.FC<WeekDaysPickerModalProps> = ({
         >
           <div className="flex items-center gap-2.5 min-w-max">
             {DAYS_LIST.map((day) => {
-              const dayItems = tasks.filter((t) => t.day === day.key);
+              const dayItems = filteredTasks.filter((t) => t.day === day.key);
               const total = dayItems.length;
               const completed = dayItems.filter((t) => t.isDone).length;
               const isSelected = activeDay === day.key;
