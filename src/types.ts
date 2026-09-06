@@ -154,6 +154,7 @@ export interface MaterialItem {
   fileSize?: string;
   notes?: string;
   pageCount?: number;
+  pageRange?: string; // e.g. "من صفحة 4 إلى 12"
   unitTitle?: string;
   contentPreview?: {
     type: 'exercises' | 'topics' | 'reading';

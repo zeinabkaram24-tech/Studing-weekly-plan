@@ -318,6 +318,31 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
             </div>
           )}
 
+          {/* SPECIAL PE (SPORTS / PHYSICAL EDUCATION) HIGHLIGHT IF SCHEDULED TOMORROW */}
+          {uniqueSubjectIds.includes('pe') && (
+            <div className="bg-emerald-50 p-3.5 rounded-2xl border border-emerald-200 shadow-xs">
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center gap-2 font-black text-sm text-emerald-950">
+                  <span className="text-base">🏃‍♂️</span>
+                  <span>تجهيزات حصة التربية البدنية (PE / Sports) المقررة في جدول غداً:</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  {(subjectPeriodsMap.get('pe') || []).map((p) => (
+                    <span
+                      key={p}
+                      className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-lg bg-emerald-700 text-white"
+                    >
+                      الحصة P{p}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <p className="text-xs text-emerald-900 font-bold leading-relaxed bg-white/90 p-2.5 rounded-xl border border-emerald-200">
+                👟 يرجى ارتداء وتجهيز الزي الرياضي الكامل الخاص بمدارس النيل (التيشرت الرياضي + البنطال/الشورت الرياضي + حذاء الجري الرياضي + زجاجة المياه الشخصية) للحصص المقررة غداً.
+              </p>
+            </div>
+          )}
+
           {/* 1. Subject-by-Subject Books & Materials Checklist */}
           <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-amber-200/70 space-y-2.5">
             <div className="flex items-center justify-between">

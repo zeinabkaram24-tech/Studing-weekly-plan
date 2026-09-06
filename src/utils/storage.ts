@@ -75,7 +75,9 @@ export function filterOutArtTasks(tasks: PlanTask[]): PlanTask[] {
         !t.title?.toLowerCase().includes('arts') &&
         !t.title?.toLowerCase().includes('pe') &&
         !t.title?.toLowerCase().includes('physical education') &&
+        !t.title?.toLowerCase().includes('sports') &&
         !t.title?.includes('التربية الفنية') &&
+        !t.title?.includes('التربية البدنية') &&
         !t.title?.includes('التربية الرياضية') &&
         !t.title?.includes('الرسم') &&
         !t.title?.includes('اللياقة البدنية') &&
@@ -339,9 +341,11 @@ export function verifyAdminPassword(input: string): boolean {
     clean === 'admin' ||
     clean === 'zeinab' ||
     clean === '1234' ||
-    clean === 'zeinabkaram24@gmail.com' ||
     clean === 'zeinabkaram909@gmail.com' ||
-    clean.includes('zeinabkaram')
+    clean === 'zeinabkaram24@gmail.com' ||
+    clean === 'faridaferghali2019@gmail.com' ||
+    clean.includes('zeinabkaram') ||
+    clean.includes('faridaferghali')
   );
 }
 

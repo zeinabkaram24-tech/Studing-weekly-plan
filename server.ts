@@ -412,17 +412,27 @@ async function startServer() {
     const { pin, userEmail } = req.body || {};
 
     const normalizedEmail = typeof userEmail === "string" ? userEmail.trim().toLowerCase() : "";
+    const pinStr = typeof pin === "string" ? pin.trim().toLowerCase() : "";
+    const candidate = normalizedEmail || pinStr;
+
+    const authorizedAdminEmails = [
+      "zeinabkaram909@gmail.com",
+      "zeinabkaram24@gmail.com",
+      "faridaferghali2019@gmail.com",
+    ];
+
     const isAdminEmail =
-      normalizedEmail === "zeinabkaram909@gmail.com" ||
-      normalizedEmail === "zeinabkaram24@gmail.com" ||
+      authorizedAdminEmails.includes(candidate) ||
+      authorizedAdminEmails.includes(normalizedEmail) ||
+      authorizedAdminEmails.includes(pinStr) ||
       normalizedEmail.includes("admin");
 
-    const isPinCorrect = pin === "2026" || pin === "admin" || pin === "zeinab";
+    const isPinCorrect = pinStr === "2026" || pinStr === "admin" || pinStr === "zeinab" || pinStr === "1234";
 
     if (!isAdminEmail && !isPinCorrect) {
       return res.status(403).json({
         authorized: false,
-        error: "غير مصرح لك بعرض تقرير الدخول. يرجى إدخال رمز المرور السري للمسؤول.",
+        error: "غير مصرح لك بعرض تقرير الدخول. يرجى إدخال أحد الإيميلات الإدارية المعتمدة أو رمز المرور السري.",
       });
     }
 
@@ -464,10 +474,18 @@ async function startServer() {
     const { pin, userEmail } = req.body || {};
     const { id } = req.params;
 
+    const normalizedEmail = typeof userEmail === "string" ? userEmail.trim().toLowerCase() : "";
+    const pinStr = typeof pin === "string" ? pin.trim().toLowerCase() : "";
+    const authorizedAdminEmails = [
+      "zeinabkaram909@gmail.com",
+      "zeinabkaram24@gmail.com",
+      "faridaferghali2019@gmail.com",
+    ];
+
     const isAdminEmail =
-      typeof userEmail === "string" &&
-      userEmail.trim().toLowerCase() === "zeinabkaram909@gmail.com";
-    const isPinCorrect = pin === "2026" || pin === "admin" || pin === "zeinab";
+      authorizedAdminEmails.includes(normalizedEmail) ||
+      authorizedAdminEmails.includes(pinStr);
+    const isPinCorrect = pinStr === "2026" || pinStr === "admin" || pinStr === "zeinab" || pinStr === "1234";
 
     if (!isAdminEmail && !isPinCorrect) {
       return res.status(403).json({ error: "Unauthorized" });

@@ -206,21 +206,51 @@ export const VisitorStatsModal: React.FC<VisitorStatsModalProps> = ({
                 onClick={() => setShowAdminLogin(true)}
                 className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 underline transition-colors cursor-pointer"
               >
-                تسجيل الدخول كمسؤول لعرض التقرير
+                تسجيل الدخول كمسؤول لعرض التقرير (Admin Login)
               </button>
             ) : (
-              <form onSubmit={handleUnlockWithPin} className="space-y-2.5 pt-1">
-                <p className="text-[11px] text-slate-500 font-medium">
-                  أدخلي رمز المرور السري للمسؤول:
+              <form onSubmit={handleUnlockWithPin} className="space-y-3 pt-1 text-right">
+                <p className="text-[11px] text-slate-600 font-bold">
+                  أدخلي أحد الإيميلات الإدارية المعتمدة أو رمز المرور:
                 </p>
-                <input
-                  type="password"
-                  value={pinInput}
-                  onChange={(e) => setPinInput(e.target.value)}
-                  placeholder="رمز المرور (2026)"
-                  autoFocus
-                  className="w-full text-center px-4 py-2.5 rounded-xl border border-slate-300 focus:border-indigo-600 text-sm font-bold font-mono outline-hidden shadow-inner"
-                />
+
+                {/* Quick 1-click select buttons for the 3 verified admin emails */}
+                <div className="space-y-1.5">
+                  <span className="text-[10px] text-slate-400 font-medium">الإيميلات المعتمدة للمسؤولين:</span>
+                  <div className="flex flex-col gap-1.5">
+                    {[
+                      'zeinabkaram909@gmail.com',
+                      'zeinabkaram24@gmail.com',
+                      'faridaferghali2019@gmail.com',
+                    ].map((email) => (
+                      <button
+                        key={email}
+                        type="button"
+                        onClick={() => {
+                          setPinInput(email);
+                          loadVisitorsList(email);
+                        }}
+                        className="w-full text-right px-3 py-2 rounded-xl bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 text-[11px] font-bold text-slate-700 hover:text-indigo-700 flex items-center justify-between transition-colors cursor-pointer"
+                      >
+                        <span className="font-mono text-xs">{email}</span>
+                        <span className="text-[10px] text-indigo-600 font-semibold bg-indigo-100/60 px-2 py-0.5 rounded-md">
+                          دخول سريع
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="relative pt-1">
+                  <input
+                    type="text"
+                    value={pinInput}
+                    onChange={(e) => setPinInput(e.target.value)}
+                    placeholder="الإيميل أو رمز المرور (مثال: 2026)"
+                    className="w-full text-center px-4 py-2.5 rounded-xl border border-slate-300 focus:border-indigo-600 text-xs font-bold font-mono outline-hidden shadow-inner"
+                  />
+                </div>
+
                 <button
                   type="submit"
                   disabled={loading}
