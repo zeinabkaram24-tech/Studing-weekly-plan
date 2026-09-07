@@ -67,8 +67,9 @@ export const VisitorStatsModal: React.FC<VisitorStatsModalProps> = ({
       savedPin === 'zeinabkaram24@gmail.com' ||
       savedPin === 'zeinabkaram909@gmail.com' ||
       savedPin === 'faridaferghali2019@gmail.com' ||
+      savedPin === 'faridafarghally2019@gmail.com' ||
       savedPin.includes('zeinabkaram') ||
-      savedPin.includes('faridaferghali');
+      savedPin.includes('farida');
 
     if (isAuthorizedByDefault) {
       setIsUnlocked(true);

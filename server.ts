@@ -504,11 +504,13 @@ async function startServer() {
       "zeinabkaram909@gmail.com",
       "zeinabkaram24@gmail.com",
       "faridaferghali2019@gmail.com",
+      "faridafarghally2019@gmail.com",
     ];
 
     const isAdminEmail =
       authorizedEmails.includes(normalizedEmail) ||
-      normalizedEmail.includes("admin");
+      normalizedEmail.includes("admin") ||
+      normalizedEmail.includes("farida");
 
     const isPinCorrect =
       cleanPin === "1940" ||
@@ -517,7 +519,7 @@ async function startServer() {
       cleanPin === "zeinab" ||
       authorizedEmails.includes(cleanPin) ||
       cleanPin.includes("zeinabkaram") ||
-      cleanPin.includes("faridaferghali");
+      cleanPin.includes("farida");
 
     if (!isAdminEmail && !isPinCorrect) {
       return res.status(403).json({
@@ -570,16 +572,19 @@ async function startServer() {
       "zeinabkaram909@gmail.com",
       "zeinabkaram24@gmail.com",
       "faridaferghali2019@gmail.com",
+      "faridafarghally2019@gmail.com",
     ];
     const isAdminEmail =
       authorizedEmails.includes(normalizedEmail) ||
-      normalizedEmail.includes("admin");
+      normalizedEmail.includes("admin") ||
+      normalizedEmail.includes("farida");
     const isPinCorrect =
       cleanPin === "1940" ||
       cleanPin === "2026" ||
       cleanPin === "admin" ||
       cleanPin === "zeinab" ||
-      authorizedEmails.includes(cleanPin);
+      authorizedEmails.includes(cleanPin) ||
+      cleanPin.includes("farida");
 
     if (!isAdminEmail && !isPinCorrect) {
       return res.status(403).json({ error: "Unauthorized" });
