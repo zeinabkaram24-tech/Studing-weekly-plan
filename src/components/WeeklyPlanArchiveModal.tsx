@@ -29,6 +29,7 @@ interface WeeklyPlanArchiveModalProps {
   onDeletePlan?: (planId: string) => void;
   onOpenUploadNewPlan: () => void;
   onOpenAdminLogin: () => void;
+  userRole?: 'admin' | 'student' | 'visitor';
 }
 
 export const WeeklyPlanArchiveModal: React.FC<WeeklyPlanArchiveModalProps> = ({
@@ -43,6 +44,7 @@ export const WeeklyPlanArchiveModal: React.FC<WeeklyPlanArchiveModalProps> = ({
   onDeletePlan,
   onOpenUploadNewPlan,
   onOpenAdminLogin,
+  userRole = 'student',
 }) => {
   const [selectedBlockFilter, setSelectedBlockFilter] = useState<number | 'all'>('all');
 
@@ -124,28 +126,30 @@ export const WeeklyPlanArchiveModal: React.FC<WeeklyPlanArchiveModalProps> = ({
             ))}
           </div>
 
-          {isAdmin ? (
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                onOpenUploadNewPlan();
-              }}
-              className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-all"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>إضافة خطة أسبوع جديد (الجمعة)</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={onOpenAdminLogin}
-              className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold flex items-center gap-1.5 transition-all"
-              title="إضافة وتعديل ملفات الخطة مقتصر على الأدمن"
-            >
-              <Shield className="w-3.5 h-3.5 text-indigo-600" />
-              <span>وضع المشرف (الأدمن)</span>
-            </button>
+          {userRole !== 'visitor' && (
+            isAdmin ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenUploadNewPlan();
+                }}
+                className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-all"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>إضافة خطة أسبوع جديد (الجمعة)</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onOpenAdminLogin}
+                className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold flex items-center gap-1.5 transition-all"
+                title="إضافة وتعديل ملفات الخطة مقتصر على الأدمن"
+              >
+                <Shield className="w-3.5 h-3.5 text-indigo-600" />
+                <span>وضع المشرف (الأدمن)</span>
+              </button>
+            )
           )}
         </div>
 

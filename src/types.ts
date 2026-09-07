@@ -29,12 +29,14 @@ export interface PlanTask {
   title: string;
   details?: string;
   pages?: string;
+  linkUrl?: string; // Direct clickable link (e.g. video, online platform, explanation, sheet)
+  linkTitle?: string; // Optional custom text for the link button (e.g. "اضغط هنا لمشاهدة/سماع الرابط")
   isDone: boolean;
   notes?: string;
   personalNotes?: string; // User Role: Personal student note (stored locally only)
   isPersonalTask?: boolean; // User Role: Custom task added by the student (stored locally only)
-  isCarriedOver?: boolean;
-  previousWeekNote?: string;
+  isCarriedOver?: boolean; // Deprecated: Kept for backwards compatibility only
+  previousWeekNote?: string; // Deprecated: Kept for backwards compatibility only
   createdAt: number;
   completedAt?: number;
 }

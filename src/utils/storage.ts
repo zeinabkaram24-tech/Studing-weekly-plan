@@ -404,8 +404,31 @@ export function hasStoredUserRole(): boolean {
 
 // --- WEEKLY PLANS MEMORY & ARCHIVE (Block & Week) ---
 
+export function getLatestWeeklyPlan(archive: WeeklyPlanArchiveEntry[]): WeeklyPlanArchiveEntry {
+  if (!archive || archive.length === 0) {
+    return getInitialWeeklyPlansArchive()[0];
+  }
+  // 1. Check if an entry is explicitly marked isCurrent
+  const current = archive.find((p) => p.isCurrent);
+  if (current) return current;
+
+  // 2. Otherwise sort by blockNumber desc, weekNumber desc, createdAt desc
+  const sorted = [...archive].sort((a, b) => {
+    const bBlock = b.blockNumber || 1;
+    const aBlock = a.blockNumber || 1;
+    if (bBlock !== aBlock) return bBlock - aBlock;
+
+    const bWeek = b.weekNumber || 1;
+    const aWeek = a.weekNumber || 1;
+    if (bWeek !== aWeek) return bWeek - aWeek;
+
+    return (b.createdAt || 0) - (a.createdAt || 0);
+  });
+  return sorted[0];
+}
+
 export function getInitialWeeklyPlansArchive(): WeeklyPlanArchiveEntry[] {
-  const initialEntry: WeeklyPlanArchiveEntry = {
+  const week1Entry: WeeklyPlanArchiveEntry = {
     id: 'b1-w1',
     blockNumber: 1,
     weekNumber: 1,
@@ -419,10 +442,41 @@ export function getInitialWeeklyPlansArchive(): WeeklyPlanArchiveEntry[] {
       '2C': filterOutArtTasks(TASKS_2C),
     },
     uploadedFiles: [],
-    isCurrent: true,
+    isCurrent: false,
     notes: 'الخطة التأسيسية للأسبوع الأول - مدارس النيل المصرية الدولية فرع المنيا',
   };
-  return [initialEntry];
+
+  const week2Entry: WeeklyPlanArchiveEntry = {
+    id: 'b1-w2',
+    blockNumber: 1,
+    weekNumber: 2,
+    title: 'Week 2 Plan (Block 1 - Week 2)',
+    createdAt: Date.now(),
+    startDate: 'الأحد 7 سبتمبر',
+    endDate: 'الخميس 11 سبتمبر',
+    tasksBySection: {
+      '2A': filterOutArtTasks(TASKS_2A).map((t) => ({
+        ...t,
+        id: `w2-${t.id}`,
+        isDone: false,
+      })),
+      '2B': filterOutArtTasks(TASKS_2B).map((t) => ({
+        ...t,
+        id: `w2-${t.id}`,
+        isDone: false,
+      })),
+      '2C': filterOutArtTasks(TASKS_2C).map((t) => ({
+        ...t,
+        id: `w2-${t.id}`,
+        isDone: false,
+      })),
+    },
+    uploadedFiles: [],
+    isCurrent: true,
+    notes: 'خطة الأسبوع الثاني (أسبوع الجمعة الحالي) - تدريبات ومتابعة شاملة',
+  };
+
+  return [week2Entry, week1Entry];
 }
 
 export function loadWeeklyPlansArchive(): WeeklyPlanArchiveEntry[] {
@@ -431,8 +485,21 @@ export function loadWeeklyPlansArchive(): WeeklyPlanArchiveEntry[] {
     if (saved) {
       const parsed: WeeklyPlanArchiveEntry[] = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length > 0) {
+        let entries = parsed;
+        // Ensure Week 2 exists if only older single entry was stored
+        const hasWeek2 = entries.some(
+          (e) => e.id === 'b1-w2' || (e.blockNumber === 1 && e.weekNumber === 2)
+        );
+        if (!hasWeek2) {
+          const defaults = getInitialWeeklyPlansArchive();
+          const w2 = defaults.find((e) => e.weekNumber === 2);
+          if (w2) {
+            entries = [w2, ...entries];
+          }
+        }
+
         // Ensure each entry has tasks filtered and titles migrated to English Week format
-        return parsed.map((entry) => ({
+        return entries.map((entry) => ({
           ...entry,
           title:
             entry.title && entry.title.includes('الأسبوع الأول')
@@ -469,7 +536,9 @@ export function getActiveWeeklyPlanId(): string {
   } catch {
     // ignore
   }
-  return 'b1-w1';
+  const archive = loadWeeklyPlansArchive();
+  const latest = getLatestWeeklyPlan(archive);
+  return latest.id;
 }
 
 export function setActiveWeeklyPlanId(id: string): void {

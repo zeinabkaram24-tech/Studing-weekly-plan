@@ -102,7 +102,7 @@ export const AppEntryPortalModal: React.FC<AppEntryPortalModalProps> = ({
 
     const clean = adminPassword.trim();
     if (!clean) {
-      setAdminError('يرجى إدخال كلمة المرور (1111)');
+      setAdminError('يرجى إدخال كلمة المرور');
       return;
     }
 
@@ -116,7 +116,7 @@ export const AppEntryPortalModal: React.FC<AppEntryPortalModalProps> = ({
         onClose();
       }, 500);
     } else {
-      setAdminError('كلمة المرور غير صحيحة. كلمة المرور للأدمن هي: 1111');
+      setAdminError('كلمة المرور غير صحيحة، يرجى المحاولة مرة أخرى.');
     }
   };
 
@@ -204,7 +204,7 @@ export const AppEntryPortalModal: React.FC<AppEntryPortalModalProps> = ({
         {/* 3 Options Cards */}
         <div className="p-4 sm:p-6 space-y-3.5 flex-1 bg-slate-50/50">
 
-          {/* Option 1: Admin (كلمة المرور 1111) */}
+          {/* Option 1: Admin */}
           <div
             id="entry-card-admin"
             className={`rounded-2xl border transition-all duration-200 overflow-hidden bg-white shadow-xs ${
@@ -226,9 +226,6 @@ export const AppEntryPortalModal: React.FC<AppEntryPortalModalProps> = ({
                     <h3 className="text-base font-black text-slate-900">
                       دخول كـ أدمن (Admin)
                     </h3>
-                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200 font-mono">
-                      كلمة المرور: 1111
-                    </span>
                   </div>
                   <p className="text-xs text-slate-600 leading-relaxed max-w-md">
                     الصلاحية الوحيدة لإضافة، تعديل، أو حذف الشيتات والخطط العامة والجداول وتنعكس فوراً للجميع.
@@ -254,7 +251,7 @@ export const AppEntryPortalModal: React.FC<AppEntryPortalModalProps> = ({
               >
                 <div className="space-y-1.5">
                   <label className="block text-xs font-bold text-slate-800">
-                    أدخل كلمة مرور الأدمن (1111):
+                    أدخل كلمة مرور الأدمن:
                   </label>
                   <div className="relative">
                     <KeyRound className="w-4 h-4 text-slate-400 absolute start-3.5 top-1/2 -translate-y-1/2" />
@@ -266,7 +263,7 @@ export const AppEntryPortalModal: React.FC<AppEntryPortalModalProps> = ({
                         setAdminPassword(e.target.value);
                         setAdminError(null);
                       }}
-                      placeholder="كلمة المرور (1111)..."
+                      placeholder="أدخل رمز المرور..."
                       autoFocus
                       className="w-full ps-10 pe-4 py-2.5 rounded-xl border border-indigo-200 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 bg-white text-sm font-bold tracking-wider text-slate-900 shadow-2xs"
                     />

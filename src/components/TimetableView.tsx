@@ -13,6 +13,7 @@ interface TimetableViewProps {
   onSelectSection?: (section: GradeSection) => void;
   onUpdateTimetable: (timetable: Timetable) => void;
   onResetTimetable: () => void;
+  isVisitor?: boolean;
 }
 
 export const TimetableView: React.FC<TimetableViewProps> = ({
@@ -24,6 +25,7 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
   onSelectSection,
   onUpdateTimetable,
   onResetTimetable,
+  isVisitor = false,
 }) => {
   const [editingSlot, setEditingSlot] = useState<{ day: DayOfWeek; period: number } | null>(null);
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>('');
@@ -130,15 +132,17 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
                 <span>استعادة جدول فصل {currentSection} الأصلي</span>
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={onOpenAdminLogin}
-                className="px-4 py-2.5 rounded-2xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors flex items-center gap-1.5"
-                title="تعديل أو استعادة الجدول متاح للأدمن فقط"
-              >
-                <Lock className="w-3.5 h-3.5 text-slate-400" />
-                <span>تعديل الجدول (للأدمن فقط)</span>
-              </button>
+              !isVisitor && (
+                <button
+                  type="button"
+                  onClick={onOpenAdminLogin}
+                  className="px-4 py-2.5 rounded-2xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors flex items-center gap-1.5"
+                  title="تعديل أو استعادة الجدول متاح للأدمن فقط"
+                >
+                  <Lock className="w-3.5 h-3.5 text-slate-400" />
+                  <span>تعديل الجدول (للأدمن فقط)</span>
+                </button>
+              )
             )}
           </div>
         </div>
@@ -209,28 +213,47 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
                       return (
                         <td key={pt.period} className="p-2 text-center align-middle border-e border-slate-100 last:border-e-0">
                           {slot && subj ? (
-                            <button
-                              type="button"
-                              onClick={() => handleOpenEdit(day.key, pt.period, slot.subjectId)}
-                              className={`w-full p-2.5 rounded-2xl border transition-all hover:scale-105 hover:shadow-xs text-center group ${subj.color.lightBg} ${subj.color.border}`}
-                              title="اضغط لتغيير المادة"
-                            >
-                              <div className="flex items-center justify-center mb-1">
-                                <SubjectIcon name={subj.iconName} className={`w-4 h-4 ${subj.color.text}`} />
+                            isVisitor ? (
+                              <div
+                                className={`w-full p-2.5 rounded-2xl border text-center ${subj.color.lightBg} ${subj.color.border}`}
+                              >
+                                <div className="flex items-center justify-center mb-1">
+                                  <SubjectIcon name={subj.iconName} className={`w-4 h-4 ${subj.color.text}`} />
+                                </div>
+                                <span className={`text-xs font-bold ${subj.color.text} truncate block font-sans`}>
+                                  {subj.nameEn || subj.nameAr}
+                                </span>
                               </div>
-                              <span className={`text-xs font-bold ${subj.color.text} truncate block font-sans`}>
-                                {subj.nameEn || subj.nameAr}
-                              </span>
-                            </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEdit(day.key, pt.period, slot.subjectId)}
+                                className={`w-full p-2.5 rounded-2xl border transition-all hover:scale-105 hover:shadow-xs text-center group ${subj.color.lightBg} ${subj.color.border}`}
+                                title="اضغط لتغيير المادة"
+                              >
+                                <div className="flex items-center justify-center mb-1">
+                                  <SubjectIcon name={subj.iconName} className={`w-4 h-4 ${subj.color.text}`} />
+                                </div>
+                                <span className={`text-xs font-bold ${subj.color.text} truncate block font-sans`}>
+                                  {subj.nameEn || subj.nameAr}
+                                </span>
+                              </button>
+                            )
                           ) : (
-                            <button
-                              type="button"
-                              onClick={() => handleOpenEdit(day.key, pt.period, subjects[0]?.id || '')}
-                              className="w-full p-2.5 rounded-2xl border-2 border-dashed border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/40 text-slate-400 hover:text-indigo-600 text-xs font-semibold flex items-center justify-center gap-1 transition-all"
-                            >
-                              <Plus className="w-3.5 h-3.5" />
-                              <span>إضافة</span>
-                            </button>
+                            isVisitor ? (
+                              <div className="w-full p-2.5 rounded-2xl border border-dashed border-slate-100 text-slate-300 text-xs font-medium flex items-center justify-center">
+                                <span>-</span>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEdit(day.key, pt.period, subjects[0]?.id || '')}
+                                className="w-full p-2.5 rounded-2xl border-2 border-dashed border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/40 text-slate-400 hover:text-indigo-600 text-xs font-semibold flex items-center justify-center gap-1 transition-all"
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                                <span>إضافة</span>
+                              </button>
+                            )
                           )}
                         </td>
                       );

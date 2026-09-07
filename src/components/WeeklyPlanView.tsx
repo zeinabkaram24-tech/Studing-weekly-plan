@@ -35,6 +35,7 @@ interface WeeklyPlanViewProps {
   onOpenMaterialsModal?: () => void;
   activeBlockNumber?: number;
   activeWeekNumber?: number;
+  isVisitor?: boolean;
 }
 
 export const WeeklyPlanView: React.FC<WeeklyPlanViewProps> = ({
@@ -55,6 +56,7 @@ export const WeeklyPlanView: React.FC<WeeklyPlanViewProps> = ({
   onOpenMaterialsModal,
   activeBlockNumber = 1,
   activeWeekNumber = 1,
+  isVisitor = false,
 }) => {
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>('all');
   const [collapsedDays, setCollapsedDays] = useState<Record<string, boolean>>({});
@@ -272,15 +274,17 @@ export const WeeklyPlanView: React.FC<WeeklyPlanViewProps> = ({
                     {doneDayTasks}/{totalDayTasks} Done
                   </span>
 
-                  <button
-                    type="button"
-                    onClick={() => onAddTaskForDay(day.key)}
-                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors flex items-center gap-1.5 shadow-2xs font-sans"
-                    title={`إضافة مهمة ليوم ${day.nameAr}`}
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Add Task</span>
-                  </button>
+                  {!isVisitor && (
+                    <button
+                      type="button"
+                      onClick={() => onAddTaskForDay(day.key)}
+                      className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors flex items-center gap-1.5 shadow-2xs font-sans"
+                      title={`إضافة مهمة ليوم ${day.nameAr}`}
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add Task</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -290,13 +294,15 @@ export const WeeklyPlanView: React.FC<WeeklyPlanViewProps> = ({
                   {dayTasks.length === 0 ? (
                     <div className="text-center py-6 text-slate-400 text-sm flex flex-col items-center justify-center gap-1.5">
                       <span>لا توجد مهام مسجلة ليوم {day.nameAr}.</span>
-                      <button
-                        type="button"
-                        onClick={() => onAddTaskForDay(day.key)}
-                        className="text-xs text-indigo-600 hover:underline font-bold mt-1"
-                      >
-                        + إضافة خطة مادة أو واجب
-                      </button>
+                      {!isVisitor && (
+                        <button
+                          type="button"
+                          onClick={() => onAddTaskForDay(day.key)}
+                          className="text-xs text-indigo-600 hover:underline font-bold mt-1"
+                        >
+                          + إضافة خطة مادة أو واجب
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -312,6 +318,7 @@ export const WeeklyPlanView: React.FC<WeeklyPlanViewProps> = ({
                             onDelete={onDeleteTask}
                             onSavePersonalNote={onSavePersonalNote}
                             compact
+                            isVisitor={isVisitor}
                           />
                         );
                       })}

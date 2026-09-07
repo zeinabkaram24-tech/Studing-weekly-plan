@@ -36,6 +36,7 @@ import {
   saveWeeklyPlansArchive,
   getActiveWeeklyPlanId,
   setActiveWeeklyPlanId,
+  getLatestWeeklyPlan,
   addOrUpdateWeeklyPlanInArchive,
   deleteWeeklyPlanFromArchive,
   isAdminLoggedIn,
@@ -75,6 +76,7 @@ import { AppEntryPortalModal } from './components/AppEntryPortalModal';
 import { VisitorStatsModal } from './components/VisitorStatsModal';
 import { ClassSelectorModal } from './components/ClassSelectorModal';
 import { MaterialsModal } from './components/MaterialsModal';
+import { WeekPlanSelectorBar } from './components/WeekPlanSelectorBar';
 import { triggerAllDoneCelebration } from './utils/celebration';
 import {
   fetchVisitorStats,
@@ -110,7 +112,11 @@ export default function App() {
 
   // Weekly Plan Archive & Memory State
   const [archive, setArchive] = useState<WeeklyPlanArchiveEntry[]>(() => loadWeeklyPlansArchive());
-  const [activePlanId, setActivePlanIdState] = useState<string>(() => getActiveWeeklyPlanId());
+  const [activePlanId, setActivePlanIdState] = useState<string>(() => {
+    const loaded = loadWeeklyPlansArchive();
+    const latest = getLatestWeeklyPlan(loaded);
+    return latest?.id || getActiveWeeklyPlanId();
+  });
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
 
   // Active Plan Metadata
@@ -279,22 +285,43 @@ export default function App() {
         if (serverPlan.archive && serverPlan.archive.length > 0) {
           setArchive(serverPlan.archive);
           saveWeeklyPlansArchive(serverPlan.archive);
-        }
-        if (serverPlan.activePlanId) {
-          setActivePlanIdState(serverPlan.activePlanId);
-          setActiveWeeklyPlanId(serverPlan.activePlanId);
-        }
-        if (serverPlan.weekTitle) {
-          setWeekTitle(serverPlan.weekTitle);
-          saveWeekTitle(serverPlan.weekTitle);
-        }
-        if (serverPlan.uploadedFiles && serverPlan.uploadedFiles.length > 0) {
-          setUploadedFiles(serverPlan.uploadedFiles);
-          saveUploadedFiles(serverPlan.uploadedFiles);
-        }
-        if (serverPlan.tasksBySection && serverPlan.tasksBySection[selectedSection]) {
-          setOfficialTasks(serverPlan.tasksBySection[selectedSection]);
-          saveTasks(serverPlan.tasksBySection[selectedSection], selectedSection);
+
+          // By default, open on the latest week plan added (current Friday week)
+          const latest = getLatestWeeklyPlan(serverPlan.archive);
+          const chosen = serverPlan.activePlanId
+            ? serverPlan.archive.find((p) => p.id === serverPlan.activePlanId) || latest
+            : latest;
+
+          if (chosen) {
+            setActivePlanIdState(chosen.id);
+            setActiveWeeklyPlanId(chosen.id);
+            setWeekTitle(chosen.title);
+            saveWeekTitle(chosen.title);
+            const secTasks = chosen.tasksBySection?.[selectedSection] || [];
+            setOfficialTasks(secTasks);
+            saveTasks(secTasks, selectedSection);
+            if (chosen.uploadedFiles && chosen.uploadedFiles.length > 0) {
+              setUploadedFiles(chosen.uploadedFiles);
+              saveUploadedFiles(chosen.uploadedFiles);
+            }
+          }
+        } else {
+          if (serverPlan.activePlanId) {
+            setActivePlanIdState(serverPlan.activePlanId);
+            setActiveWeeklyPlanId(serverPlan.activePlanId);
+          }
+          if (serverPlan.weekTitle) {
+            setWeekTitle(serverPlan.weekTitle);
+            saveWeekTitle(serverPlan.weekTitle);
+          }
+          if (serverPlan.uploadedFiles && serverPlan.uploadedFiles.length > 0) {
+            setUploadedFiles(serverPlan.uploadedFiles);
+            saveUploadedFiles(serverPlan.uploadedFiles);
+          }
+          if (serverPlan.tasksBySection && serverPlan.tasksBySection[selectedSection]) {
+            setOfficialTasks(serverPlan.tasksBySection[selectedSection]);
+            saveTasks(serverPlan.tasksBySection[selectedSection], selectedSection);
+          }
         }
       }
     });
@@ -536,7 +563,7 @@ export default function App() {
       if (isOfficial) {
         handleOpenAdminLogin(
           'تعديل خطة المدرسة الرسمية',
-          'تعديل مهام الخطة الأسبوعية الرسمية لجميع الطلاب مقتصر على المشرف العام (الأدمن) بكلمة المرور 1111. يمكنك كتابة ملاحظاتك الخاصة على المهمة في جهازك بدون رمز مرور.',
+          'تعديل مهام الخطة الأسبوعية الرسمية لجميع الطلاب مقتصر على المشرف العام (الأدمن). يمكنك كتابة ملاحظاتك الخاصة على المهمة في جهازك بدون رمز مرور.',
           () => {
             setOfficialTasks((prev) => {
               const updated = prev.map((t) =>
@@ -643,7 +670,7 @@ export default function App() {
     if (!isAdmin) {
       handleOpenAdminLogin(
         'حذف مهمة من الخطة الرسمية',
-        'حذف مهام الخطة الأسبوعية الرسمية مقتصر على المشرف العام (الأدمن) بكلمة المرور 1111',
+        'حذف مهام الخطة الأسبوعية الرسمية مقتصر على المشرف العام (الأدمن)',
         () => {
           setOfficialTasks((prev) => {
             const updated = prev.filter((t) => t.id !== taskId);
@@ -846,7 +873,7 @@ export default function App() {
         isAdmin={isAdmin}
         onOpenAdminLogin={() =>
           handleOpenAdminLogin(
-            'لوحة تحكم الأدمن (رمز 1111)',
+            'لوحة تحكم الأدمن',
             'رفع وتحميل وإدارة ملفات الخطط والشيتات مقتصر على المشرف العام (الأدمن)',
             () => setIsUploadModalOpen(true)
           )
@@ -864,7 +891,28 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col p-4 sm:p-6 lg:p-10 relative overflow-y-auto w-full max-w-7xl mx-auto">
+      <main className="flex-1 flex flex-col p-4 sm:p-6 lg:p-10 relative overflow-y-auto w-full max-w-7xl mx-auto space-y-4">
+        {/* Weekly Plan & Archive Selector Bar with Dropdown Select */}
+        <WeekPlanSelectorBar
+          archive={archive}
+          activePlanId={activePlanId}
+          onSelectPlan={handleSelectPlan}
+          onOpenArchiveModal={() => setIsArchiveModalOpen(true)}
+          onOpenUploadNewPlan={() => setIsUploadModalOpen(true)}
+          onOpenMaterialsModal={() => setIsMaterialsModalOpen(true)}
+          isAdmin={isAdmin}
+          currentSection={selectedSection}
+          tasks={tasks}
+          userRole={userRole}
+          onOpenAdminLogin={() =>
+            handleOpenAdminLogin(
+              'لوحة تحكم الأدمن',
+              'إضافة وتحديث الخطط الأسبوعية مقتصر على المشرف العام (الأدمن)',
+              () => setIsUploadModalOpen(true)
+            )
+          }
+        />
+
         {currentTab === 'today' && (
           <TodayView
             selectedDay={selectedDay}
@@ -886,6 +934,7 @@ export default function App() {
             activeBlockNumber={activeBlockNumber}
             activeWeekNumber={activeWeekNumber}
             activePlanTitle={activePlan?.title || weekTitle}
+            isVisitor={userRole === 'visitor'}
           />
         )}
 
@@ -913,6 +962,7 @@ export default function App() {
             onOpenArchiveModal={() => setIsArchiveModalOpen(true)}
             activeBlockNumber={activeBlockNumber}
             activeWeekNumber={activeWeekNumber}
+            isVisitor={userRole === 'visitor'}
           />
         )}
 
@@ -925,6 +975,7 @@ export default function App() {
             onUpdateTimetable={setTimetable}
             onResetTimetable={handleResetTimetable}
             isAdmin={isAdmin}
+            isVisitor={userRole === 'visitor'}
             onOpenAdminLogin={() =>
               handleOpenAdminLogin(
                 'تعديل الجدول الدراسي',
@@ -1006,6 +1057,7 @@ export default function App() {
         onDeleteTask={handleDeleteTask}
         onAddTaskForDay={handleOpenAddTask}
         onOpenFullWeeklyView={() => setCurrentTab('weekly')}
+        isVisitor={userRole === 'visitor'}
       />
 
       {/* Requested Modal 3: Weekly Plan Files Uploader Modal (Admin Protected) */}
@@ -1068,6 +1120,7 @@ export default function App() {
         activePlanId={activePlanId}
         currentSection={selectedSection}
         isAdmin={isAdmin}
+        userRole={userRole}
         onSelectPlan={(planId) => {
           handleSelectPlan(planId);
           setIsArchiveModalOpen(false);
@@ -1099,7 +1152,7 @@ export default function App() {
         reasonMessage={adminReason?.message}
       />
 
-      {/* 3-Option App Entry Portal Modal (Admin: 1111, Student: Name, Visitor: Instant Browse) */}
+      {/* 3-Option App Entry Portal Modal (Admin, Student: Name, Visitor: Instant Browse) */}
       <AppEntryPortalModal
         isOpen={isEntryPortalOpen}
         onClose={() => setIsEntryPortalOpen(false)}

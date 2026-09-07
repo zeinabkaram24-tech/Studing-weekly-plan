@@ -131,7 +131,7 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
                     setPassword(e.target.value);
                     setError(null);
                   }}
-                  placeholder="أدخل كلمة المرور (1111)..."
+                  placeholder="أدخل كلمة المرور..."
                   autoFocus
                   className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 text-sm font-bold text-slate-900 text-center tracking-widest"
                 />

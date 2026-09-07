@@ -1772,14 +1772,19 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
                 إغلاق
               </button>
 
-              {activeTab === 'weekly_plan' && generatedTasks.length > 0 && (
+              {activeTab === 'weekly_plan' && (
                 <button
                   type="button"
+                  id="btn-apply-weekly-plan-admin"
                   onClick={handleApply}
-                  className="px-6 py-2 rounded-full text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm flex items-center gap-1.5 transition-all font-sans cursor-pointer"
+                  className="px-6 py-2 rounded-full text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm flex items-center gap-1.5 transition-all font-sans cursor-pointer active:scale-95"
                 >
                   <Check className="w-4 h-4 stroke-[2.5]" />
-                  <span>تطبيق وتحديث الخطة للأسبوع الجديد</span>
+                  <span>
+                    {generatedTasks.length > 0
+                      ? `حفظ وتطبيق خطة (Block ${blockNumber} - Week ${weekNumber}) [${generatedTasks.length} مهمة]`
+                      : `إنشاء وتطبيق خطة (Block ${blockNumber} - Week ${weekNumber})`}
+                  </span>
                 </button>
               )}
             </div>

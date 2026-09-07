@@ -25,6 +25,7 @@ interface WeekDaysPickerModalProps {
   onDeleteTask: (taskId: string) => void;
   onAddTaskForDay: (day: DayOfWeek, subjectId?: string) => void;
   onOpenFullWeeklyView: () => void;
+  isVisitor?: boolean;
 }
 
 export const WeekDaysPickerModal: React.FC<WeekDaysPickerModalProps> = ({
@@ -39,6 +40,7 @@ export const WeekDaysPickerModal: React.FC<WeekDaysPickerModalProps> = ({
   onDeleteTask,
   onAddTaskForDay,
   onOpenFullWeeklyView,
+  isVisitor = false,
 }) => {
   const [activeDay, setActiveDay] = useState<DayOfWeek>(selectedDay);
 
@@ -213,15 +215,17 @@ export const WeekDaysPickerModal: React.FC<WeekDaysPickerModalProps> = ({
             </div>
 
             <div className="flex items-center gap-2">
-              <button
-                id="btn-add-task-for-active-day"
-                type="button"
-                onClick={() => onAddTaskForDay(activeDay)}
-                className="px-3.5 py-2 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-xs transition-colors flex items-center gap-1.5 font-sans"
-              >
-                <Plus className="w-4 h-4" />
-                <span>إضافة مهمة لهذا اليوم</span>
-              </button>
+              {!isVisitor && (
+                <button
+                  id="btn-add-task-for-active-day"
+                  type="button"
+                  onClick={() => onAddTaskForDay(activeDay)}
+                  className="px-3.5 py-2 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-xs transition-colors flex items-center gap-1.5 font-sans"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>إضافة مهمة لهذا اليوم</span>
+                </button>
+              )}
               <button
                 id="btn-jump-to-active-day"
                 type="button"
@@ -249,16 +253,20 @@ export const WeekDaysPickerModal: React.FC<WeekDaysPickerModalProps> = ({
                 لا توجد مهام مسجلة ليوم {activeDayInfo.nameAr}
               </h5>
               <p className="text-xs text-slate-500 max-w-sm mb-4 font-sans">
-                يمكنك إضافة واجب أو درس جديد أو استخدام لصق الخطة الذكية لتعبئة الجدول تلقائياً.
+                {isVisitor
+                  ? 'لا توجد مهام مسجلة لهذا اليوم في خطة الأسبوع المعروضة.'
+                  : 'يمكنك إضافة واجب أو درس جديد أو استخدام لصق الخطة الذكية لتعبئة الجدول تلقائياً.'}
               </p>
-              <button
-                type="button"
-                onClick={() => onAddTaskForDay(activeDay)}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white transition-colors flex items-center gap-1.5 font-sans"
-              >
-                <Plus className="w-4 h-4" />
-                <span>إضافة مهمة الآن</span>
-              </button>
+              {!isVisitor && (
+                <button
+                  type="button"
+                  onClick={() => onAddTaskForDay(activeDay)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white transition-colors flex items-center gap-1.5 font-sans"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>إضافة مهمة الآن</span>
+                </button>
+              )}
             </div>
           ) : (
             <div className="space-y-3">
@@ -271,6 +279,7 @@ export const WeekDaysPickerModal: React.FC<WeekDaysPickerModalProps> = ({
                   onEdit={onEditTask}
                   onDelete={onDeleteTask}
                   compact
+                  isVisitor={isVisitor}
                 />
               ))}
             </div>

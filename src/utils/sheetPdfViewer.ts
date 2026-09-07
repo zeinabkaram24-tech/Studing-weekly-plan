@@ -596,18 +596,7 @@ export async function openMaterialSheetInNewTab(
   `);
 
   try {
-    // 1. If file has a server URL or fileName on the server, navigate directly to stream inline
-    if (item.fileUrl && (item.fileUrl.startsWith('/api/') || item.fileUrl.startsWith('http') || item.fileUrl.startsWith('/materials_files/'))) {
-      newTab.location.href = item.fileUrl;
-      return;
-    }
-
-    if (item.fileName) {
-      newTab.location.href = `/api/materials/file/${encodeURIComponent(item.fileName)}`;
-      return;
-    }
-
-    // 2. Check if there is an attached binary blob in IndexedDB
+    // 1. PRIMARY METHOD (Local & Offline): Retrieve from IndexedDB
     const storedBlob = await getMaterialBlob(item.id);
     if (storedBlob) {
       const isPdf =
@@ -615,64 +604,51 @@ export async function openMaterialSheetInNewTab(
         storedBlob.type === 'application/pdf' ||
         (item.fileName && item.fileName.toLowerCase().endsWith('.pdf'));
       const mime = isPdf ? 'application/pdf' : (storedBlob.type || 'application/pdf');
-      const blob = new Blob([storedBlob], { type: mime });
-      const blobUrl = URL.createObjectURL(blob);
+      const pdfBlob = new Blob([storedBlob], { type: mime });
+      const blobUrl = URL.createObjectURL(pdfBlob);
 
-      // Render responsive full embed to prevent browser blob navigation blocks
-      newTab.document.open();
-      newTab.document.write(`
-        <!DOCTYPE html>
-        <html style="width:100%;height:100%;margin:0;padding:0;overflow:hidden;">
-        <head>
-          <meta charset="utf-8" />
-          <title>${escapeHtml(item.title)}</title>
-          <style>html,body,iframe,embed{margin:0;padding:0;width:100%;height:100%;border:none;display:block;background:#1e293b;}</style>
-        </head>
-        <body>
-          <embed src="${blobUrl}" type="${mime}" width="100%" height="100%" />
-        </body>
-        </html>
-      `);
-      newTab.document.close();
+      // Direct navigation to the Blob URL in the new tab opens browser's native PDF viewer
+      newTab.location.href = blobUrl;
       return;
     }
 
-    // 3. Check if item has base64 fileData (e.g. data:application/pdf or image)
+    // 2. SECONDARY LOCAL METHOD: Check if item has Base64 fileData
     if (item.fileData) {
-      const blob = dataUrlToBlob(item.fileData);
-      const blobUrl = URL.createObjectURL(blob);
-      newTab.document.open();
-      newTab.document.write(`
-        <!DOCTYPE html>
-        <html style="width:100%;height:100%;margin:0;padding:0;overflow:hidden;">
-        <head>
-          <meta charset="utf-8" />
-          <title>${escapeHtml(item.title)}</title>
-          <style>html,body,iframe,embed{margin:0;padding:0;width:100%;height:100%;border:none;display:block;background:#1e293b;}</style>
-        </head>
-        <body>
-          <embed src="${blobUrl}" type="application/pdf" width="100%" height="100%" />
-        </body>
-        </html>
-      `);
-      newTab.document.close();
+      const pdfBlob = dataUrlToBlob(item.fileData);
+      const blobUrl = URL.createObjectURL(pdfBlob);
+      newTab.location.href = blobUrl;
       return;
     }
 
-    // 4. Check if item has external fileUrl (Google Drive, Dropbox, direct PDF link)
-    if (item.fileUrl && item.fileUrl.startsWith('http')) {
+    // 3. DIRECT ONLINE URL: If item has an explicit public online URL
+    if (item.fileUrl && (item.fileUrl.startsWith('http://') || item.fileUrl.startsWith('https://'))) {
       newTab.location.href = item.fileUrl;
       return;
     }
 
-    // 5. If no raw PDF binary was uploaded, generate the full A4 printable PDF/HTML document!
+    // 4. Server API Endpoint (only if file actually exists on server)
+    if (item.fileName || (item.fileUrl && item.fileUrl.startsWith('/api/'))) {
+      const candidateUrl = item.fileUrl || `/api/materials/file/${encodeURIComponent(item.fileName || '')}`;
+      try {
+        const testRes = await fetch(candidateUrl, { method: 'HEAD' });
+        if (testRes.ok) {
+          newTab.location.href = candidateUrl;
+          return;
+        }
+      } catch (checkErr) {
+        console.warn('Server file endpoint check failed, falling back to local generated worksheet:', checkErr);
+      }
+    }
+
+    // 5. RELIABLE FALLBACK: Generate the full A4 printable curriculum worksheet inside the new tab
+    // Never leaves the user with a 404 or black screen!
     const fullHtml = generateSheetHtml(item, subjectNameAr);
     newTab.document.open();
     newTab.document.write(fullHtml);
     newTab.document.close();
   } catch (err) {
     console.error('Failed to open sheet in new tab:', err);
-    // Fallback: write the generated HTML
+    // Safe Fallback: write the generated HTML
     const fullHtml = generateSheetHtml(item, subjectNameAr);
     newTab.document.open();
     newTab.document.write(fullHtml);
@@ -711,11 +687,26 @@ export async function downloadMaterialSheet(item: MaterialItem, adminPin = '1111
         return;
       }
     } catch (blobErr) {
-      console.warn('Could not read blob from IndexedDB, falling back to server:', blobErr);
+      console.warn('Could not read blob from IndexedDB:', blobErr);
     }
 
-    // 2. Direct server download endpoint (serves with Content-Disposition: attachment)
-    // Guarantees full original binary blocks, exact formatting, no conversion
+    // 2. Base64 fileData (local & instant)
+    if (item.fileData) {
+      const blob = dataUrlToBlob(item.fileData);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        if (document.body.contains(a)) document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 60000);
+      return;
+    }
+
+    // 3. Direct server download endpoint (serves with Content-Disposition: attachment)
     if (item.fileName) {
       const serverDownloadUrl = `/api/materials/download/${encodeURIComponent(item.fileName)}?pin=${encodeURIComponent(adminPin)}`;
       const a = document.createElement('a');
@@ -729,35 +720,17 @@ export async function downloadMaterialSheet(item: MaterialItem, adminPin = '1111
       return;
     }
 
-    // 3. If fileUrl is provided
-    if (item.fileUrl) {
-      const targetUrl = item.fileUrl.startsWith('http') || item.fileUrl.startsWith('/')
-        ? item.fileUrl
-        : `/api/materials/download/${encodeURIComponent(item.fileUrl)}?pin=${encodeURIComponent(adminPin)}`;
+    // 4. If direct online fileUrl is provided
+    if (item.fileUrl && (item.fileUrl.startsWith('http://') || item.fileUrl.startsWith('https://'))) {
       const a = document.createElement('a');
-      a.href = targetUrl;
+      a.href = item.fileUrl;
       a.download = filename;
+      a.target = '_blank';
       document.body.appendChild(a);
       a.click();
       setTimeout(() => {
         if (document.body.contains(a)) document.body.removeChild(a);
       }, 1000);
-      return;
-    }
-
-    // 4. Check base64 fileData
-    if (item.fileData) {
-      const blob = dataUrlToBlob(item.fileData);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        if (document.body.contains(a)) document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }, 60000);
       return;
     }
 

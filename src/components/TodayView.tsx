@@ -44,6 +44,7 @@ interface TodayViewProps {
   activeBlockNumber?: number;
   activeWeekNumber?: number;
   activePlanTitle?: string;
+  isVisitor?: boolean;
 }
 
 export const TodayView: React.FC<TodayViewProps> = ({
@@ -67,6 +68,7 @@ export const TodayView: React.FC<TodayViewProps> = ({
   activeBlockNumber = 1,
   activeWeekNumber = 1,
   activePlanTitle,
+  isVisitor = false,
 }) => {
   const [filter, setFilter] = useState<'all' | 'pending' | 'completed'>('all');
   const [copiedText, setCopiedText] = useState(false);
@@ -491,14 +493,16 @@ export const TodayView: React.FC<TodayViewProps> = ({
             </button>
           )}
 
-          <button
-            type="button"
-            onClick={() => onAddTaskForDay(selectedDay)}
-            className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors flex items-center gap-1.5 shadow-xs font-sans"
-          >
-            <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-            <span>Add Task</span>
-          </button>
+          {!isVisitor && (
+            <button
+              type="button"
+              onClick={() => onAddTaskForDay(selectedDay)}
+              className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors flex items-center gap-1.5 shadow-xs font-sans"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>Add Task</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -515,27 +519,30 @@ export const TodayView: React.FC<TodayViewProps> = ({
               onEdit={onEditTask}
               onDelete={onDeleteTask}
               onSavePersonalNote={onSavePersonalNote}
+              isVisitor={isVisitor}
             />
           );
         })}
 
         {/* Card for "+ Add Task / Classwork / Homework" */}
-        <div
-          id="btn-add-task-today-grid"
-          onClick={() => onAddTaskForDay(selectedDay)}
-          className="bg-slate-50 hover:bg-indigo-50/60 border-2 border-dashed border-slate-300 hover:border-indigo-400 p-6 rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all duration-150 group text-center min-h-[110px]"
-          title="إضافة مهمة جديدة لخطة اليوم"
-        >
-          <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-            <Plus className="w-5 h-5 stroke-[2.5]" />
+        {!isVisitor && (
+          <div
+            id="btn-add-task-today-grid"
+            onClick={() => onAddTaskForDay(selectedDay)}
+            className="bg-slate-50 hover:bg-indigo-50/60 border-2 border-dashed border-slate-300 hover:border-indigo-400 p-6 rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all duration-150 group text-center min-h-[110px]"
+            title="إضافة مهمة جديدة لخطة اليوم"
+          >
+            <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+              <Plus className="w-5 h-5 stroke-[2.5]" />
+            </div>
+            <span className="text-slate-800 group-hover:text-indigo-700 font-bold text-sm">
+              إضافة خطة مادة / واجب ليوم {currentDayInfo.nameAr}
+            </span>
+            <span className="text-slate-400 text-xs mt-0.5 font-sans">
+              Add Weekly Plan Task
+            </span>
           </div>
-          <span className="text-slate-800 group-hover:text-indigo-700 font-bold text-sm">
-            إضافة خطة مادة / واجب ليوم {currentDayInfo.nameAr}
-          </span>
-          <span className="text-slate-400 text-xs mt-0.5 font-sans">
-            Add Weekly Plan Task
-          </span>
-        </div>
+        )}
       </div>
 
       {/* Empty State message if filter returned empty */}

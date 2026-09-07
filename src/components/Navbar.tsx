@@ -238,7 +238,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               id="sidebar-btn-role-switch"
               onClick={handleRoleSwitchClick}
               className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold text-indigo-200 bg-indigo-950/60 hover:bg-indigo-900/80 border border-indigo-800/50 transition-all shadow-xs active:scale-98 cursor-pointer"
-              title="تغيير نوع الدخول: أدمن (1111)، طالب، أو زائر"
+              title="تغيير نوع الدخول: أدمن، طالب، أو زائر"
             >
               <RefreshCw className="w-3.5 h-3.5 text-indigo-300" />
               <span>تبديل الحساب / نوع الدخول</span>
@@ -304,75 +304,94 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span>جدول حصص فصل {selectedSection}</span>
           </button>
 
-          {/* Unified Admin Menu Item in Navigation (Exclusively houses Sheets & Uploads) */}
-          <button
-            type="button"
-            id="tab-admin-desktop"
-            onClick={handleUploadClick}
-            className="w-full flex items-center justify-between p-3 rounded-2xl transition-all text-xs sm:text-sm font-bold text-slate-300 hover:bg-slate-800/80 hover:text-indigo-300 border border-slate-800/80 hover:border-indigo-800/60 cursor-pointer"
-            title="لوحة تحكم الأدمن: إدارة ورفع وحذف الشيتات والملفات وإحصائيات الزوار (رمز 1111)"
-          >
-            <div className="flex items-center gap-2.5">
-              <ShieldCheck className="w-4 h-4 text-indigo-400" />
-              <span>لوحة تحكم الأدمن</span>
+          {/* Unified Admin Menu Item in Navigation (Hidden for visitor) */}
+          {userRole !== 'visitor' && (
+            <button
+              type="button"
+              id="tab-admin-desktop"
+              onClick={handleUploadClick}
+              className="w-full flex items-center justify-between p-3 rounded-2xl transition-all text-xs sm:text-sm font-bold text-slate-300 hover:bg-slate-800/80 hover:text-indigo-300 border border-slate-800/80 hover:border-indigo-800/60 cursor-pointer"
+              title="لوحة تحكم الأدمن: إدارة ورفع وحذف الشيتات والملفات وإحصائيات الزوار"
+            >
+              <div className="flex items-center gap-2.5">
+                <ShieldCheck className="w-4 h-4 text-indigo-400" />
+                <span>لوحة تحكم الأدمن</span>
+              </div>
+              {!isAdmin ? (
+                <span className="flex items-center gap-1 text-[11px] text-slate-400 font-sans bg-slate-900 px-2 py-0.5 rounded-lg border border-slate-700">
+                  <Lock className="w-3 h-3 text-indigo-400/80" />
+                  <span>مشرف</span>
+                </span>
+              ) : (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                  أدمن نشط 👑
+                </span>
+              )}
+            </button>
+          )}
+
+          {/* Action Tools Section (Hidden for visitor to ensure pure read-only experience) */}
+          {userRole !== 'visitor' && (
+            <div className="pt-3 mt-3 border-t border-slate-800/80 space-y-2">
+              <button
+                type="button"
+                id="sidebar-add-task"
+                onClick={onOpenAddTask}
+                className="w-full bg-slate-900 hover:bg-slate-800 text-indigo-300 font-bold p-2.5 rounded-2xl text-xs flex items-center justify-center gap-2 border border-slate-800 transition-colors font-sans"
+              >
+                <Plus className="w-4 h-4 stroke-[2.5]" />
+                <span>+ Add Weekly Plan Task</span>
+              </button>
+
+              <button
+                type="button"
+                id="sidebar-smart-paste"
+                onClick={onOpenSmartPaste}
+                className="w-full bg-slate-900 hover:bg-slate-800 text-purple-300 font-bold p-2.5 rounded-2xl text-xs flex items-center justify-center gap-2 border border-slate-800 transition-colors font-sans"
+                title="لصق رسائل المدرسة الذكية"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                <span>Smart Paste (لصق ذكي)</span>
+              </button>
+
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="flex-1 bg-slate-900/80 hover:bg-slate-800 text-slate-300 text-xs p-2 rounded-xl flex items-center justify-center gap-1.5 transition-colors border border-slate-800"
+                  title="طباعة الخطة"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>طباعة</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={onResetData}
+                  className="flex-1 bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-amber-400 text-xs p-2 rounded-xl flex items-center justify-center gap-1.5 transition-colors border border-slate-800"
+                  title="إعادة تعيين واستعادة البيانات الأصلية"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>استعادة البيانات</span>
+                </button>
+              </div>
             </div>
-            {!isAdmin ? (
-              <span className="flex items-center gap-1 text-[11px] text-slate-400 font-mono bg-slate-900 px-2 py-0.5 rounded-lg border border-slate-700">
-                <Lock className="w-3 h-3 text-indigo-400/80" />
-                <span>1111</span>
-              </span>
-            ) : (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                أدمن نشط 👑
-              </span>
-            )}
-          </button>
+          )}
 
-          {/* Action Tools Section */}
-          <div className="pt-3 mt-3 border-t border-slate-800/80 space-y-2">
-            <button
-              type="button"
-              id="sidebar-add-task"
-              onClick={onOpenAddTask}
-              className="w-full bg-slate-900 hover:bg-slate-800 text-indigo-300 font-bold p-2.5 rounded-2xl text-xs flex items-center justify-center gap-2 border border-slate-800 transition-colors font-sans"
-            >
-              <Plus className="w-4 h-4 stroke-[2.5]" />
-              <span>+ Add Weekly Plan Task</span>
-            </button>
-
-            <button
-              type="button"
-              id="sidebar-smart-paste"
-              onClick={onOpenSmartPaste}
-              className="w-full bg-slate-900 hover:bg-slate-800 text-purple-300 font-bold p-2.5 rounded-2xl text-xs flex items-center justify-center gap-2 border border-slate-800 transition-colors font-sans"
-              title="لصق رسائل المدرسة الذكية"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-              <span>Smart Paste (لصق ذكي)</span>
-            </button>
-
-            <div className="flex items-center gap-2 pt-1">
+          {/* Visitor Quick Tools */}
+          {userRole === 'visitor' && (
+            <div className="pt-3 mt-3 border-t border-slate-800/80">
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="flex-1 bg-slate-900/80 hover:bg-slate-800 text-slate-300 text-xs p-2 rounded-xl flex items-center justify-center gap-1.5 transition-colors border border-slate-800"
-                title="طباعة الخطة"
+                className="w-full bg-slate-900/80 hover:bg-slate-800 text-slate-300 text-xs p-2.5 rounded-xl flex items-center justify-center gap-2 transition-colors border border-slate-800"
+                title="طباعة الخطة الأسبوعية"
               >
                 <Printer className="w-3.5 h-3.5" />
-                <span>طباعة</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={onResetData}
-                className="flex-1 bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-amber-400 text-xs p-2 rounded-xl flex items-center justify-center gap-1.5 transition-colors border border-slate-800"
-                title="إعادة تعيين واستعادة البيانات الأصلية"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span>استعادة البيانات</span>
+                <span>طباعة الخطة</span>
               </button>
             </div>
-          </div>
+          )}
         </nav>
       </aside>
 
@@ -426,7 +445,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     ? "bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500"
                     : "bg-sky-600 hover:bg-sky-500 text-white border-sky-500"
                 }`}
-                title="تبديل نوع الدخول: أدمن (1111)، طالب، أو زائر"
+                title="تبديل نوع الدخول: أدمن، طالب، أو زائر"
               >
                 {isAdmin || userRole === "admin" ? (
                   <>
@@ -446,18 +465,20 @@ export const Navbar: React.FC<NavbarProps> = ({
                 )}
               </button>
 
-              {/* Single Unified Admin Button for Mobile */}
-              <button
-                type="button"
-                id="mobile-btn-admin"
-                onClick={handleUploadClick}
-                className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs flex items-center gap-1 active:scale-95 cursor-pointer font-bold"
-                title="لوحة تحكم الأدمن (رمز 1111)"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
-                <span>أدمن</span>
-                {!isAdmin && <Lock className="w-2.5 h-2.5 text-indigo-300" />}
-              </button>
+              {/* Single Unified Admin Button for Mobile (Hidden for visitor) */}
+              {userRole !== 'visitor' && (
+                <button
+                  type="button"
+                  id="mobile-btn-admin"
+                  onClick={handleUploadClick}
+                  className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs flex items-center gap-1 active:scale-95 cursor-pointer font-bold"
+                  title="لوحة تحكم الأدمن"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>أدمن</span>
+                  {!isAdmin && <Lock className="w-2.5 h-2.5 text-indigo-300" />}
+                </button>
+              )}
             </div>
           </div>
 
