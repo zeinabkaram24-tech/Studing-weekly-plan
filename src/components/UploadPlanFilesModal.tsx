@@ -50,6 +50,7 @@ import {
 } from '../utils/sheetPdfViewer';
 import { VisitorStatsSummary } from '../types';
 import { VisitorStatsPanel } from './VisitorStatsPanel';
+import { processTasksAndExtractLinkTasks, extractFirstUrl, parseWeeklyPlanTextWithLinks } from '../utils/urlHelper';
 
 export type AdminUploadTab = 'materials' | 'visitors' | 'weekly_plan' | 'history';
 
@@ -143,6 +144,10 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
   const [manualDay, setManualDay] = useState<DayOfWeek>('sunday');
   const [manualType, setManualType] = useState<TaskType>('homework');
   const [manualDetails, setManualDetails] = useState('');
+
+  // Smart text paste for plan
+  const [smartPlanText, setSmartPlanText] = useState('');
+  const [isSmartTextPlanOpen, setIsSmartTextPlanOpen] = useState(false);
 
   // Materials & Sheets upload state
   const [materialsList, setMaterialsList] = useState<MaterialItem[]>([]);
@@ -301,8 +306,12 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
       createdAt: Date.now(),
     }));
 
+    // Automatically convert any URL / link in tasks into separate actionable tasks:
+    // 'استماع / مشاهدة الرابط التالي: [اسم المادة أو الدرس]'
+    const tasksWithLinkItems = processTasksAndExtractLinkTasks(formatted, subjects);
+
     onApplyNewWeeklyPlan(
-      formatted,
+      tasksWithLinkItems,
       weekTitle,
       updateMode,
       uploadedFilesList,
@@ -541,24 +550,43 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
   const handleAddManualTask = (e: React.FormEvent) => {
     e.preventDefault();
     if (!manualTitle.trim()) return;
-    setGeneratedTasks((prev) => [
-      ...prev,
-      {
-        title: manualTitle.trim(),
-        subjectId: manualSubjectId,
-        day: manualDay,
-        type: manualType,
-        details: manualDetails.trim() || undefined,
-        isDone: false,
-        completedDays: [],
-        section: targetSection,
-        blockNumber,
-        weekNumber,
-      },
-    ]);
+
+    const tempTask: PlanTask = {
+      id: `manual-temp-${Date.now()}`,
+      title: manualTitle.trim(),
+      subjectId: manualSubjectId,
+      day: manualDay,
+      type: manualType,
+      details: manualDetails.trim() || undefined,
+      isDone: false,
+      section: targetSection === 'all' ? undefined : targetSection,
+      createdAt: Date.now(),
+    };
+
+    // Extract any links into separate tasks
+    const expanded = processTasksAndExtractLinkTasks([tempTask], subjects);
+    const cleaned: Omit<PlanTask, 'id' | 'createdAt'>[] = expanded.map(({ id, createdAt, ...rest }) => rest);
+
+    setGeneratedTasks((prev) => [...prev, ...cleaned]);
     setManualTitle('');
     setManualDetails('');
     setIsManualTaskFormOpen(false);
+  };
+
+  const handleExtractFromPlanText = () => {
+    if (!smartPlanText.trim()) return;
+    const extracted = parseWeeklyPlanTextWithLinks(
+      smartPlanText,
+      'sunday',
+      subjects,
+      targetSection === 'all' ? undefined : targetSection
+    );
+    if (extracted.length > 0) {
+      const cleaned: Omit<PlanTask, 'id' | 'createdAt'>[] = extracted.map(({ id, createdAt, ...rest }) => rest);
+      setGeneratedTasks((prev) => [...prev, ...cleaned]);
+      setSmartPlanText('');
+      setIsSmartTextPlanOpen(false);
+    }
   };
 
   // Direct and Multi-select Material deletion
@@ -1094,6 +1122,64 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
               )}
             </div>
 
+            {/* Smart Plan Text & Link Extractor (Converts text with URLs to tasks) */}
+            <div className="bg-rose-50/40 border border-rose-100 rounded-2xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg bg-rose-600 text-white flex items-center justify-center">
+                    <Sparkles className="w-3.5 h-3.5" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-800">
+                    لصق نص الخطة الأسبوعية واستخراج الروابط تلقائياً كمهام عملية:
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsSmartTextPlanOpen(!isSmartTextPlanOpen)}
+                  className="px-3 py-1 rounded-lg bg-white hover:bg-rose-50 border border-rose-200 text-xs font-bold text-rose-700 shadow-2xs transition-colors cursor-pointer"
+                >
+                  {isSmartTextPlanOpen ? 'إغلاق نافذة اللصق' : '+ لصق نص الخطة والروابط'}
+                </button>
+              </div>
+
+              {isSmartTextPlanOpen && (
+                <div className="pt-2 border-t border-rose-100 space-y-3 text-xs">
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    الصق هنا نص الخطة الأسبوعية (شروحات، روابط ICT، مراجعات، يوتيوب، أو درايف). سيقوم النظام تلقائياً باستخراج كل رابط وتحويله إلى مهمة منفصلة:
+                    <span className="font-bold text-rose-700 dir-rtl mx-1 font-mono">
+                      "استماع / مشاهدة الرابط التالي: [اسم المادة أو الدرس]"
+                    </span>
+                    مع زر نشط يفتح فوراً في تبويب جديد.
+                  </p>
+                  <textarea
+                    rows={4}
+                    value={smartPlanText}
+                    onChange={(e) => setSmartPlanText(e.target.value)}
+                    placeholder={`مثال:\nSunday:\nEnglish: Connect Plus Unit 1 - Explanation https://youtu.be/sample1\nMonday:\nICT: Computer parts - Watch video https://youtu.be/sample2\nWednesday:\nScience: Plant review https://drive.google.com/open?id=sample3`}
+                    className="w-full px-3 py-2 rounded-xl border border-rose-200 bg-white font-mono text-xs text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-rose-400"
+                  />
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSmartPlanText('')}
+                      className="px-3 py-1.5 rounded-lg text-slate-500 hover:bg-slate-100 font-bold text-xs"
+                    >
+                      مسح
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleExtractFromPlanText}
+                      disabled={!smartPlanText.trim()}
+                      className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-bold text-xs cursor-pointer flex items-center gap-1.5 transition-colors shadow-2xs"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>تفريغ النص واستخراج المهام والروابط تلقائياً</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Generated Tasks preview with multi-select */}
             {generatedTasks.length > 0 && (
               <div className="space-y-3">
@@ -1172,6 +1258,11 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
                           />
                           <div className="flex items-center gap-2 min-w-0">
                             <span className="font-bold text-slate-900 truncate">{t.title}</span>
+                            {t.title.includes('استماع / مشاهدة الرابط التالي') && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-md bg-rose-100 text-rose-700 font-bold shrink-0">
+                                🔗 رابط نشط
+                              </span>
+                            )}
                             <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 shrink-0 font-bold">
                               {DAYS_LIST.find((d) => d.key === t.day)?.nameAr}
                             </span>

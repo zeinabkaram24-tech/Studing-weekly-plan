@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { DAYS_LIST } from '../data/defaultData';
 import { DayOfWeek, PlanTask, Subject, TaskType } from '../types';
-import { X, Sparkles, Check } from 'lucide-react';
+import { X, Sparkles, Check, ExternalLink, Headphones } from 'lucide-react';
+import { processTasksAndExtractLinkTasks, extractAllUrls, extractFirstUrl } from '../utils/urlHelper';
 
 interface SmartPasteModalProps {
   isOpen: boolean;
@@ -97,6 +98,7 @@ export const SmartPasteModal: React.FC<SmartPasteModalProps> = ({
       }
 
       if (title.length > 2 && !title.startsWith('الخطة') && !title.startsWith('Weekly Plan')) {
+        const lineUrls = extractAllUrls(line);
         newTasks.push({
           day: currentDay,
           subjectId: matchedSubject?.id || 'math',
@@ -104,11 +106,22 @@ export const SmartPasteModal: React.FC<SmartPasteModalProps> = ({
           title: title.slice(0, 90),
           details: line,
           pages,
+          linkUrl: lineUrls[0] || undefined,
           isDone: false,
         });
       }
     }
-    setParsedPreview(newTasks);
+
+    // Automatically expand any URLs into separate 'استماع / مشاهدة الرابط التالي: [اسم المادة أو الدرس]' tasks
+    const tempFullTasks: PlanTask[] = newTasks.map((t, i) => ({
+      ...t,
+      id: `temp-${Date.now()}-${i}`,
+      createdAt: Date.now(),
+    }));
+    const expanded = processTasksAndExtractLinkTasks(tempFullTasks, subjects);
+    const finalCleaned: Omit<PlanTask, 'id' | 'createdAt'>[] = expanded.map(({ id, createdAt, ...rest }) => rest);
+
+    setParsedPreview(finalCleaned);
   };
 
   const handleConfirmImport = () => {
@@ -125,10 +138,11 @@ Monday:
 Social Studies: مدرستي الجميلة - نشاط 1
 Religion: قراءة سورة الفلق
 Tuesday:
-ICT: Parts of the computer - Mouse & Keyboard
+ICT: Parts of the computer - Watch video: https://youtu.be/sample-ict-video
 English: Spelling words (cat, mat, bat)
 Wednesday:
-Arabic: واجب ص 18 تدريب 1 و 2`;
+Arabic: واجب ص 18 تدريب 1 و 2
+Science: مراجعة وشرح درس النبات https://drive.google.com/open?id=sample`;
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
@@ -215,21 +229,36 @@ Arabic: واجب ص 18 تدريب 1 و 2`;
                 {parsedPreview.map((pt, idx) => {
                   const sub = subjects.find((s) => s.id === pt.subjectId);
                   const dayObj = DAYS_LIST.find((d) => d.key === pt.day);
+                  const isLinkTask = pt.title.includes('استماع / مشاهدة الرابط التالي') || !!pt.linkUrl;
                   return (
                     <div
                       key={idx}
-                      className="p-2 bg-white rounded-xl border border-purple-100 flex items-center justify-between text-xs gap-2"
+                      className={`p-2 rounded-xl border flex items-center justify-between text-xs gap-2 ${
+                        isLinkTask ? 'bg-rose-50/60 border-rose-200' : 'bg-white border-purple-100'
+                      }`}
                     >
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-bold text-purple-700 px-1.5 py-0.5 bg-purple-100 rounded-md text-[10px]">
+                        <span className={`font-bold px-1.5 py-0.5 rounded-md text-[10px] ${
+                          isLinkTask ? 'bg-rose-100 text-rose-700' : 'bg-purple-100 text-purple-700'
+                        }`}>
                           {dayObj?.nameAr}
                         </span>
                         <span className="font-bold text-slate-800 truncate font-sans">{sub?.nameEn}</span>
-                        <span className="text-slate-600 truncate">{pt.title}</span>
+                        <span className={`truncate ${isLinkTask ? 'text-rose-800 font-bold' : 'text-slate-600'}`}>
+                          {pt.title}
+                        </span>
                       </div>
-                      {pt.pages && (
-                        <span className="text-[10px] text-slate-500 font-mono shrink-0">{pt.pages}</span>
-                      )}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {isLinkTask && (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-rose-600 bg-white px-2 py-0.5 rounded border border-rose-200">
+                            <Headphones className="w-3 h-3" />
+                            <span>رابط نشط ↗</span>
+                          </span>
+                        )}
+                        {pt.pages && (
+                          <span className="text-[10px] text-slate-500 font-mono">{pt.pages}</span>
+                        )}
+                      </div>
                     </div>
                   );
                 })}

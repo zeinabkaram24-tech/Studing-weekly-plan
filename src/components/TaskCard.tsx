@@ -4,7 +4,7 @@ import { SubjectIcon } from './SubjectIcon';
 import { TaskTypeBadge } from './SubjectBadge';
 import { playChimeSound, triggerTaskDoneConfetti } from '../utils/celebration';
 import { extractFirstUrl, getLinkActionLabel, getFriendlyDomain, isVideoUrl } from '../utils/urlHelper';
-import { Edit3, Trash2, BookOpen, Clock, Check, Circle, StickyNote, CheckCircle2, X, ExternalLink, PlayCircle } from 'lucide-react';
+import { Edit3, Trash2, BookOpen, Clock, Check, Circle, StickyNote, CheckCircle2, X, ExternalLink, PlayCircle, Headphones } from 'lucide-react';
 
 interface TaskCardProps {
   task: PlanTask;
@@ -35,6 +35,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   const linkLabel = activeLinkUrl ? getLinkActionLabel(activeLinkUrl, task.linkTitle) : '';
   const domain = activeLinkUrl ? getFriendlyDomain(activeLinkUrl) : '';
   const isVideo = activeLinkUrl ? isVideoUrl(activeLinkUrl) : false;
+  const isListeningWatchingTask =
+    task.title.includes('استماع / مشاهدة الرابط التالي') ||
+    task.title.startsWith('استماع / مشاهدة');
 
   const handleToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -94,6 +97,12 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               </span>
             )}
             <TaskTypeBadge type={task.type} />
+            {isListeningWatchingTask && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200/80">
+                <Headphones className="w-3 h-3 text-rose-500" />
+                <span>استماع ومتابعة</span>
+              </span>
+            )}
             {task.pages && (
               <span className="inline-flex items-center gap-1 text-[11px] text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md font-mono font-medium">
                 <BookOpen className="w-3 h-3 text-slate-400" />
@@ -130,17 +139,27 @@ export const TaskCard: React.FC<TaskCardProps> = ({
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
-                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/90 shadow-2xs hover:shadow-xs transition-all duration-150 group/link active:scale-98"
+                className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all duration-150 group/link active:scale-98 cursor-pointer shadow-2xs hover:shadow-xs ${
+                  isListeningWatchingTask
+                    ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-rose-200'
+                    : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/90'
+                }`}
                 title={`فتح الرابط في تبويب جديد (${activeLinkUrl})`}
               >
                 {isVideo ? (
-                  <PlayCircle className="w-4 h-4 text-rose-600 fill-rose-100 shrink-0 group-hover/link:scale-110 transition-transform" />
+                  <PlayCircle className={`w-4 h-4 shrink-0 group-hover/link:scale-110 transition-transform ${
+                    isListeningWatchingTask ? 'text-white fill-white/20' : 'text-rose-600 fill-rose-100'
+                  }`} />
+                ) : isListeningWatchingTask ? (
+                  <Headphones className="w-3.5 h-3.5 text-white shrink-0 group-hover/link:scale-110 transition-transform" />
                 ) : (
                   <ExternalLink className="w-3.5 h-3.5 text-indigo-600 shrink-0 group-hover/link:translate-x-0.5 transition-transform" />
                 )}
-                <span>{linkLabel}</span>
+                <span>{isListeningWatchingTask ? 'فتح واستماع / مشاهدة الرابط في تبويب جديد ↗' : linkLabel}</span>
                 {domain && (
-                  <span className="text-[10px] text-indigo-600/80 font-mono font-medium dir-ltr px-1.5 py-0.5 rounded bg-white border border-indigo-200/60">
+                  <span className={`text-[10px] font-mono font-medium dir-ltr px-1.5 py-0.5 rounded ${
+                    isListeningWatchingTask ? 'bg-rose-800/80 text-rose-100' : 'bg-white text-indigo-600/80 border border-indigo-200/60'
+                  }`}>
                     {domain}
                   </span>
                 )}
