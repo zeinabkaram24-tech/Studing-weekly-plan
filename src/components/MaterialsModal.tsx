@@ -13,6 +13,7 @@ import {
   Download,
   Printer,
   CheckCircle2,
+  ExternalLink,
 } from 'lucide-react';
 import { MaterialItem, Subject, GradeSection } from '../types';
 import { DEFAULT_SUBJECTS } from '../data/defaultData';
@@ -61,12 +62,18 @@ export const MaterialsModal: React.FC<MaterialsModalProps> = ({
     }
   }, [isOpen]);
 
-  // Resolve file URL for viewingSheet
+  // Resolve file URL for viewingSheet with synchronous initial check
   useEffect(() => {
     let isMounted = true;
     if (viewingSheet) {
+      const syncUrl =
+        viewingSheet.fileUrl ||
+        (viewingSheet.fileName ? `/api/materials/file/${encodeURIComponent(viewingSheet.fileName)}` : null);
+      if (syncUrl) {
+        setViewingFileUrl(syncUrl);
+      }
       getMaterialFileUrl(viewingSheet).then((url) => {
-        if (isMounted) setViewingFileUrl(url);
+        if (isMounted && url) setViewingFileUrl(url);
       });
     } else {
       setViewingFileUrl(null);
@@ -396,7 +403,8 @@ export const MaterialsModal: React.FC<MaterialsModalProps> = ({
                 return (
                   <div
                     key={item.id}
-                    className="bg-white rounded-2xl border border-slate-200 hover:border-indigo-300 p-4 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between group"
+                    onClick={() => setViewingSheet(item)}
+                    className="bg-white rounded-2xl border border-slate-200 hover:border-indigo-400 p-4 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between group cursor-pointer"
                   >
                     <div>
                       {/* Top badges */}
@@ -453,7 +461,7 @@ export const MaterialsModal: React.FC<MaterialsModalProps> = ({
                       )}
                     </div>
 
-                    {/* Bottom Actions - 3 Dedicated Buttons Only (Eye, Download, Print) */}
+                    {/* Bottom Actions */}
                     <div className="mt-3.5 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
                       <span className="text-[10px] text-slate-400 font-medium">
                         {new Date(item.createdAt).toLocaleDateString('ar-EG', {
@@ -463,31 +471,41 @@ export const MaterialsModal: React.FC<MaterialsModalProps> = ({
                       </span>
 
                       <div className="flex items-center gap-1.5">
-                        {/* 1. Eye Button: Opens PDF in new tab (icon only without text label as requested) */}
+                        {/* 1. Eye Button: Opens in modal viewer */}
                         <button
                           type="button"
-                          onClick={() => handleOpenSheetInNewTab(item)}
-                          className="p-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-800 transition-all cursor-pointer border border-indigo-200 active:scale-95 flex items-center justify-center shadow-2xs"
-                          title="عرض الشيت في تبويب جديد"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setViewingSheet(item);
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-800 transition-all cursor-pointer border border-indigo-200 active:scale-95 flex items-center gap-1.5 shadow-2xs text-xs font-bold"
+                          title="عرض الشيت الأصلي بنفس التنسيق"
                         >
-                          <Eye className="w-4 h-4" />
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>عرض الشيت</span>
                         </button>
 
-                        {/* 2. Download Button: Downloads the file onto device */}
+                        {/* 2. Open in New Tab Button */}
                         <button
                           type="button"
-                          onClick={() => handleDownloadSheet(item)}
-                          className="p-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 hover:text-emerald-800 transition-all cursor-pointer border border-emerald-200 active:scale-95 flex items-center justify-center shadow-2xs"
-                          title="تحميل الملف على جهازك"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenSheetInNewTab(item);
+                          }}
+                          className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer border border-slate-200 active:scale-95 flex items-center justify-center shadow-2xs"
+                          title="فتح الملف الأصلي في نافذة مستقلة"
                         >
-                          <Download className="w-4 h-4" />
+                          <ExternalLink className="w-4 h-4" />
                         </button>
 
                         {/* 3. Print Button: Prints the sheet */}
                         <button
                           type="button"
-                          onClick={() => handlePrintSheet(item)}
-                          className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-indigo-700 transition-all cursor-pointer border border-slate-200 active:scale-95 flex items-center justify-center shadow-2xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePrintSheet(item);
+                          }}
+                          className="p-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-indigo-700 transition-all cursor-pointer border border-slate-200 active:scale-95 flex items-center justify-center shadow-2xs"
                           title="طباعة الشيت"
                         >
                           <Printer className="w-4 h-4" />
@@ -506,7 +524,7 @@ export const MaterialsModal: React.FC<MaterialsModalProps> = ({
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-indigo-500 shrink-0" />
             <span>
-              جميع شيتات المواد الرسمية متاحة للعرض والمذاكرة والطباعة المباشرة (عرض فقط).
+              قسم الماتيريال مخصص للعرض والمذاكرة للطلاب (عرض فقط). تحميل وتنزيل الشيتات وإدارتها متاح للأدمن بالرقم السري 1940 من أيقونة الرفع والإدارة بجوار عداد الزوار.
             </span>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -555,29 +573,26 @@ export const MaterialsModal: React.FC<MaterialsModalProps> = ({
                 </div>
               </div>
 
-              {/* 3 Buttons in Modal Header */}
+              {/* Buttons in Modal Header */}
               <div className="flex items-center gap-2 shrink-0">
-                {/* 1. Eye Button: Opens in new tab as PDF */}
+                {/* 1. Open in Full Window Button */}
                 <button
                   type="button"
-                  onClick={() => handleOpenSheetInNewTab(viewingSheet)}
-                  className="p-2 rounded-xl bg-white/20 hover:bg-white/30 text-white transition-colors cursor-pointer flex items-center justify-center"
-                  title="عرض في صفحة التبويب (PDF)"
+                  onClick={() => {
+                    if (viewingFileUrl) {
+                      window.open(viewingFileUrl, '_blank');
+                    } else {
+                      handleOpenSheetInNewTab(viewingSheet);
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                  title="فتح الملف الأصلي في نافذة مستقلة كاملة"
                 >
-                  <Eye className="w-4 h-4" />
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">فتح في نافذة كاملة</span>
                 </button>
 
-                {/* 2. Download Button: Downloads file to device */}
-                <button
-                  type="button"
-                  onClick={() => handleDownloadSheet(viewingSheet)}
-                  className="p-2 rounded-xl bg-emerald-500/30 hover:bg-emerald-500/50 text-emerald-100 hover:text-white transition-colors cursor-pointer flex items-center justify-center border border-emerald-400/30"
-                  title="تحميل الملف على جهازك"
-                >
-                  <Download className="w-4 h-4" />
-                </button>
-
-                {/* 3. Print Button: Prints sheet */}
+                {/* 2. Print Button: Prints sheet */}
                 <button
                   type="button"
                   onClick={() => handlePrintSheet(viewingSheet)}
@@ -600,10 +615,10 @@ export const MaterialsModal: React.FC<MaterialsModalProps> = ({
             </div>
 
             {/* Viewer Body */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-slate-50">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-4 bg-slate-900">
               {/* If real uploaded PDF or file exists, embed it directly keeping 100% original formatting! */}
               {viewingFileUrl ? (
-                <div className="w-full h-[65vh] rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-2xs">
+                <div className="w-full h-[72vh] sm:h-[76vh] rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 shadow-inner">
                   <iframe
                     src={viewingFileUrl}
                     title={viewingSheet.title}
@@ -711,18 +726,7 @@ export const MaterialsModal: React.FC<MaterialsModalProps> = ({
                   <span>عرض في تبويب جديد</span>
                 </button>
 
-                {/* 2. Download Button */}
-                <button
-                  type="button"
-                  onClick={() => handleDownloadSheet(viewingSheet)}
-                  className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
-                  title="تحميل الملف على جهازك"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>تحميل الملف</span>
-                </button>
-
-                {/* 3. Print Button */}
+                {/* 2. Print Button */}
                 <button
                   type="button"
                   onClick={() => handlePrintSheet(viewingSheet)}

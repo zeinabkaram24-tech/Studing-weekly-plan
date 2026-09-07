@@ -596,7 +596,18 @@ export async function openMaterialSheetInNewTab(
   `);
 
   try {
-    // 1. Check if there is an attached binary blob in IndexedDB
+    // 1. If file has a server URL or fileName on the server, navigate directly to stream inline
+    if (item.fileUrl && (item.fileUrl.startsWith('/api/') || item.fileUrl.startsWith('http') || item.fileUrl.startsWith('/materials_files/'))) {
+      newTab.location.href = item.fileUrl;
+      return;
+    }
+
+    if (item.fileName) {
+      newTab.location.href = `/api/materials/file/${encodeURIComponent(item.fileName)}`;
+      return;
+    }
+
+    // 2. Check if there is an attached binary blob in IndexedDB
     const storedBlob = await getMaterialBlob(item.id);
     if (storedBlob) {
       const isPdf =
@@ -606,25 +617,55 @@ export async function openMaterialSheetInNewTab(
       const mime = isPdf ? 'application/pdf' : (storedBlob.type || 'application/pdf');
       const blob = new Blob([storedBlob], { type: mime });
       const blobUrl = URL.createObjectURL(blob);
-      newTab.location.href = blobUrl;
+
+      // Render responsive full embed to prevent browser blob navigation blocks
+      newTab.document.open();
+      newTab.document.write(`
+        <!DOCTYPE html>
+        <html style="width:100%;height:100%;margin:0;padding:0;overflow:hidden;">
+        <head>
+          <meta charset="utf-8" />
+          <title>${escapeHtml(item.title)}</title>
+          <style>html,body,iframe,embed{margin:0;padding:0;width:100%;height:100%;border:none;display:block;background:#1e293b;}</style>
+        </head>
+        <body>
+          <embed src="${blobUrl}" type="${mime}" width="100%" height="100%" />
+        </body>
+        </html>
+      `);
+      newTab.document.close();
       return;
     }
 
-    // 2. Check if item has base64 fileData (e.g. data:application/pdf or image)
+    // 3. Check if item has base64 fileData (e.g. data:application/pdf or image)
     if (item.fileData) {
       const blob = dataUrlToBlob(item.fileData);
       const blobUrl = URL.createObjectURL(blob);
-      newTab.location.href = blobUrl;
+      newTab.document.open();
+      newTab.document.write(`
+        <!DOCTYPE html>
+        <html style="width:100%;height:100%;margin:0;padding:0;overflow:hidden;">
+        <head>
+          <meta charset="utf-8" />
+          <title>${escapeHtml(item.title)}</title>
+          <style>html,body,iframe,embed{margin:0;padding:0;width:100%;height:100%;border:none;display:block;background:#1e293b;}</style>
+        </head>
+        <body>
+          <embed src="${blobUrl}" type="application/pdf" width="100%" height="100%" />
+        </body>
+        </html>
+      `);
+      newTab.document.close();
       return;
     }
 
-    // 3. Check if item has external fileUrl (Google Drive, Dropbox, direct PDF link)
+    // 4. Check if item has external fileUrl (Google Drive, Dropbox, direct PDF link)
     if (item.fileUrl && item.fileUrl.startsWith('http')) {
       newTab.location.href = item.fileUrl;
       return;
     }
 
-    // 4. If no raw PDF binary was uploaded, generate the full A4 printable PDF/HTML document!
+    // 5. If no raw PDF binary was uploaded, generate the full A4 printable PDF/HTML document!
     const fullHtml = generateSheetHtml(item, subjectNameAr);
     newTab.document.open();
     newTab.document.write(fullHtml);
@@ -645,50 +686,82 @@ export async function openMaterialSheetInNewTab(
  */
 export async function downloadMaterialSheet(item: MaterialItem): Promise<void> {
   try {
-    const storedBlob = await getMaterialBlob(item.id);
-    if (storedBlob) {
-      const isPdf =
-        !storedBlob.type ||
-        storedBlob.type === 'application/pdf' ||
-        (item.fileName && item.fileName.toLowerCase().endsWith('.pdf'));
-      const mime = isPdf ? 'application/pdf' : (storedBlob.type || 'application/octet-stream');
-      const blob = new Blob([storedBlob], { type: mime });
-      const url = URL.createObjectURL(blob);
+    const filename = item.fileName || `${item.title}.pdf`;
+
+    // 1. If stored as a binary Blob in IndexedDB (exact original uploaded file)
+    try {
+      const storedBlob = await getMaterialBlob(item.id);
+      if (storedBlob) {
+        const isPdf =
+          !storedBlob.type ||
+          storedBlob.type === 'application/pdf' ||
+          filename.toLowerCase().endsWith('.pdf');
+        const mime = isPdf ? 'application/pdf' : (storedBlob.type || 'application/octet-stream');
+        const blob = new Blob([storedBlob], { type: mime });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          if (document.body.contains(a)) document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 60000);
+        return;
+      }
+    } catch (blobErr) {
+      console.warn('Could not read blob from IndexedDB, falling back to server:', blobErr);
+    }
+
+    // 2. Direct server download endpoint (serves with Content-Disposition: attachment)
+    // Guarantees full original binary blocks, exact formatting, no conversion
+    if (item.fileName) {
+      const serverDownloadUrl = `/api/materials/download/${encodeURIComponent(item.fileName)}`;
       const a = document.createElement('a');
-      a.href = url;
-      a.download = item.fileName || `${item.title}.pdf`;
+      a.href = serverDownloadUrl;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 2500);
+      setTimeout(() => {
+        if (document.body.contains(a)) document.body.removeChild(a);
+      }, 1000);
       return;
     }
 
+    // 3. If fileUrl is provided
+    if (item.fileUrl) {
+      const targetUrl = item.fileUrl.startsWith('http') || item.fileUrl.startsWith('/')
+        ? item.fileUrl
+        : `/api/materials/download/${encodeURIComponent(item.fileUrl)}`;
+      const a = document.createElement('a');
+      a.href = targetUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        if (document.body.contains(a)) document.body.removeChild(a);
+      }, 1000);
+      return;
+    }
+
+    // 4. Check base64 fileData
     if (item.fileData) {
       const blob = dataUrlToBlob(item.fileData);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = item.fileName || `${item.title}.pdf`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 2500);
+      setTimeout(() => {
+        if (document.body.contains(a)) document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 60000);
       return;
     }
 
-    if (item.fileUrl && item.fileUrl.startsWith('http')) {
-      const a = document.createElement('a');
-      a.href = item.fileUrl;
-      a.target = '_blank';
-      a.download = item.fileName || `${item.title}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      return;
-    }
-
-    // Default template download fallback
+    // 5. Default template download fallback
     const fullHtml = generateSheetHtml(item, item.subjectId);
     const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -697,8 +770,10 @@ export async function downloadMaterialSheet(item: MaterialItem): Promise<void> {
     a.download = `${item.title}.html`;
     document.body.appendChild(a);
     a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 2500);
+    setTimeout(() => {
+      if (document.body.contains(a)) document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 60000);
   } catch (err) {
     console.error('Error downloading material file:', err);
     alert('حدث خطأ أثناء تحميل الملف، يرجى المحاولة مرة أخرى.');
@@ -713,6 +788,20 @@ export async function printMaterialSheet(
   subjectNameAr: string
 ): Promise<void> {
   try {
+    if (item.fileName) {
+      const serverUrl = `/api/materials/file/${encodeURIComponent(item.fileName)}`;
+      try {
+        const check = await fetch(serverUrl, { method: 'HEAD' });
+        if (check.ok) {
+          const printWin = window.open(serverUrl, '_blank');
+          if (printWin) printWin.focus();
+          return;
+        }
+      } catch {
+        // Fallback
+      }
+    }
+
     const storedBlob = await getMaterialBlob(item.id);
     if (storedBlob) {
       const isPdf =
@@ -765,6 +854,12 @@ export async function printMaterialSheet(
  */
 export async function getMaterialFileUrl(item: MaterialItem): Promise<string | null> {
   try {
+    if (item.fileUrl && (item.fileUrl.startsWith('/api/') || item.fileUrl.startsWith('http') || item.fileUrl.startsWith('/materials_files/'))) {
+      return item.fileUrl;
+    }
+    if (item.fileName) {
+      return `/api/materials/file/${encodeURIComponent(item.fileName)}`;
+    }
     const storedBlob = await getMaterialBlob(item.id);
     if (storedBlob) {
       const isPdf =

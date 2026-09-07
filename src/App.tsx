@@ -761,6 +761,13 @@ export default function App() {
         }}
         suggestedBlock={activeBlockNumber}
         suggestedWeek={activeWeekNumber + 1}
+        visitorStats={visitorStats}
+        onRefreshStats={() => {
+          fetchVisitorStats().then((data) => {
+            if (data) setVisitorStats(data);
+          });
+        }}
+        initialTab="materials"
       />
 
       {/* User Requested: Memory & Archive Modal for Blocks and Weeks */}

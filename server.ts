@@ -3,6 +3,7 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
+import multer from "multer";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -10,6 +11,86 @@ const __dirname = path.dirname(__filename);
 const PORT = 3000;
 const DATA_DIR = path.join(process.cwd(), "data");
 const DB_FILE = path.join(DATA_DIR, "visitors.json");
+const MATERIALS_FILES_DIR = path.join(DATA_DIR, "materials_files");
+const PUBLIC_MATERIALS_DIR = path.join(process.cwd(), "public", "materials_files");
+const MATERIALS_DB_FILE = path.join(DATA_DIR, "materials.json");
+
+if (!fs.existsSync(MATERIALS_FILES_DIR)) {
+  fs.mkdirSync(MATERIALS_FILES_DIR, { recursive: true });
+}
+if (!fs.existsSync(PUBLIC_MATERIALS_DIR)) {
+  fs.mkdirSync(PUBLIC_MATERIALS_DIR, { recursive: true });
+}
+
+// Multer storage setup for original sheet files (PDFs, docs)
+const multerStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    cb(null, MATERIALS_FILES_DIR);
+  },
+  filename: (_req, file, cb) => {
+    let name = file.originalname;
+    try {
+      name = Buffer.from(file.originalname, "latin1").toString("utf8");
+    } catch {
+      name = file.originalname;
+    }
+    cb(null, name);
+  },
+});
+
+const uploadMiddleware = multer({
+  storage: multerStorage,
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB limit for full original PDF booklets
+});
+
+function findMaterialFilePath(filename: string): string | null {
+  try {
+    const decoded = decodeURIComponent(filename);
+    const candidates = [
+      path.join(MATERIALS_FILES_DIR, decoded),
+      path.join(MATERIALS_FILES_DIR, filename),
+      path.join(PUBLIC_MATERIALS_DIR, decoded),
+      path.join(PUBLIC_MATERIALS_DIR, filename),
+      path.join(process.cwd(), decoded),
+      path.join(process.cwd(), filename),
+    ];
+    for (const candidate of candidates) {
+      if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
+        return candidate;
+      }
+    }
+    // Case-insensitive match fallback in folders
+    if (fs.existsSync(MATERIALS_FILES_DIR)) {
+      const allFiles = fs.readdirSync(MATERIALS_FILES_DIR);
+      const match = allFiles.find(
+        (f) =>
+          f.toLowerCase() === decoded.toLowerCase() ||
+          f.toLowerCase() === filename.toLowerCase()
+      );
+      if (match) return path.join(MATERIALS_FILES_DIR, match);
+    }
+    if (fs.existsSync(PUBLIC_MATERIALS_DIR)) {
+      const allFiles = fs.readdirSync(PUBLIC_MATERIALS_DIR);
+      const match = allFiles.find(
+        (f) =>
+          f.toLowerCase() === decoded.toLowerCase() ||
+          f.toLowerCase() === filename.toLowerCase()
+      );
+      if (match) return path.join(PUBLIC_MATERIALS_DIR, match);
+    }
+    // Check root directory for original uploaded user PDF files
+    const rootFiles = fs.readdirSync(process.cwd());
+    const matchRoot = rootFiles.find(
+      (f) =>
+        f.toLowerCase() === decoded.toLowerCase() ||
+        f.toLowerCase() === filename.toLowerCase()
+    );
+    if (matchRoot) return path.join(process.cwd(), matchRoot);
+  } catch (err) {
+    console.warn("findMaterialFilePath error:", err);
+  }
+  return null;
+}
 
 interface VisitorItem {
   id: string;
@@ -212,7 +293,12 @@ function saveDatabase(db: VisitorsDatabase) {
 
 async function startServer() {
   const app = express();
-  app.use(express.json());
+  app.use(express.json({ limit: "50mb" }));
+  app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+
+  // Static material file routes
+  app.use("/materials_files", express.static(MATERIALS_FILES_DIR));
+  app.use("/public/materials_files", express.static(PUBLIC_MATERIALS_DIR));
 
   let db = initDatabase();
 
@@ -482,6 +568,146 @@ async function startServer() {
     saveDatabase(db);
 
     res.json({ success: true, remaining: db.visitors.length });
+  });
+
+  // =========================================================================
+  // MATERIALS & ORIGINAL FILE STORAGE APIS
+  // =========================================================================
+
+  // 7. Upload new material file (PDF, Doc, Image) with 100% original binary preservation
+  app.post("/api/materials/upload", uploadMiddleware.single("file"), (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ error: "لم يتم استلام أي ملف للرفع" });
+    }
+
+    const savedName = req.file.filename;
+
+    // Mirror to public folder so direct static access also works seamlessly
+    try {
+      const targetPublic = path.join(PUBLIC_MATERIALS_DIR, savedName);
+      fs.copyFileSync(req.file.path, targetPublic);
+    } catch (copyErr) {
+      console.warn("Notice: mirror copy to public materials dir:", copyErr);
+    }
+
+    const fileUrl = `/api/materials/file/${encodeURIComponent(savedName)}`;
+    const downloadUrl = `/api/materials/download/${encodeURIComponent(savedName)}`;
+
+    res.json({
+      success: true,
+      fileName: savedName,
+      fileUrl,
+      downloadUrl,
+      size: req.file.size,
+      mimetype: req.file.mimetype,
+    });
+  });
+
+  // 8. Stream/View original sheet in browser tab (with Content-Disposition: inline)
+  app.head("/api/materials/file/:filename", (req, res) => {
+    const rawFilename = req.params.filename;
+    const filePath = findMaterialFilePath(rawFilename);
+    if (!filePath) {
+      return res.status(404).end();
+    }
+    const ext = path.extname(filePath).toLowerCase();
+    let contentType = "application/octet-stream";
+    if (ext === ".pdf") contentType = "application/pdf";
+    else if (ext === ".jpg" || ext === ".jpeg") contentType = "image/jpeg";
+    else if (ext === ".png") contentType = "image/png";
+    else if (ext === ".docx") contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    res.setHeader("Content-Type", contentType);
+    return res.status(200).end();
+  });
+
+  app.get("/api/materials/file/:filename", (req, res) => {
+    const rawFilename = req.params.filename;
+    const filePath = findMaterialFilePath(rawFilename);
+
+    if (!filePath) {
+      return res.status(404).json({ error: `الملف غير موجود على الخادم: ${rawFilename}` });
+    }
+
+    const basename = path.basename(filePath);
+    const ext = path.extname(filePath).toLowerCase();
+    let contentType = "application/octet-stream";
+
+    if (ext === ".pdf") contentType = "application/pdf";
+    else if (ext === ".jpg" || ext === ".jpeg") contentType = "image/jpeg";
+    else if (ext === ".png") contentType = "image/png";
+    else if (ext === ".docx") {
+      contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    }
+
+    res.setHeader("Content-Type", contentType);
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="${basename}"; filename*=UTF-8''${encodeURIComponent(basename)}`
+    );
+    res.setHeader("Accept-Ranges", "bytes");
+
+    return res.sendFile(filePath);
+  });
+
+  // 9. Force Download exact original sheet file (with Content-Disposition: attachment)
+  // Preserves 100% original block layout, fonts, graphics, without any alteration
+  app.get("/api/materials/download/:filename", (req, res) => {
+    const rawFilename = req.params.filename;
+    const filePath = findMaterialFilePath(rawFilename);
+
+    if (!filePath) {
+      return res.status(404).json({ error: `الملف غير موجود للتحميل: ${rawFilename}` });
+    }
+
+    const basename = path.basename(filePath);
+    return res.download(filePath, basename, (err) => {
+      if (err) {
+        console.error("Error during res.download:", err);
+        if (!res.headersSent) {
+          res.status(500).json({ error: "فشل إرسال الملف للتحميل" });
+        }
+      }
+    });
+  });
+
+  // 10. Get server-saved materials list
+  app.get("/api/materials", (_req, res) => {
+    try {
+      if (fs.existsSync(MATERIALS_DB_FILE)) {
+        const raw = fs.readFileSync(MATERIALS_DB_FILE, "utf-8");
+        const list = JSON.parse(raw);
+        if (Array.isArray(list)) {
+          return res.json({ success: true, materials: list });
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to read server materials db:", err);
+    }
+    return res.json({ success: true, materials: [] });
+  });
+
+  // 11. Save/sync materials list to server
+  app.post("/api/materials/save", (req, res) => {
+    try {
+      const { materials } = req.body || {};
+      if (Array.isArray(materials)) {
+        // Strip out any accidental massive base64 fileData to keep db light and fast
+        const cleanMaterials = materials.map((m: any) => {
+          if (m.fileData && m.fileData.length > 50000) {
+            const { fileData, ...rest } = m;
+            return rest;
+          }
+          return m;
+        });
+
+        fs.writeFileSync(MATERIALS_DB_FILE, JSON.stringify(cleanMaterials, null, 2), "utf-8");
+        return res.json({ success: true, count: cleanMaterials.length });
+      }
+      return res.status(400).json({ error: "Invalid materials list format" });
+    } catch (err) {
+      console.error("Failed to save materials on server:", err);
+      return res.status(500).json({ error: "Server error saving materials" });
+    }
   });
 
   // Vite middleware for development vs static build in production

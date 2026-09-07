@@ -29,6 +29,7 @@ import {
   Search,
   CheckSquare,
   Square,
+  Users,
 } from 'lucide-react';
 import { verifyAdminPassword, setAdminLoggedIn } from '../utils/storage';
 import {
@@ -44,8 +45,12 @@ import {
   openMaterialSheetInNewTab,
   downloadMaterialSheet,
 } from '../utils/sheetPdfViewer';
+import { VisitorStatsSummary } from '../types';
+import { VisitorStatsPanel } from './VisitorStatsPanel';
 
-interface UploadPlanFilesModalProps {
+export type AdminUploadTab = 'materials' | 'visitors' | 'weekly_plan' | 'history';
+
+export interface UploadPlanFilesModalProps {
   isOpen: boolean;
   onClose: () => void;
   subjects: Subject[];
@@ -68,9 +73,10 @@ interface UploadPlanFilesModalProps {
   onDeleteSavedUploadedFiles?: (fileIds: string[]) => void;
   suggestedBlock?: number;
   suggestedWeek?: number;
+  initialTab?: AdminUploadTab;
+  visitorStats?: VisitorStatsSummary | null;
+  onRefreshStats?: () => void;
 }
-
-type AdminUploadTab = 'weekly_plan' | 'materials' | 'history';
 
 export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
   isOpen,
@@ -86,10 +92,19 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
   onDeleteSavedUploadedFiles,
   suggestedBlock = 1,
   suggestedWeek = 2,
+  initialTab = 'materials',
+  visitorStats,
+  onRefreshStats,
 }) => {
   // Always lock by default when entering the upload center so the password prompt is the first thing seen!
   const [isUnlocked, setIsUnlocked] = useState(false);
-  const [activeTab, setActiveTab] = useState<AdminUploadTab>('weekly_plan');
+  const [activeTab, setActiveTab] = useState<AdminUploadTab>(initialTab || 'materials');
+
+  useEffect(() => {
+    if (isOpen && initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [isOpen, initialTab]);
 
   // Multi-selection states for bulk deletion
   const [selectedMaterialIds, setSelectedMaterialIds] = useState<Set<string>>(new Set());
@@ -140,6 +155,8 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
   const [historySuccessMsg, setHistorySuccessMsg] = useState<string | null>(null);
   const [matSearchQuery, setMatSearchQuery] = useState('');
   const [matFilterCategory, setMatFilterCategory] = useState<string>('all');
+  const [downloadingMatId, setDownloadingMatId] = useState<string | null>(null);
+  const [lastAddedMat, setLastAddedMat] = useState<MaterialItem | null>(null);
 
   // Confirmation state for reset
   const [isResetMaterialsConfirm, setIsResetMaterialsConfirm] = useState(false);
@@ -314,12 +331,30 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
     if (!files || files.length === 0) return;
     const file = files[0];
     await saveMaterialBlob(matId, file);
+
+    let finalFileUrl: string | undefined = undefined;
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/materials/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.fileUrl) finalFileUrl = data.fileUrl;
+      }
+    } catch {
+      // Ignore
+    }
+
     updateMaterialItem(matId, {
       fileName: file.name,
+      fileUrl: finalFileUrl || `/api/materials/file/${encodeURIComponent(file.name)}`,
       fileType: file.type || (file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : undefined),
     });
     setMaterialsList(getSavedMaterials());
-    setMatSuccessMsg(`تم إرفاق وتثبيت ملف PDF الأصلي للشيت: ${file.name}`);
+    setMatSuccessMsg(`تم بنجاح حفظ وإرفاق ملف PDF الأصلي للشيت: ${file.name}`);
     setTimeout(() => setMatSuccessMsg(null), 4000);
   };
 
@@ -341,6 +376,31 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
       selectedMatFile?.type ||
       (matFileName.toLowerCase().endsWith('.pdf') ? 'application/pdf' : matFileType || undefined);
 
+    let finalFileUrl = matFileUrl.trim() || undefined;
+    let finalFileName = matFileName.trim() || selectedMatFile?.name || undefined;
+
+    // Direct server upload for 100% binary preservation
+    if (selectedMatFile) {
+      try {
+        const formData = new FormData();
+        formData.append('file', selectedMatFile);
+        formData.append('title', matTitle.trim());
+        formData.append('subjectId', matSubjectId);
+
+        const res = await fetch('/api/materials/upload', {
+          method: 'POST',
+          body: formData,
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.fileUrl) finalFileUrl = data.fileUrl;
+          if (data.fileName) finalFileName = data.fileName;
+        }
+      } catch (uploadErr) {
+        console.warn('Server upload notice:', uploadErr);
+      }
+    }
+
     const newMat = addMaterialItem({
       title: matTitle.trim(),
       subjectId: matSubjectId,
@@ -348,9 +408,9 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
       category: matCategory,
       categoryLabel,
       itemType: 'sheet',
-      fileName: matFileName.trim() || undefined,
-      fileUrl: matFileUrl.trim() || undefined,
-      fileData: matFileData || undefined,
+      fileName: finalFileName,
+      fileUrl: finalFileUrl || (finalFileName ? `/api/materials/file/${encodeURIComponent(finalFileName)}` : undefined),
+      fileData: undefined, // Prevent localStorage quota bloat
       fileType: detectedType,
       unitTitle: matUnit.trim() || undefined,
       pageCount: matPageCount.trim() ? Number(matPageCount) || undefined : undefined,
@@ -359,14 +419,15 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
       section: matSection,
     });
 
-    // Save actual original file blob in IndexedDB for permanent storage
+    // Save actual original file blob in IndexedDB for permanent local storage
     if (selectedMatFile) {
       await saveMaterialBlob(newMat.id, selectedMatFile);
     }
 
     const updated = getSavedMaterials();
     setMaterialsList(updated);
-    setMatSuccessMsg(`تم بنجاح حفظ وإدراج الشيت "${newMat.title}" بنسخته الأصلية كاملة.`);
+    setLastAddedMat(newMat);
+    setMatSuccessMsg(`تم بنجاح حفظ وإدخال الشيت "${newMat.title}" بنفس تنسيقه الأصلي بالكامل.`);
     setMatTitle('');
     setMatFileName('');
     setMatFileUrl('');
@@ -377,7 +438,81 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
     setMatPageCount('');
     setMatExercisesText('');
     setMatNotes('');
+    setTimeout(() => setMatSuccessMsg(null), 8000);
+  };
+
+  // Safe direct download of a material sheet for admin
+  const handleAdminDownloadSheet = async (mat: MaterialItem) => {
+    setDownloadingMatId(mat.id);
+    try {
+      await downloadMaterialSheet(mat);
+      setMatSuccessMsg(`تم بدء تنزيل الشيت "${mat.title}" (${mat.fileName || 'PDF'}) على جهازك.`);
+      setTimeout(() => setMatSuccessMsg(null), 4000);
+    } catch (err) {
+      console.error('Error in handleAdminDownloadSheet:', err);
+      alert('حدث خطأ أثناء تنزيل الشيت، يرجى المحاولة مرة أخرى.');
+    } finally {
+      setTimeout(() => setDownloadingMatId(null), 1000);
+    }
+  };
+
+  // Safe batch download for selected sheets
+  const handleDownloadSelectedMaterials = async () => {
+    if (selectedMaterialIds.size === 0) return;
+    const selectedMats = materialsList.filter((m) => selectedMaterialIds.has(m.id));
+    setMatSuccessMsg(`جاري تنزيل (${selectedMats.length}) شيتات محددة بالتتابع بنفس تنسيقها الأصلي...`);
+    for (let i = 0; i < selectedMats.length; i++) {
+      await downloadMaterialSheet(selectedMats[i]);
+      if (i < selectedMats.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 600));
+      }
+    }
+    setMatSuccessMsg(`تم الانتهاء من تنزيل الشيتات المحددة بنجاح.`);
     setTimeout(() => setMatSuccessMsg(null), 5000);
+  };
+
+  // Safe download for history file
+  const handleDownloadHistoryFile = (f: { name: string; fileUrl?: string; fileData?: string }) => {
+    try {
+      if (f.fileUrl) {
+        const downloadUrl = f.fileUrl.startsWith('/api/materials/file/')
+          ? f.fileUrl.replace('/api/materials/file/', '/api/materials/download/')
+          : f.fileUrl.startsWith('http') || f.fileUrl.startsWith('/')
+          ? f.fileUrl
+          : `/api/materials/download/${encodeURIComponent(f.fileUrl)}`;
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = f.name;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          if (document.body.contains(a)) document.body.removeChild(a);
+        }, 1000);
+      } else if (f.fileData) {
+        const a = document.createElement('a');
+        a.href = f.fileData;
+        a.download = f.name;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          if (document.body.contains(a)) document.body.removeChild(a);
+        }, 1000);
+      } else {
+        const blob = new Blob([f.name], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = f.name.endsWith('.txt') ? f.name : `${f.name}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          if (document.body.contains(a)) document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 60000);
+      }
+    } catch (err) {
+      console.error('Error downloading history file:', err);
+    }
   };
 
   const handleAddManualTask = (e: React.FormEvent) => {
@@ -454,7 +589,7 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
     setMaterialsList(def);
     setIsResetMaterialsConfirm(false);
     setSelectedMaterialIds(new Set());
-    setMatSuccessMsg('تمت استعادة الشيتات الافتراضية بنجاح.');
+    setMatSuccessMsg('تم مسح وتفريغ كافة شيتات الماتيريال بنجاح.');
     setTimeout(() => setMatSuccessMsg(null), 4000);
   };
 
@@ -581,33 +716,46 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
 
           <div className="flex items-center gap-2">
             {isUnlocked && (
-              <div className="bg-slate-200/80 p-1 rounded-xl flex items-center text-xs font-bold font-sans">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('weekly_plan')}
-                  className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                    activeTab === 'weekly_plan' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600'
-                  }`}
-                >
-                  رفع الخطة الأسبوعية
-                </button>
+              <div className="bg-slate-200/80 p-1 rounded-xl flex items-center text-xs font-bold font-sans flex-wrap gap-1">
                 <button
                   type="button"
                   onClick={() => setActiveTab('materials')}
-                  className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                    activeTab === 'materials' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600'
+                  className={`px-3 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                    activeTab === 'materials' ? 'bg-white text-indigo-700 shadow-2xs font-bold' : 'text-slate-600'
                   }`}
                 >
-                  إدارة الماتيريال ({materialsList.length})
+                  <BookOpen className="w-3.5 h-3.5" />
+                  <span>تحميل ومسح الشيتات ({materialsList.length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('visitors')}
+                  className={`px-3 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                    activeTab === 'visitors' ? 'bg-white text-indigo-700 shadow-2xs font-bold' : 'text-slate-600'
+                  }`}
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  <span>عدد المستخدمين والزائرين</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('weekly_plan')}
+                  className={`px-3 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                    activeTab === 'weekly_plan' ? 'bg-white text-indigo-700 shadow-2xs font-bold' : 'text-slate-600'
+                  }`}
+                >
+                  <UploadCloud className="w-3.5 h-3.5" />
+                  <span>رفع الخطة الأسبوعية</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveTab('history')}
-                  className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                    activeTab === 'history' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600'
+                  className={`px-3 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                    activeTab === 'history' ? 'bg-white text-indigo-700 shadow-2xs font-bold' : 'text-slate-600'
                   }`}
                 >
-                  سجل الملفات ({savedUploadedFiles.length})
+                  <History className="w-3.5 h-3.5" />
+                  <span>سجل الملفات ({savedUploadedFiles.length})</span>
                 </button>
               </div>
             )}
@@ -1035,9 +1183,22 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
             
             {/* Notification Banner */}
             {matSuccessMsg && (
-              <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2 animate-fadeIn">
-                <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>{matSuccessMsg}</span>
+              <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex flex-wrap items-center justify-between gap-2 animate-fadeIn">
+                <div className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{matSuccessMsg}</span>
+                </div>
+                {lastAddedMat && (
+                  <button
+                    type="button"
+                    onClick={() => handleAdminDownloadSheet(lastAddedMat)}
+                    className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer active:scale-95 ms-auto"
+                    title="تنزيل هذا الشيت فورياً على جهازك بنفس التنسيق الأصلي"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>تنزيل الشيت الآن ({lastAddedMat.fileName ? lastAddedMat.fileName.split('.').pop()?.toUpperCase() : 'PDF'})</span>
+                  </button>
+                )}
               </div>
             )}
 
@@ -1285,10 +1446,10 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
                   <button
                     type="button"
                     onClick={handleResetMaterials}
-                    className="px-3 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-600 text-xs font-bold transition-colors cursor-pointer"
-                    title="استعادة الشيتات الافتراضية"
+                    className="px-3 py-1.5 rounded-xl border border-rose-200 hover:bg-rose-50 text-rose-600 text-xs font-bold transition-colors cursor-pointer"
+                    title="مسح وتفريغ كافة الشيتات"
                   >
-                    استعادة الافتراضي
+                    مسح كافة الشيتات
                   </button>
                 </div>
               </div>
@@ -1319,6 +1480,15 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
 
                   {selectedMaterialIds.size > 0 && (
                     <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleDownloadSelectedMaterials}
+                        className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
+                        title="تنزيل الشيتات المحددة على جهازك بنفس تنسيقها الأصلي"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>تنزيل المحدد ({selectedMaterialIds.size})</span>
+                      </button>
                       <button
                         type="button"
                         onClick={() => setSelectedMaterialIds(new Set())}
@@ -1416,11 +1586,13 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
                           {/* Download button */}
                           <button
                             type="button"
-                            onClick={() => downloadMaterialSheet(mat)}
-                            className="p-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-colors cursor-pointer border border-emerald-200"
-                            title="تحميل الملف على جهازك"
+                            onClick={() => handleAdminDownloadSheet(mat)}
+                            disabled={downloadingMatId === mat.id}
+                            className="px-2.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 hover:text-emerald-800 transition-colors cursor-pointer border border-emerald-200 font-bold flex items-center gap-1 active:scale-95 disabled:opacity-50"
+                            title="تحميل وتنزيل الملف على جهازك بنفس تنسيقه الأصلي"
                           >
-                            <Download className="w-4 h-4" />
+                            <Download className={`w-3.5 h-3.5 ${downloadingMatId === mat.id ? 'animate-bounce' : ''}`} />
+                            <span className="text-[11px] font-sans">تنزيل {mat.fileName ? mat.fileName.split('.').pop()?.toUpperCase() : 'PDF'}</span>
                           </button>
 
                           {/* Delete button */}
@@ -1440,9 +1612,16 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
               )}
             </div>
           </div>
+        ) : activeTab === 'visitors' ? (
+          /* ========================================================================= */
+          /* TAB 3: VISITOR & STUDENT STATS CENSUS                                     */
+          /* ========================================================================= */
+          <div className="overflow-y-auto p-4 sm:p-6 flex-1 bg-slate-50/50">
+            <VisitorStatsPanel summaryStats={visitorStats} onRefreshStats={onRefreshStats} />
+          </div>
         ) : (
           /* ========================================================================= */
-          /* TAB 3: ARCHIVE / HISTORY OF UPLOADED PLANS                                 */
+          /* TAB 4: ARCHIVE / HISTORY OF UPLOADED PLANS                                 */
           /* ========================================================================= */
           <div className="overflow-y-auto p-6 space-y-4 flex-1">
             {historySuccessMsg && (
@@ -1546,6 +1725,14 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
                         </span>
                         <button
                           type="button"
+                          onClick={() => handleDownloadHistoryFile(f)}
+                          className="p-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-colors cursor-pointer border border-emerald-200"
+                          title="تحميل الملف على جهازك"
+                        >
+                          <Download className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => handleDeleteHistoryFileDirect(f.id, f.name)}
                           className="p-2 rounded-xl text-rose-500 hover:bg-rose-50 hover:text-rose-700 transition-colors cursor-pointer border border-transparent hover:border-rose-200"
                           title="حذف هذا الملف من السجل"
@@ -1599,21 +1786,21 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
           </div>
         )}
 
-        {/* Modal: Reset Materials to Default Confirmation */}
+        {/* Modal: Reset / Clear All Materials Confirmation */}
         {isResetMaterialsConfirm && (
           <div className="fixed inset-0 z-60 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl p-5 max-w-sm w-full shadow-2xl border border-slate-200 space-y-4 animate-scaleUp">
-              <div className="flex items-center gap-3 text-indigo-600">
-                <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
-                  <BookOpen className="w-5 h-5" />
+              <div className="flex items-center gap-3 text-rose-600">
+                <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center">
+                  <Trash2 className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-slate-900">استعادة الشيتات الافتراضية</h4>
-                  <span className="text-xs text-slate-500">استرجاع شيتات Block 1</span>
+                  <h4 className="text-sm font-bold text-slate-900">مسح وتفريغ كافة الشيتات</h4>
+                  <span className="text-xs text-slate-500">حذف جميع شيتات الماتيريال</span>
                 </div>
               </div>
               <p className="text-xs text-slate-600 leading-relaxed">
-                هل تريدين استعادة كافة شيتات الماتيريال الافتراضية لبلوك 1؟
+                هل تريدين مسح وتفريغ كافة الشيتات والماتيريال نهائياً؟ يمكنك بعد ذلك رفع شيتات جديدة في أي وقت.
               </p>
               <div className="flex items-center justify-end gap-2 pt-2">
                 <button
@@ -1626,9 +1813,9 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
                 <button
                   type="button"
                   onClick={confirmResetMaterials}
-                  className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors cursor-pointer"
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white transition-colors cursor-pointer"
                 >
-                  نعم، استعادة
+                  نعم، مسح الكل
                 </button>
               </div>
             </div>

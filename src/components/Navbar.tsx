@@ -109,29 +109,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             </div>
 
-            {/* Discreet top icons for creator / admin */}
-            <div className="flex items-center gap-1.5 shrink-0">
-              {/* Upload Weekly Plan Button placed next to visitor records icon */}
+            {/* Top Quick Actions: Unified Admin Button */}
+            <div className="flex items-center shrink-0">
+              {/* Single Unified Admin Button (Protected by password) */}
               <button
                 type="button"
-                id="desktop-header-upload-plan"
+                id="desktop-header-admin-btn"
                 onClick={handleUploadClick}
-                className="p-2 rounded-xl bg-indigo-950/60 hover:bg-indigo-900/80 text-indigo-300 hover:text-white border border-indigo-800/50 transition-colors shadow-xs active:scale-95 flex items-center gap-1"
-                title={isAdmin ? 'إدارة ورفع ملفات الخطة والماتيريال (الأدمن)' : 'رفع وتحميل الخطط والماتيريال (خاص بالأدمن فقط)'}
+                className="px-2.5 py-1.5 rounded-xl bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 hover:text-white border border-indigo-800/60 transition-all shadow-xs active:scale-95 flex items-center gap-1.5 font-bold text-xs cursor-pointer"
+                title="أدمن: تحميل ومسح الشيتات وإحصائيات المستخدمين والزوار"
               >
-                <UploadCloud className="w-4 h-4 text-indigo-400" />
+                <ShieldCheck className="w-4 h-4 text-indigo-400" />
+                <span>أدمن</span>
                 {!isAdmin && <Lock className="w-2.5 h-2.5 text-indigo-300" />}
-              </button>
-
-              {/* Green visitor records icon */}
-              <button
-                type="button"
-                id="desktop-header-visitor-stats"
-                onClick={onOpenVisitorStats}
-                className="p-2 rounded-xl bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-400 border border-emerald-800/50 transition-colors shadow-xs active:scale-95 cursor-pointer"
-                title="تقرير تسجيل الدخول ومتابعة الطلاب والزوار (Admin)"
-              >
-                <Users className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -288,6 +278,49 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span>جدول حصص فصل {selectedSection}</span>
           </button>
 
+          {/* 4. Library / Materials Section */}
+          {onOpenMaterialsModal && (
+            <button
+              type="button"
+              id="tab-library-desktop"
+              onClick={onOpenMaterialsModal}
+              className="w-full flex items-center justify-between p-3 rounded-2xl transition-all text-xs sm:text-sm font-bold text-slate-400 hover:bg-slate-800/80 hover:text-blue-300 border border-transparent hover:border-blue-900/50 cursor-pointer"
+              title="مكتبة الشيتات والماتيريال الرسمية (عرض وتصفح وطباعة)"
+            >
+              <div className="flex items-center gap-2.5">
+                <FolderOpen className="w-4 h-4 text-blue-400" />
+                <span>المكتبة والشيتات (Materials)</span>
+              </div>
+              <span className="text-[10px] font-sans font-bold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                عرض
+              </span>
+            </button>
+          )}
+
+          {/* 5. Unified Admin Menu Item in Navigation */}
+          <button
+            type="button"
+            id="tab-admin-desktop"
+            onClick={handleUploadClick}
+            className="w-full flex items-center justify-between p-3 rounded-2xl transition-all text-xs sm:text-sm font-bold text-slate-400 hover:bg-slate-800/80 hover:text-indigo-300 border border-slate-800/80 hover:border-indigo-800/60 cursor-pointer"
+            title="دخول لوحة تحكم الأدمن (تحميل ومسح الشيتات وإحصائيات الزوار والمستخدمين)"
+          >
+            <div className="flex items-center gap-2.5">
+              <ShieldCheck className="w-4 h-4 text-indigo-400" />
+              <span>أدمن (Admin)</span>
+            </div>
+            {!isAdmin ? (
+              <span className="flex items-center gap-1 text-[11px] text-slate-500 font-mono">
+                <Lock className="w-3 h-3 text-indigo-400/80" />
+                <span>1940</span>
+              </span>
+            ) : (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                نشط
+              </span>
+            )}
+          </button>
+
           {/* Action Tools Section */}
           <div className="pt-3 mt-3 border-t border-slate-800/80 space-y-2">
             <button
@@ -399,28 +432,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
               )}
 
-              {/* Admin Tools: Upload Plan Files next to Visitor Records Icon */}
-              <div className="flex items-center gap-1 bg-slate-950/80 p-0.5 rounded-xl border border-slate-800">
-                <button
-                  type="button"
-                  onClick={handleUploadClick}
-                  className="p-1.5 rounded-lg bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/60 text-xs flex items-center gap-0.5 active:scale-95"
-                  title={isAdmin ? 'إدارة ورفع ملفات الخطة والماتيريال (الأدمن)' : 'رفع وتحميل الخطط والماتيريال (خاص بالأدمن فقط)'}
-                >
-                  <UploadCloud className="w-3.5 h-3.5 text-indigo-400" />
-                  {!isAdmin && <Lock className="w-2 h-2 text-indigo-300" />}
-                </button>
-
-                <button
-                  type="button"
-                  id="mobile-btn-visitor-stats"
-                  onClick={onOpenVisitorStats}
-                  className="p-1.5 rounded-lg bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-800/70 text-xs flex items-center justify-center active:scale-95 cursor-pointer"
-                  title="تقرير تسجيل الدخول ومتابعة الطلاب والزوار (Admin)"
-                >
-                  <Users className="w-3.5 h-3.5 text-emerald-400" />
-                </button>
-              </div>
+              {/* Single Unified Admin Button for Mobile */}
+              <button
+                type="button"
+                id="mobile-btn-admin"
+                onClick={handleUploadClick}
+                className="px-2 py-1 rounded-lg bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/60 text-xs flex items-center gap-1 active:scale-95 cursor-pointer font-bold"
+                title="أدمن: تحميل ومسح الشيتات وحساب عدد الزوار والمستخدمين"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
+                <span>أدمن</span>
+                {!isAdmin && <Lock className="w-2.5 h-2.5 text-indigo-300" />}
+              </button>
             </div>
           </div>
 
