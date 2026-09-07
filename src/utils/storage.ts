@@ -346,7 +346,9 @@ export function verifyAdminPassword(input: string): boolean {
     clean === '1234' ||
     clean === 'zeinabkaram24@gmail.com' ||
     clean === 'zeinabkaram909@gmail.com' ||
-    clean.includes('zeinabkaram')
+    clean === 'faridaferghali2019@gmail.com' ||
+    clean.includes('zeinabkaram') ||
+    clean.includes('faridaferghali')
   );
 }
 

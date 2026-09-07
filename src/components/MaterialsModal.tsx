@@ -95,7 +95,7 @@ export const MaterialsModal: React.FC<MaterialsModalProps> = ({
 
   const getSubjectName = (subjectId: string) => {
     const s = activeSubjects.find((sub) => sub.id === subjectId);
-    return s ? `${s.nameAr} (${s.nameEn})` : subjectId;
+    return s ? (s.nameEn || s.nameAr) : subjectId;
   };
 
   const getSubjectObj = (subjectId: string) => {

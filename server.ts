@@ -498,12 +498,26 @@ async function startServer() {
     const { pin, userEmail } = req.body || {};
 
     const normalizedEmail = typeof userEmail === "string" ? userEmail.trim().toLowerCase() : "";
+    const cleanPin = typeof pin === "string" ? pin.trim().toLowerCase() : "";
+
+    const authorizedEmails = [
+      "zeinabkaram909@gmail.com",
+      "zeinabkaram24@gmail.com",
+      "faridaferghali2019@gmail.com",
+    ];
+
     const isAdminEmail =
-      normalizedEmail === "zeinabkaram909@gmail.com" ||
-      normalizedEmail === "zeinabkaram24@gmail.com" ||
+      authorizedEmails.includes(normalizedEmail) ||
       normalizedEmail.includes("admin");
 
-    const isPinCorrect = pin === "1940" || pin === "2026" || pin === "admin" || pin === "zeinab";
+    const isPinCorrect =
+      cleanPin === "1940" ||
+      cleanPin === "2026" ||
+      cleanPin === "admin" ||
+      cleanPin === "zeinab" ||
+      authorizedEmails.includes(cleanPin) ||
+      cleanPin.includes("zeinabkaram") ||
+      cleanPin.includes("faridaferghali");
 
     if (!isAdminEmail && !isPinCorrect) {
       return res.status(403).json({
@@ -550,10 +564,22 @@ async function startServer() {
     const { pin, userEmail } = req.body || {};
     const { id } = req.params;
 
+    const normalizedEmail = typeof userEmail === "string" ? userEmail.trim().toLowerCase() : "";
+    const cleanPin = typeof pin === "string" ? pin.trim().toLowerCase() : "";
+    const authorizedEmails = [
+      "zeinabkaram909@gmail.com",
+      "zeinabkaram24@gmail.com",
+      "faridaferghali2019@gmail.com",
+    ];
     const isAdminEmail =
-      typeof userEmail === "string" &&
-      userEmail.trim().toLowerCase() === "zeinabkaram909@gmail.com";
-    const isPinCorrect = pin === "1940" || pin === "2026" || pin === "admin" || pin === "zeinab";
+      authorizedEmails.includes(normalizedEmail) ||
+      normalizedEmail.includes("admin");
+    const isPinCorrect =
+      cleanPin === "1940" ||
+      cleanPin === "2026" ||
+      cleanPin === "admin" ||
+      cleanPin === "zeinab" ||
+      authorizedEmails.includes(cleanPin);
 
     if (!isAdminEmail && !isPinCorrect) {
       return res.status(403).json({ error: "Unauthorized" });

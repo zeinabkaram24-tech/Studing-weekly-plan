@@ -1003,7 +1003,7 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
                           .filter((s) => s.id !== 'religion')
                           .map((s) => (
                             <option key={s.id} value={s.id}>
-                              {s.nameAr} ({s.nameEn})
+                              {s.nameEn || s.nameAr}
                             </option>
                           ))}
                       </select>
@@ -1284,7 +1284,7 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
                       .filter((s) => s.id !== 'religion')
                       .map((s) => (
                         <option key={s.id} value={s.id}>
-                          {s.nameAr} ({s.nameEn})
+                          {s.nameEn || s.nameAr}
                         </option>
                       ))}
                   </select>

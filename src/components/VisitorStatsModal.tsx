@@ -58,8 +58,17 @@ export const VisitorStatsModal: React.FC<VisitorStatsModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
 
-    const savedPin = getStoredAdminPin();
-    const isAuthorizedByDefault = savedPin === '1940' || savedPin === '2026' || savedPin === 'admin' || savedPin === 'zeinab';
+    const savedPin = (getStoredAdminPin() || '').trim().toLowerCase();
+    const isAuthorizedByDefault =
+      savedPin === '1940' ||
+      savedPin === '2026' ||
+      savedPin === 'admin' ||
+      savedPin === 'zeinab' ||
+      savedPin === 'zeinabkaram24@gmail.com' ||
+      savedPin === 'zeinabkaram909@gmail.com' ||
+      savedPin === 'faridaferghali2019@gmail.com' ||
+      savedPin.includes('zeinabkaram') ||
+      savedPin.includes('faridaferghali');
 
     if (isAuthorizedByDefault) {
       setIsUnlocked(true);
@@ -211,15 +220,15 @@ export const VisitorStatsModal: React.FC<VisitorStatsModalProps> = ({
             ) : (
               <form onSubmit={handleUnlockWithPin} className="space-y-2.5 pt-1">
                 <p className="text-[11px] text-slate-500 font-medium">
-                  أدخلي رمز المرور السري للمسؤول:
+                  أدخلي رمز المرور (1940) أو أحد الإيميلات المصرح بها للمسؤول:
                 </p>
                 <input
-                  type="password"
+                  type="text"
                   value={pinInput}
                   onChange={(e) => setPinInput(e.target.value)}
-                  placeholder="رمز المرور..."
+                  placeholder="رمز المرور (1940) أو الإيميل المعتمد..."
                   autoFocus
-                  className="w-full text-center px-4 py-2.5 rounded-xl border border-slate-300 focus:border-indigo-600 text-sm font-bold font-mono outline-hidden shadow-inner"
+                  className="w-full text-center px-4 py-2.5 rounded-xl border border-slate-300 focus:border-indigo-600 text-sm font-bold font-sans outline-hidden shadow-inner"
                 />
                 <button
                   type="submit"
