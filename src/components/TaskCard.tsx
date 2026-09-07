@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { PlanTask, Subject } from '../types';
 import { SubjectIcon } from './SubjectIcon';
 import { TaskTypeBadge } from './SubjectBadge';
 import { playChimeSound, triggerTaskDoneConfetti } from '../utils/celebration';
-import { Edit3, Trash2, BookOpen, Clock, Check, Circle, History } from 'lucide-react';
+import { Edit3, Trash2, BookOpen, Clock, Check, Circle, History, StickyNote, CheckCircle2, X } from 'lucide-react';
 
 interface TaskCardProps {
   task: PlanTask;
@@ -11,6 +11,7 @@ interface TaskCardProps {
   onToggleDone: (taskId: string) => void;
   onEdit: (task: PlanTask) => void;
   onDelete: (taskId: string) => void;
+  onSavePersonalNote?: (taskId: string, note: string) => void;
   compact?: boolean;
 }
 
@@ -20,8 +21,12 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   onToggleDone,
   onEdit,
   onDelete,
+  onSavePersonalNote,
   compact = false,
 }) => {
+  const [isEditingNote, setIsEditingNote] = useState(false);
+  const [noteText, setNoteText] = useState(task.personalNotes || '');
+
   const handleToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
     const nextState = !task.isDone;
@@ -32,6 +37,15 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       playChimeSound(false);
     }
     onToggleDone(task.id);
+  };
+
+  const handleSaveNote = (e: React.FormEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onSavePersonalNote) {
+      onSavePersonalNote(task.id, noteText);
+    }
+    setIsEditingNote(false);
   };
 
   const iconBg = subject?.color.lightBg || 'bg-indigo-50';
@@ -119,12 +133,72 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               </span>
             </div>
           )}
+
+          {/* User Role: Personal Note Display & Inline Editor */}
+          {task.personalNotes && !isEditingNote && (
+            <div className="mt-2 flex items-start gap-1.5 p-2 rounded-xl bg-amber-50/80 border border-amber-200/70 text-xs text-amber-900">
+              <StickyNote className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <span className="font-bold ml-1 text-amber-800">ملاحظتي الشخصية (جهازي فقط):</span>
+                <span>{task.personalNotes}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditingNote(true)}
+                className="text-[11px] text-amber-700 hover:text-amber-900 underline font-medium"
+              >
+                تعديل
+              </button>
+            </div>
+          )}
+
+          {isEditingNote && (
+            <form onSubmit={handleSaveNote} className="mt-2.5 flex items-center gap-2 p-2 rounded-xl bg-slate-50 border border-indigo-200">
+              <StickyNote className="w-4 h-4 text-indigo-600 shrink-0" />
+              <input
+                type="text"
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+                placeholder="اكتب ملاحظتك الخاصة (تُحفظ في جهازك فقط)..."
+                className="flex-1 text-xs bg-white px-2.5 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                autoFocus
+              />
+              <button
+                type="submit"
+                className="px-2.5 py-1 text-xs font-bold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 flex items-center gap-1 shrink-0"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>حفظ</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsEditingNote(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200 shrink-0"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </form>
+          )}
         </div>
       </div>
 
       {/* Action Controls & Done in English */}
       <div className="flex items-center justify-between sm:justify-end gap-2.5 sm:gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
         <div className="flex items-center gap-1">
+          {!task.personalNotes && (
+            <button
+              type="button"
+              id={`note-task-${task.id}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsEditingNote(true);
+              }}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+              title="إضافة ملاحظة شخصية (في جهازي فقط)"
+            >
+              <StickyNote className="w-4 h-4" />
+            </button>
+          )}
           <button
             type="button"
             id={`edit-task-${task.id}`}

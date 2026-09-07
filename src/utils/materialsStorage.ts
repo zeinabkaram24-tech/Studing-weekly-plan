@@ -1,6 +1,7 @@
 import { MaterialItem } from '../types';
 import { INITIAL_MATERIALS_DATA } from '../data/materialsData';
 import { deleteMaterialBlob, deleteMultipleMaterialBlobs } from './materialsDb';
+import { isAdminLoggedIn } from './storage';
 
 const STORAGE_KEY = 'g2b_school_materials_v7';
 
@@ -50,7 +51,7 @@ export function getSavedMaterials(): MaterialItem[] {
   }
 }
 
-export function saveMaterials(materials: MaterialItem[]): void {
+export function saveMaterials(materials: MaterialItem[], asAdmin?: boolean): void {
   // Strip large fileData (>50KB) to prevent localStorage QuotaExceededError
   const sanitized = materials.map((m) => {
     if (m.fileData && m.fileData.length > 50000) {
@@ -66,15 +67,22 @@ export function saveMaterials(materials: MaterialItem[]): void {
     console.error('Failed to save materials to localStorage', err);
   }
 
-  // Background sync to server
-  try {
-    fetch('/api/materials/save', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ materials: sanitized }),
-    }).catch((e) => console.warn('Notice: Background sync materials to server:', e));
-  } catch {
-    // Offline ignore
+  // Background sync to server Global Storage: ADMIN ROLE ONLY (Password 1940)
+  const isAuthorizedAdmin = asAdmin === true || isAdminLoggedIn();
+  if (isAuthorizedAdmin) {
+    try {
+      fetch('/api/materials/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          materials: sanitized,
+          isAdmin: true,
+          pin: '1940',
+        }),
+      }).catch((e) => console.warn('Notice: Admin sync materials to server:', e));
+    } catch {
+      // Offline ignore
+    }
   }
 }
 
@@ -102,14 +110,14 @@ export function addMaterialItem(item: Omit<MaterialItem, 'id' | 'createdAt'>): M
     createdAt: Date.now(),
   };
   const updated = [newItem, ...current];
-  saveMaterials(updated);
+  saveMaterials(updated, true);
   return newItem;
 }
 
 export function deleteMaterialItem(id: string): boolean {
   const current = getSavedMaterials();
   const updated = current.filter((m) => m.id !== id);
-  saveMaterials(updated);
+  saveMaterials(updated, true);
   deleteMaterialBlob(id);
   return true;
 }
@@ -125,7 +133,7 @@ export function updateMaterialItem(id: string, updates: Partial<MaterialItem>): 
     return m;
   });
   if (updatedItem) {
-    saveMaterials(updated);
+    saveMaterials(updated, true);
   }
   return updatedItem;
 }
@@ -135,7 +143,7 @@ export function deleteMultipleMaterialItems(ids: string[]): boolean {
   const idSet = new Set(ids);
   const current = getSavedMaterials();
   const updated = current.filter((m) => !idSet.has(m.id));
-  saveMaterials(updated);
+  saveMaterials(updated, true);
   deleteMultipleMaterialBlobs(ids);
   return true;
 }

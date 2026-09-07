@@ -14,6 +14,7 @@ const DB_FILE = path.join(DATA_DIR, "visitors.json");
 const MATERIALS_FILES_DIR = path.join(DATA_DIR, "materials_files");
 const PUBLIC_MATERIALS_DIR = path.join(process.cwd(), "public", "materials_files");
 const MATERIALS_DB_FILE = path.join(DATA_DIR, "materials.json");
+const GLOBAL_PLAN_FILE = path.join(DATA_DIR, "global_plan.json");
 
 if (!fs.existsSync(MATERIALS_FILES_DIR)) {
   fs.mkdirSync(MATERIALS_FILES_DIR, { recursive: true });
@@ -513,6 +514,7 @@ async function startServer() {
       normalizedEmail.includes("farida");
 
     const isPinCorrect =
+      cleanPin === "1111" ||
       cleanPin === "1940" ||
       cleanPin === "2026" ||
       cleanPin === "admin" ||
@@ -579,6 +581,7 @@ async function startServer() {
       normalizedEmail.includes("admin") ||
       normalizedEmail.includes("farida");
     const isPinCorrect =
+      cleanPin === "1111" ||
       cleanPin === "1940" ||
       cleanPin === "2026" ||
       cleanPin === "admin" ||
@@ -606,7 +609,7 @@ async function startServer() {
   // =========================================================================
 
   // 7. Upload new material file (PDF, Doc, Image) with 100% original binary preservation
-  app.post("/api/materials/upload", uploadMiddleware.single("file"), (req, res) => {
+  app.post("/api/materials/upload", uploadMiddleware.single("file") as any, (req, res) => {
     if (!req.file) {
       return res.status(400).json({ error: "لم يتم استلام أي ملف للرفع" });
     }
@@ -681,9 +684,20 @@ async function startServer() {
   });
 
   // 9. Force Download exact original sheet file (with Content-Disposition: attachment)
-  // Preserves 100% original block layout, fonts, graphics, without any alteration
+  // Strictly restricted to Admin with password 1940
   app.get("/api/materials/download/:filename", (req, res) => {
     const rawFilename = req.params.filename;
+    const queryPin = (req.query.pin as string) || (req.headers["x-admin-pin"] as string) || "";
+    const userEmail = (req.query.userEmail as string) || (req.headers["x-user-email"] as string) || "";
+    const isAdminFlag = req.query.isAdmin === "true" || req.headers["x-is-admin"] === "true";
+
+    if (!checkAdminAccess(queryPin, userEmail, isAdminFlag)) {
+      return res.status(403).json({
+        error: "تنزيل وتحميل الشيتات مقتصر على المشرف العام (الأدمن) برمز المرور 1111.",
+        requiredRole: "admin",
+      });
+    }
+
     const filePath = findMaterialFilePath(rawFilename);
 
     if (!filePath) {
@@ -717,10 +731,43 @@ async function startServer() {
     return res.json({ success: true, materials: [] });
   });
 
-  // 11. Save/sync materials list to server
+  function checkAdminAccess(pin?: string, userEmail?: string, isAdminFlag?: boolean): boolean {
+    if (isAdminFlag === true) return true;
+    const normalizedEmail = typeof userEmail === "string" ? userEmail.trim().toLowerCase() : "";
+    const cleanPin = typeof pin === "string" ? pin.trim().toLowerCase() : "";
+    const authorizedEmails = [
+      "zeinabkaram909@gmail.com",
+      "zeinabkaram24@gmail.com",
+      "faridaferghali2019@gmail.com",
+      "faridafarghally2019@gmail.com",
+    ];
+    return (
+      authorizedEmails.includes(normalizedEmail) ||
+      normalizedEmail.includes("admin") ||
+      normalizedEmail.includes("farida") ||
+      cleanPin === "1111" ||
+      cleanPin === "1940" ||
+      cleanPin === "2026" ||
+      cleanPin === "admin" ||
+      cleanPin === "zeinab" ||
+      cleanPin === "1234" ||
+      authorizedEmails.includes(cleanPin) ||
+      cleanPin.includes("zeinabkaram") ||
+      cleanPin.includes("farida")
+    );
+  }
+
+  // 11. Save/sync materials list to server (ADMIN ONLY)
   app.post("/api/materials/save", (req, res) => {
     try {
-      const { materials } = req.body || {};
+      const { materials, pin, userEmail, isAdmin } = req.body || {};
+      const isAuth = checkAdminAccess(pin, userEmail, isAdmin);
+      if (!isAuth) {
+        return res.status(403).json({
+          error: "تعديل وحفظ الماتيريال في المسار العام مقتصر على الأدمن برمز المرور (1111)",
+        });
+      }
+
       if (Array.isArray(materials)) {
         // Strip out any accidental massive base64 fileData to keep db light and fast
         const cleanMaterials = materials.map((m: any) => {
@@ -738,6 +785,59 @@ async function startServer() {
     } catch (err) {
       console.error("Failed to save materials on server:", err);
       return res.status(500).json({ error: "Server error saving materials" });
+    }
+  });
+
+  // =========================================================================
+  // GLOBAL WEEKLY PLAN STORAGE (ADMIN ROLE -> GLOBAL STORAGE)
+  // =========================================================================
+
+  // 12. Get global weekly plan (Shared with ALL users/students)
+  app.get("/api/plan/global", (_req, res) => {
+    try {
+      if (fs.existsSync(GLOBAL_PLAN_FILE)) {
+        const raw = fs.readFileSync(GLOBAL_PLAN_FILE, "utf-8");
+        const plan = JSON.parse(raw);
+        if (plan && typeof plan === "object") {
+          return res.json({ success: true, plan });
+        }
+      }
+    } catch (err) {
+      console.warn("Notice: read server global plan file:", err);
+    }
+    return res.json({ success: true, plan: null });
+  });
+
+  // 13. Save global weekly plan (Admin Role Only - reflects immediately for all users)
+  app.post("/api/plan/global", (req, res) => {
+    try {
+      const { plan, pin, userEmail, isAdmin } = req.body || {};
+      const isAuth = checkAdminAccess(pin, userEmail, isAdmin);
+      if (!isAuth) {
+        return res.status(403).json({
+          error: "تعديل وحفظ الخطة الأسبوعية في المسار العام مقتصر على المشرف العام (الأدمن) برمز 1111",
+        });
+      }
+
+      if (!plan || typeof plan !== "object") {
+        return res.status(400).json({ error: "بيانات الخطة الأسبوعية غير صالحة" });
+      }
+
+      const planRecord = {
+        ...plan,
+        lastUpdated: Date.now(),
+        updatedBy: userEmail || "admin",
+      };
+
+      fs.writeFileSync(GLOBAL_PLAN_FILE, JSON.stringify(planRecord, null, 2), "utf-8");
+      return res.json({
+        success: true,
+        lastUpdated: planRecord.lastUpdated,
+        message: "تم حفظ التعديلات في المسار العام بنجاح لتظهر لجميع المستخدمين",
+      });
+    } catch (err) {
+      console.error("Failed to save global plan on server:", err);
+      return res.status(500).json({ error: "خطأ في خادم النظام أثناء حفظ الخطة العامة" });
     }
   });
 

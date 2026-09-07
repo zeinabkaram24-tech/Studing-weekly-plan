@@ -684,7 +684,7 @@ export async function openMaterialSheetInNewTab(
  * Downloads the exact uploaded file onto the user's device (phone, tablet, computer)
  * completely untransformed with 100% original binary and layout intact.
  */
-export async function downloadMaterialSheet(item: MaterialItem): Promise<void> {
+export async function downloadMaterialSheet(item: MaterialItem, adminPin = '1111'): Promise<void> {
   try {
     const filename = item.fileName || `${item.title}.pdf`;
 
@@ -717,7 +717,7 @@ export async function downloadMaterialSheet(item: MaterialItem): Promise<void> {
     // 2. Direct server download endpoint (serves with Content-Disposition: attachment)
     // Guarantees full original binary blocks, exact formatting, no conversion
     if (item.fileName) {
-      const serverDownloadUrl = `/api/materials/download/${encodeURIComponent(item.fileName)}`;
+      const serverDownloadUrl = `/api/materials/download/${encodeURIComponent(item.fileName)}?pin=${encodeURIComponent(adminPin)}`;
       const a = document.createElement('a');
       a.href = serverDownloadUrl;
       a.download = filename;
@@ -733,7 +733,7 @@ export async function downloadMaterialSheet(item: MaterialItem): Promise<void> {
     if (item.fileUrl) {
       const targetUrl = item.fileUrl.startsWith('http') || item.fileUrl.startsWith('/')
         ? item.fileUrl
-        : `/api/materials/download/${encodeURIComponent(item.fileUrl)}`;
+        : `/api/materials/download/${encodeURIComponent(item.fileUrl)}?pin=${encodeURIComponent(adminPin)}`;
       const a = document.createElement('a');
       a.href = targetUrl;
       a.download = filename;

@@ -1,5 +1,7 @@
 export type DayOfWeek = 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday';
 
+export type UserRole = 'admin' | 'student' | 'visitor';
+
 export type TaskType = 'homework' | 'classwork' | 'study' | 'dictation' | 'quiz' | 'supplies' | 'general';
 
 export interface Subject {
@@ -29,6 +31,8 @@ export interface PlanTask {
   pages?: string;
   isDone: boolean;
   notes?: string;
+  personalNotes?: string; // User Role: Personal student note (stored locally only)
+  isPersonalTask?: boolean; // User Role: Custom task added by the student (stored locally only)
   isCarriedOver?: boolean;
   previousWeekNote?: string;
   createdAt: number;
@@ -164,5 +168,35 @@ export interface MaterialItem {
   };
   section?: 'all' | GradeSection;
   createdAt: number;
+}
+
+// Global Plan Shared Storage (Admin Role -> Global Storage)
+export interface GlobalPlanData {
+  activePlanId: string;
+  weekTitle: string;
+  activeBlockNumber: number;
+  activeWeekNumber: number;
+  tasksBySection: Record<GradeSection, PlanTask[]>;
+  archive: WeeklyPlanArchiveEntry[];
+  uploadedFiles: UploadedPlanFile[];
+  lastUpdated: number;
+  updatedBy?: string;
+}
+
+// User Local Progress & Personal Notes (User Role -> Local Storage)
+export interface UserTaskProgressItem {
+  isDone: boolean;
+  completedAt?: number;
+  personalNotes?: string;
+  updatedAt?: number;
+}
+
+export interface UserPersonalState {
+  userId: string;
+  studentName?: string;
+  section?: GradeSection;
+  taskProgress: Record<string, UserTaskProgressItem>;
+  personalTasks?: PlanTask[];
+  lastUpdated?: number;
 }
 

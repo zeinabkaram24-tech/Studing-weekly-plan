@@ -11,11 +11,13 @@ import {
 } from '../data/defaultData';
 import {
   DayOfWeek,
+  GlobalPlanData,
   GradeSection,
   PlanTask,
   StudentProfile,
   Subject,
   Timetable,
+  UserRole,
   WeeklyPlanArchiveEntry,
 } from '../types';
 
@@ -30,6 +32,7 @@ const STORAGE_KEYS = {
   ARCHIVE: 'g2_school_weekly_plans_archive_v1',
   ACTIVE_PLAN_ID: 'g2_school_active_plan_id_v1',
   ADMIN_LOGGED_IN: 'g2_school_admin_logged_in',
+  USER_ROLE: 'g2_school_user_role_v1',
 };
 
 export function loadSavedGradeSection(): GradeSection | null {
@@ -339,6 +342,7 @@ export function verifyAdminPassword(input: string): boolean {
   if (!input) return false;
   const clean = input.trim().toLowerCase();
   return (
+    clean === '1111' ||
     clean === '1940' ||
     clean === '2026' ||
     clean === 'admin' ||
@@ -351,6 +355,51 @@ export function verifyAdminPassword(input: string): boolean {
     clean.includes('zeinabkaram') ||
     clean.includes('farida')
   );
+}
+
+// --- USER ROLE MANAGEMENT (Admin vs Student vs Visitor) ---
+export function getUserRole(): UserRole {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEYS.USER_ROLE) as UserRole;
+    if (saved === 'admin' || saved === 'student' || saved === 'visitor') {
+      return saved;
+    }
+  } catch (e) {
+    console.error('Failed to get user role', e);
+  }
+  if (isAdminLoggedIn()) return 'admin';
+  return 'visitor';
+}
+
+export function saveUserRole(role: UserRole): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.USER_ROLE, role);
+    if (role === 'admin') {
+      setAdminLoggedIn(true);
+    } else {
+      setAdminLoggedIn(false);
+    }
+  } catch (e) {
+    console.error('Failed to save user role', e);
+  }
+}
+
+export function clearUserRole(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEYS.USER_ROLE);
+    setAdminLoggedIn(false);
+  } catch (e) {
+    console.error('Failed to clear user role', e);
+  }
+}
+
+export function hasStoredUserRole(): boolean {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEYS.USER_ROLE);
+    return saved === 'admin' || saved === 'student' || saved === 'visitor';
+  } catch {
+    return false;
+  }
 }
 
 // --- WEEKLY PLANS MEMORY & ARCHIVE (Block & Week) ---
@@ -485,4 +534,57 @@ export function deleteWeeklyPlanFromArchive(planId: string): WeeklyPlanArchiveEn
 
   saveWeeklyPlansArchive(filtered);
   return filtered;
+}
+
+// =========================================================================
+// GLOBAL STORAGE SYNC (ADMIN ROLE -> SERVER STORAGE)
+// =========================================================================
+
+/**
+ * Fetches the shared Global Plan from the server (Global Storage).
+ * Visible to ALL users and students across all devices.
+ */
+export async function fetchGlobalPlanFromServer(): Promise<GlobalPlanData | null> {
+  try {
+    const res = await fetch('/api/plan/global');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.plan) {
+        return data.plan as GlobalPlanData;
+      }
+    }
+  } catch (err) {
+    console.warn('Notice: Failed to fetch global plan from server:', err);
+  }
+  return null;
+}
+
+/**
+ * Saves the weekly plan to the server's Global Storage (Admin Role with password 1111).
+ * Immediately reflects and updates for ALL users across the school.
+ */
+export async function saveGlobalPlanToServer(
+  plan: GlobalPlanData,
+  pin: string = '1111'
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch('/api/plan/global', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        plan,
+        pin,
+        isAdmin: true,
+      }),
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      return { success: true };
+    }
+    return { success: false, error: data.error || 'فشل حفظ الخطة في المسار العام' };
+  } catch (err) {
+    console.error('Failed to sync global plan to server:', err);
+    return { success: false, error: 'تعذر الاتصال بالخادم لحفظ الخطة العامة' };
+  }
 }

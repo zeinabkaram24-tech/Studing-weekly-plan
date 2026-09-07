@@ -22,10 +22,12 @@ interface WeeklyPlanViewProps {
   subjects: Subject[];
   weekTitle: string;
   currentSection?: GradeSection;
+  isAdmin?: boolean;
   onChangeWeekTitle: (title: string) => void;
   onToggleDone: (taskId: string) => void;
   onEditTask: (task: PlanTask) => void;
   onDeleteTask: (taskId: string) => void;
+  onSavePersonalNote?: (taskId: string, note: string) => void;
   onAddTaskForDay: (day: DayOfWeek, subjectId?: string) => void;
   onOpenSmartPaste: () => void;
   onOpenTimetableModal: () => void;
@@ -40,10 +42,12 @@ export const WeeklyPlanView: React.FC<WeeklyPlanViewProps> = ({
   subjects,
   weekTitle,
   currentSection = '2A',
+  isAdmin = false,
   onChangeWeekTitle,
   onToggleDone,
   onEditTask,
   onDeleteTask,
+  onSavePersonalNote,
   onAddTaskForDay,
   onOpenSmartPaste,
   onOpenTimetableModal,
@@ -101,14 +105,21 @@ export const WeeklyPlanView: React.FC<WeeklyPlanViewProps> = ({
               </span>
             </div>
 
-            {/* Editable Week Title */}
-            <input
-              type="text"
-              value={weekTitle}
-              onChange={(e) => onChangeWeekTitle(e.target.value)}
-              className="text-2xl sm:text-3xl font-black text-slate-900 border-b-2 border-transparent hover:border-slate-200 focus:border-indigo-600 focus:outline-hidden px-1 py-1 rounded transition-all w-full max-w-xl"
-              placeholder="عنوان الخطة الأسبوعية..."
-            />
+            {/* Week Title (Editable by Admin only) */}
+            {isAdmin ? (
+              <input
+                type="text"
+                value={weekTitle}
+                onChange={(e) => onChangeWeekTitle(e.target.value)}
+                className="text-2xl sm:text-3xl font-black text-slate-900 border-b-2 border-indigo-200 hover:border-indigo-400 focus:border-indigo-600 focus:outline-hidden px-1 py-1 rounded transition-all w-full max-w-xl"
+                placeholder="عنوان الخطة الأسبوعية..."
+                title="تعديل عنوان الخطة الأسبوعية (صلاحية الأدمن)"
+              />
+            ) : (
+              <h2 className="text-2xl sm:text-3xl font-black text-slate-900 py-1">
+                {weekTitle}
+              </h2>
+            )}
             <p className="text-slate-500 text-xs sm:text-sm mt-1">
               متابعة جميع المواد (Maths, Science, Français, English, Arabic, etc.)
             </p>
@@ -132,20 +143,6 @@ export const WeeklyPlanView: React.FC<WeeklyPlanViewProps> = ({
               >
                 <FolderArchive className="w-4 h-4 text-purple-600" />
                 <span>أرشيف الأسابيع (B{activeBlockNumber} • W{activeWeekNumber})</span>
-              </button>
-            )}
-
-            {/* Material button in weekly plan */}
-            {onOpenMaterialsModal && (
-              <button
-                type="button"
-                id="btn-materials-weekly"
-                onClick={onOpenMaterialsModal}
-                className="px-4 py-2.5 rounded-2xl text-xs font-bold bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 transition-colors flex items-center gap-2 shadow-2xs font-sans cursor-pointer"
-                title="Material"
-              >
-                <FolderOpen className="w-4 h-4 text-blue-600" />
-                <span className="font-bold font-sans">Material</span>
               </button>
             )}
 
@@ -313,6 +310,7 @@ export const WeeklyPlanView: React.FC<WeeklyPlanViewProps> = ({
                             onToggleDone={onToggleDone}
                             onEdit={onEditTask}
                             onDelete={onDeleteTask}
+                            onSavePersonalNote={onSavePersonalNote}
                             compact
                           />
                         );

@@ -35,6 +35,7 @@ interface TodayViewProps {
   onToggleDone: (taskId: string) => void;
   onEditTask: (task: PlanTask) => void;
   onDeleteTask: (taskId: string) => void;
+  onSavePersonalNote?: (taskId: string, note: string) => void;
   onAddTaskForDay: (day: DayOfWeek, subjectId?: string) => void;
   onOpenTimetableModal: () => void;
   onOpenWeekDaysModal: () => void;
@@ -57,6 +58,7 @@ export const TodayView: React.FC<TodayViewProps> = ({
   onToggleDone,
   onEditTask,
   onDeleteTask,
+  onSavePersonalNote,
   onAddTaskForDay,
   onOpenTimetableModal,
   onOpenWeekDaysModal,
@@ -227,20 +229,6 @@ export const TodayView: React.FC<TodayViewProps> = ({
             <ListTodo className="w-4 h-4 text-purple-200 stroke-[2.5]" />
             <span className="font-bold">أيام الأسبوع والمخطط</span>
           </button>
-
-          {/* Requested Icon 3: Fixed Material Button in this exact box */}
-          {onOpenMaterialsModal && (
-            <button
-              type="button"
-              id="btn-open-materials-box"
-              onClick={onOpenMaterialsModal}
-              className="px-4 py-2.5 rounded-2xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-sm transition-all duration-150 flex items-center gap-2 font-sans active:scale-95 cursor-pointer"
-              title="Material"
-            >
-              <FolderOpen className="w-4 h-4 text-blue-200 stroke-[2.5]" />
-              <span className="font-bold font-sans">Material</span>
-            </button>
-          )}
 
           {/* Requested Feature: Archive & Memory of Weeks Button */}
           {onOpenArchiveModal && (
@@ -526,6 +514,7 @@ export const TodayView: React.FC<TodayViewProps> = ({
               onToggleDone={onToggleDone}
               onEdit={onEditTask}
               onDelete={onDeleteTask}
+              onSavePersonalNote={onSavePersonalNote}
             />
           );
         })}

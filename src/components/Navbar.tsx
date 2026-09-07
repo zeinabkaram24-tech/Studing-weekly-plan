@@ -1,5 +1,5 @@
 import React from 'react';
-import { GradeSection, StudentProfile } from '../types';
+import { GradeSection, StudentProfile, UserRole } from '../types';
 import {
   Calendar,
   Clock,
@@ -21,6 +21,9 @@ import {
   FolderOpen,
   ShieldCheck,
   Lock,
+  GraduationCap,
+  Eye,
+  RefreshCw,
 } from 'lucide-react';
 import { VisitorStatsSummary } from '../types';
 
@@ -51,6 +54,8 @@ interface NavbarProps {
   isLoggedIn?: boolean;
   onLogin?: () => void;
   onLogout?: () => void;
+  userRole?: UserRole;
+  onOpenRoleSwitch?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -80,12 +85,28 @@ export const Navbar: React.FC<NavbarProps> = ({
   isLoggedIn = false,
   onLogin,
   onLogout,
+  userRole = 'visitor',
+  onOpenRoleSwitch,
 }) => {
   const totalToday = todayPendingCount + todayCompletedCount;
   const percentCompleted = totalToday > 0 ? Math.round((todayCompletedCount / totalToday) * 100) : 0;
 
   const handleUploadClick = () => {
-    onOpenUploadModal();
+    if (isAdmin) {
+      onOpenUploadModal();
+    } else if (onOpenAdminLogin) {
+      onOpenAdminLogin();
+    } else {
+      onOpenUploadModal();
+    }
+  };
+
+  const handleRoleSwitchClick = () => {
+    if (onOpenRoleSwitch) {
+      onOpenRoleSwitch();
+    } else if (onLogin) {
+      onLogin();
+    }
   };
 
   return (
@@ -161,31 +182,49 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Student Status & Auth Toggle Card */}
-          <div className="bg-slate-900/80 p-2.5 rounded-2xl border border-slate-800 space-y-2">
+          <div className="bg-slate-900/80 p-3 rounded-2xl border border-slate-800 space-y-2.5">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 truncate">
-                <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
-                  isLoggedIn
+              <div className="flex items-center gap-2.5 truncate">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${
+                  isAdmin || userRole === 'admin'
+                    ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+                    : userRole === 'student' && isLoggedIn
                     ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                    : 'bg-slate-800 text-slate-400 border border-slate-700'
+                    : 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
                 }`}>
-                  <User className="w-3.5 h-3.5" />
+                  {isAdmin || userRole === 'admin' ? (
+                    <ShieldCheck className="w-4 h-4 text-indigo-400" />
+                  ) : userRole === 'student' && isLoggedIn ? (
+                    <GraduationCap className="w-4 h-4 text-emerald-400" />
+                  ) : (
+                    <Eye className="w-4 h-4 text-sky-400" />
+                  )}
                 </div>
                 <div className="truncate text-right">
-                  <span className="font-bold text-white text-xs block truncate">
-                    {isLoggedIn ? student.name : 'وضع الزائر (Guest)'}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-black text-white text-xs block truncate">
+                      {isAdmin || userRole === 'admin'
+                        ? 'المشرف العام (أدمن)'
+                        : userRole === 'student' && isLoggedIn
+                        ? student.name
+                        : 'وضع الزائر (Guest)'}
+                    </span>
+                  </div>
                   <span className="text-[10px] text-slate-400 font-sans block">
-                    {isLoggedIn ? `طالب فصل ${selectedSection}` : 'غير مسجّل دخول'}
+                    {isAdmin || userRole === 'admin'
+                      ? 'صلاحيات كاملة • إدارة وتحكم'
+                      : userRole === 'student' && isLoggedIn
+                      ? `طالب فصل ${selectedSection} • حفظ محلي`
+                      : 'تصفح وعرض فقط'}
                   </span>
                 </div>
               </div>
 
-              {isLoggedIn && (
+              {isLoggedIn && userRole === 'student' && (
                 <button
                   type="button"
                   onClick={onOpenEditProfile}
-                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors shrink-0"
+                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors shrink-0 cursor-pointer"
                   title="تعديل بيانات الطالب"
                 >
                   <Edit2 className="w-3.5 h-3.5" />
@@ -193,30 +232,17 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </div>
 
-            {/* Dynamic Login / Logout Button */}
-            {isLoggedIn ? (
-              <button
-                type="button"
-                id="sidebar-btn-auth-logout"
-                onClick={onLogout}
-                className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold text-rose-300 bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/50 transition-all shadow-xs active:scale-98 cursor-pointer"
-                title="تسجيل الخروج من الحساب"
-              >
-                <LogOut className="w-3.5 h-3.5 text-rose-400" />
-                <span>تسجيل خروج</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                id="sidebar-btn-auth-login"
-                onClick={onLogin}
-                className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 transition-all shadow-sm active:scale-98 cursor-pointer"
-                title="تسجيل الدخول باسم الطالب"
-              >
-                <LogIn className="w-3.5 h-3.5 text-indigo-100" />
-                <span>تسجيل دخول</span>
-              </button>
-            )}
+            {/* Role Switch / Login Button */}
+            <button
+              type="button"
+              id="sidebar-btn-role-switch"
+              onClick={handleRoleSwitchClick}
+              className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold text-indigo-200 bg-indigo-950/60 hover:bg-indigo-900/80 border border-indigo-800/50 transition-all shadow-xs active:scale-98 cursor-pointer"
+              title="تغيير نوع الدخول: أدمن (1111)، طالب، أو زائر"
+            >
+              <RefreshCw className="w-3.5 h-3.5 text-indigo-300" />
+              <span>تبديل الحساب / نوع الدخول</span>
+            </button>
           </div>
         </div>
 
@@ -278,45 +304,26 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span>جدول حصص فصل {selectedSection}</span>
           </button>
 
-          {/* 4. Library / Materials Section */}
-          {onOpenMaterialsModal && (
-            <button
-              type="button"
-              id="tab-library-desktop"
-              onClick={onOpenMaterialsModal}
-              className="w-full flex items-center justify-between p-3 rounded-2xl transition-all text-xs sm:text-sm font-bold text-slate-400 hover:bg-slate-800/80 hover:text-blue-300 border border-transparent hover:border-blue-900/50 cursor-pointer"
-              title="مكتبة الشيتات والماتيريال الرسمية (عرض وتصفح وطباعة)"
-            >
-              <div className="flex items-center gap-2.5">
-                <FolderOpen className="w-4 h-4 text-blue-400" />
-                <span>المكتبة والشيتات (Materials)</span>
-              </div>
-              <span className="text-[10px] font-sans font-bold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                عرض
-              </span>
-            </button>
-          )}
-
-          {/* 5. Unified Admin Menu Item in Navigation */}
+          {/* Unified Admin Menu Item in Navigation (Exclusively houses Sheets & Uploads) */}
           <button
             type="button"
             id="tab-admin-desktop"
             onClick={handleUploadClick}
-            className="w-full flex items-center justify-between p-3 rounded-2xl transition-all text-xs sm:text-sm font-bold text-slate-400 hover:bg-slate-800/80 hover:text-indigo-300 border border-slate-800/80 hover:border-indigo-800/60 cursor-pointer"
-            title="دخول لوحة تحكم الأدمن (تحميل ومسح الشيتات وإحصائيات الزوار والمستخدمين)"
+            className="w-full flex items-center justify-between p-3 rounded-2xl transition-all text-xs sm:text-sm font-bold text-slate-300 hover:bg-slate-800/80 hover:text-indigo-300 border border-slate-800/80 hover:border-indigo-800/60 cursor-pointer"
+            title="لوحة تحكم الأدمن: إدارة ورفع وحذف الشيتات والملفات وإحصائيات الزوار (رمز 1111)"
           >
             <div className="flex items-center gap-2.5">
               <ShieldCheck className="w-4 h-4 text-indigo-400" />
-              <span>أدمن (Admin)</span>
+              <span>لوحة تحكم الأدمن</span>
             </div>
             {!isAdmin ? (
-              <span className="flex items-center gap-1 text-[11px] text-slate-500 font-mono">
+              <span className="flex items-center gap-1 text-[11px] text-slate-400 font-mono bg-slate-900 px-2 py-0.5 rounded-lg border border-slate-700">
                 <Lock className="w-3 h-3 text-indigo-400/80" />
-                <span>1940</span>
+                <span>1111</span>
               </span>
             ) : (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                نشط
+                أدمن نشط 👑
               </span>
             )}
           </button>
@@ -407,38 +414,45 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Quick Actions for Mobile */}
             <div className="flex items-center gap-1.5">
-              {/* Dynamic Login / Logout Button for Mobile */}
-              {isLoggedIn ? (
-                <button
-                  type="button"
-                  id="mobile-btn-auth-toggle"
-                  onClick={onLogout}
-                  className="px-2 py-1 rounded-xl bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-800/60 text-[11px] font-bold flex items-center gap-1 shadow-xs active:scale-95 cursor-pointer"
-                  title="تسجيل خروج"
-                >
-                  <LogOut className="w-3 h-3 text-rose-400" />
-                  <span>خروج</span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  id="mobile-btn-auth-toggle"
-                  onClick={onLogin}
-                  className="px-2 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs text-[11px] font-bold flex items-center gap-1 active:scale-95 cursor-pointer"
-                  title="تسجيل دخول"
-                >
-                  <LogIn className="w-3 h-3 text-white" />
-                  <span>دخول</span>
-                </button>
-              )}
+              {/* Dynamic Role Switcher for Mobile */}
+              <button
+                type="button"
+                id="mobile-btn-auth-toggle"
+                onClick={handleRoleSwitchClick}
+                className={`px-2.5 py-1 rounded-xl text-[11px] font-bold flex items-center gap-1 shadow-xs active:scale-95 cursor-pointer border ${
+                  isAdmin || userRole === "admin"
+                    ? "bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 border-indigo-800/60"
+                    : userRole === "student" && isLoggedIn
+                    ? "bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500"
+                    : "bg-sky-600 hover:bg-sky-500 text-white border-sky-500"
+                }`}
+                title="تبديل نوع الدخول: أدمن (1111)، طالب، أو زائر"
+              >
+                {isAdmin || userRole === "admin" ? (
+                  <>
+                    <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>أدمن</span>
+                  </>
+                ) : userRole === "student" && isLoggedIn ? (
+                  <>
+                    <GraduationCap className="w-3.5 h-3.5" />
+                    <span className="max-w-[65px] truncate">{student.name}</span>
+                  </>
+                ) : (
+                  <>
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>زائر</span>
+                  </>
+                )}
+              </button>
 
               {/* Single Unified Admin Button for Mobile */}
               <button
                 type="button"
                 id="mobile-btn-admin"
                 onClick={handleUploadClick}
-                className="px-2 py-1 rounded-lg bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/60 text-xs flex items-center gap-1 active:scale-95 cursor-pointer font-bold"
-                title="أدمن: تحميل ومسح الشيتات وحساب عدد الزوار والمستخدمين"
+                className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs flex items-center gap-1 active:scale-95 cursor-pointer font-bold"
+                title="لوحة تحكم الأدمن (رمز 1111)"
               >
                 <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
                 <span>أدمن</span>
