@@ -150,7 +150,9 @@ export interface MaterialItem {
   categoryLabel?: string; // e.g. "الشيتات الرئيسية", "ويك 1", "ويك 2"
   itemType: 'sheet' | 'booklet' | 'notes' | 'revision' | 'link';
   fileUrl?: string;
+  fileData?: string; // Base64 data URL or embedded file representation
   fileName?: string;
+  fileType?: string; // e.g. 'application/pdf'
   fileSize?: string;
   notes?: string;
   pageCount?: number;

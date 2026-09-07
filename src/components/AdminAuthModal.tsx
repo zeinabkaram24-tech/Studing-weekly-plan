@@ -123,7 +123,6 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
                     <KeyRound className="w-3.5 h-3.5 text-indigo-600" />
                     <span>رمز مرور الأدمن (Admin Password / PIN):</span>
                   </span>
-                  <span className="text-[10px] text-slate-400 font-mono">2026</span>
                 </label>
                 <input
                   type="password"
@@ -132,7 +131,7 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
                     setPassword(e.target.value);
                     setError(null);
                   }}
-                  placeholder="أدخل رمز المرور..."
+                  placeholder="أدخل رمز مرور الأدمن..."
                   autoFocus
                   className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 text-sm font-bold text-slate-900 text-center tracking-widest"
                 />

@@ -235,11 +235,17 @@ export default function App() {
     saveUploadedFiles(uploadedFiles);
   }, [uploadedFiles]);
 
+  const [pendingAdminAction, setPendingAdminAction] = useState<(() => void) | null>(null);
+
   // Admin actions
   const handleAdminSuccess = () => {
     setIsAdmin(true);
     setAdminLoggedIn(true);
     setIsAdminAuthModalOpen(false);
+    if (pendingAdminAction) {
+      pendingAdminAction();
+      setPendingAdminAction(null);
+    }
   };
 
   const handleAdminLogout = () => {
@@ -247,8 +253,9 @@ export default function App() {
     clearAdminLogin();
   };
 
-  const handleOpenAdminLogin = (title?: string, message?: string) => {
+  const handleOpenAdminLogin = (title?: string, message?: string, onAuthenticated?: () => void) => {
     setAdminReason(title ? { title, message: message || '' } : undefined);
+    setPendingAdminAction(() => onAuthenticated || null);
     setIsAdminAuthModalOpen(true);
   };
 
@@ -556,8 +563,9 @@ export default function App() {
         isAdmin={isAdmin}
         onOpenAdminLogin={() =>
           handleOpenAdminLogin(
-            'تسجيل دخول الأدمن',
-            'رفع ملفات الخطة وتعديل الجداول مقتصر على الأدمن فقط'
+            'صلاحية المشرف العام (الأدمن)',
+            'رفع وتحميل ملفات الخطط والماتيريال مقتصر على المشرف العام (الأدمن)',
+            () => setIsUploadModalOpen(true)
           )
         }
         activeBlockNumber={activeBlockNumber}
@@ -718,14 +726,39 @@ export default function App() {
         currentWeekTitle={weekTitle}
         currentTasks={tasks}
         isAdmin={isAdmin}
-        onAdminUnlock={() =>
-          handleOpenAdminLogin(
-            'صلاحية رفع ملفات الخطة الأسبوعية',
-            'إضافة ملفات الـ Weekly Plan مقتصر على المشرف (الأدمن) فقط'
-          )
-        }
+        onAdminUnlock={() => {
+          setIsAdmin(true);
+          setAdminLoggedIn(true);
+        }}
         onApplyNewWeeklyPlan={handleApplyNewWeeklyPlan}
         savedUploadedFiles={uploadedFiles}
+        onDeleteSavedUploadedFile={(fileId) => {
+          setUploadedFiles((prev) => {
+            const updated = prev.filter((f) => f.id !== fileId);
+            saveUploadedFiles(updated);
+            return updated;
+          });
+          setArchive((prev) =>
+            prev.map((plan) => ({
+              ...plan,
+              uploadedFiles: (plan.uploadedFiles || []).filter((f) => f.id !== fileId),
+            }))
+          );
+        }}
+        onDeleteSavedUploadedFiles={(fileIds) => {
+          const idSet = new Set(fileIds);
+          setUploadedFiles((prev) => {
+            const updated = prev.filter((f) => !idSet.has(f.id));
+            saveUploadedFiles(updated);
+            return updated;
+          });
+          setArchive((prev) =>
+            prev.map((plan) => ({
+              ...plan,
+              uploadedFiles: (plan.uploadedFiles || []).filter((f) => !idSet.has(f.id)),
+            }))
+          );
+        }}
         suggestedBlock={activeBlockNumber}
         suggestedWeek={activeWeekNumber + 1}
       />
@@ -801,19 +834,13 @@ export default function App() {
         }}
       />
 
-      {/* Materials & Sheets Modal (Block 1 Main Sheets & Weekly Materials) */}
+      {/* Materials & Sheets Modal (Block 1 Main Sheets & Weekly Materials - View Only) */}
       <MaterialsModal
         isOpen={isMaterialsModalOpen}
         onClose={() => setIsMaterialsModalOpen(false)}
         subjects={subjects}
         currentSection={selectedSection}
         isAdmin={isAdmin}
-        onOpenAdminLogin={() =>
-          handleOpenAdminLogin(
-            'صلاحية إضافة وتعديل الماتيريال',
-            'إضافة شيتات جديدة أو مذكرات للأسابيع مقتصر على الأدمن'
-          )
-        }
       />
     </div>
   );

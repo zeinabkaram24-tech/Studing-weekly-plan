@@ -255,9 +255,13 @@ export function saveStudent(student: StudentProfile): void {
 
 export function loadWeekTitle(): string {
   try {
-    return localStorage.getItem(STORAGE_KEYS.WEEK_TITLE) || 'خطة الأسبوع الأول (Block 1 - Week 1)';
+    const saved = localStorage.getItem(STORAGE_KEYS.WEEK_TITLE);
+    if (saved && !saved.includes('الأسبوع الأول')) {
+      return saved;
+    }
+    return 'Week 1 Plan (Block 1 - Week 1)';
   } catch {
-    return 'خطة الأسبوع الأول (Block 1 - Week 1)';
+    return 'Week 1 Plan (Block 1 - Week 1)';
   }
 }
 
@@ -335,6 +339,7 @@ export function verifyAdminPassword(input: string): boolean {
   if (!input) return false;
   const clean = input.trim().toLowerCase();
   return (
+    clean === '1940' ||
     clean === '2026' ||
     clean === 'admin' ||
     clean === 'zeinab' ||
@@ -352,7 +357,7 @@ export function getInitialWeeklyPlansArchive(): WeeklyPlanArchiveEntry[] {
     id: 'b1-w1',
     blockNumber: 1,
     weekNumber: 1,
-    title: 'خطة الأسبوع الأول (Block 1 - Week 1)',
+    title: 'Week 1 Plan (Block 1 - Week 1)',
     createdAt: Date.now() - 7 * 86400000,
     startDate: 'الأحد 31 أغسطس',
     endDate: 'الخميس 4 سبتمبر',
@@ -374,9 +379,13 @@ export function loadWeeklyPlansArchive(): WeeklyPlanArchiveEntry[] {
     if (saved) {
       const parsed: WeeklyPlanArchiveEntry[] = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        // Ensure each entry has tasks filtered
+        // Ensure each entry has tasks filtered and titles migrated to English Week format
         return parsed.map((entry) => ({
           ...entry,
+          title:
+            entry.title && entry.title.includes('الأسبوع الأول')
+              ? entry.title.replace(/خطة الأسبوع الأول/g, 'Week 1 Plan')
+              : entry.title,
           tasksBySection: {
             '2A': filterOutArtTasks(entry.tasksBySection?.['2A'] || []),
             '2B': filterOutArtTasks(entry.tasksBySection?.['2B'] || []),

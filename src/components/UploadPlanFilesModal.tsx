@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { DAYS_LIST } from '../data/defaultData';
-import { DayOfWeek, GradeSection, PlanTask, Subject, TaskType, UploadedPlanFile } from '../types';
+import { DayOfWeek, GradeSection, PlanTask, Subject, TaskType, UploadedPlanFile, MaterialItem } from '../types';
 import { SubjectIcon } from './SubjectIcon';
 import {
   X,
@@ -19,8 +19,31 @@ import {
   Lock,
   ShieldCheck,
   KeyRound,
+  FolderOpen,
+  BookOpen,
+  Eye,
+  EyeOff,
+  RefreshCw,
+  ExternalLink,
+  Download,
+  Search,
+  CheckSquare,
+  Square,
 } from 'lucide-react';
 import { verifyAdminPassword, setAdminLoggedIn } from '../utils/storage';
+import {
+  getSavedMaterials,
+  addMaterialItem,
+  updateMaterialItem,
+  deleteMaterialItem,
+  deleteMultipleMaterialItems,
+  resetToDefaultMaterials,
+} from '../utils/materialsStorage';
+import { saveMaterialBlob } from '../utils/materialsDb';
+import {
+  openMaterialSheetInNewTab,
+  downloadMaterialSheet,
+} from '../utils/sheetPdfViewer';
 
 interface UploadPlanFilesModalProps {
   isOpen: boolean;
@@ -41,9 +64,13 @@ interface UploadPlanFilesModalProps {
     setAsCurrent: boolean
   ) => void;
   savedUploadedFiles: UploadedPlanFile[];
+  onDeleteSavedUploadedFile?: (fileId: string) => void;
+  onDeleteSavedUploadedFiles?: (fileIds: string[]) => void;
   suggestedBlock?: number;
   suggestedWeek?: number;
 }
+
+type AdminUploadTab = 'weekly_plan' | 'materials' | 'history';
 
 export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
   isOpen,
@@ -55,16 +82,28 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
   onAdminUnlock,
   onApplyNewWeeklyPlan,
   savedUploadedFiles,
+  onDeleteSavedUploadedFile,
+  onDeleteSavedUploadedFiles,
   suggestedBlock = 1,
   suggestedWeek = 2,
 }) => {
+  // Always lock by default when entering the upload center so the password prompt is the first thing seen!
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [activeTab, setActiveTab] = useState<AdminUploadTab>('weekly_plan');
+
+  // Multi-selection states for bulk deletion
+  const [selectedMaterialIds, setSelectedMaterialIds] = useState<Set<string>>(new Set());
+  const [selectedHistoryFileIds, setSelectedHistoryFileIds] = useState<Set<string>>(new Set());
+  const [selectedTaskIndices, setSelectedTaskIndices] = useState<Set<number>>(new Set());
+
+  // Weekly plan upload state
   const [blockNumber, setBlockNumber] = useState<number>(suggestedBlock);
   const [weekNumber, setWeekNumber] = useState<number>(suggestedWeek);
   const [targetSection, setTargetSection] = useState<'all' | GradeSection>('all');
   const [setAsCurrent, setSetAsCurrent] = useState<boolean>(true);
 
   const [weekTitle, setWeekTitle] = useState(() => {
-    return `خطة الأسبوع ${suggestedWeek} (Block ${suggestedBlock} - Week ${suggestedWeek})`;
+    return `Week ${suggestedWeek} Plan (Block ${suggestedBlock} - Week ${suggestedWeek})`;
   });
 
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>('all');
@@ -72,41 +111,87 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
   const [dragActive, setDragActive] = useState(false);
   const [uploadedFilesList, setUploadedFilesList] = useState<UploadedPlanFile[]>([]);
   const [generatedTasks, setGeneratedTasks] = useState<Omit<PlanTask, 'id' | 'createdAt'>[]>([]);
-  const [activeTab, setActiveTab] = useState<'upload' | 'history'>('upload');
+
+  // Manual task addition in weekly plan
+  const [isManualTaskFormOpen, setIsManualTaskFormOpen] = useState(false);
+  const [manualTitle, setManualTitle] = useState('');
+  const [manualSubjectId, setManualSubjectId] = useState('math');
+  const [manualDay, setManualDay] = useState<DayOfWeek>('sunday');
+  const [manualType, setManualType] = useState<TaskType>('homework');
+  const [manualDetails, setManualDetails] = useState('');
+
+  // Materials & Sheets upload state
+  const [materialsList, setMaterialsList] = useState<MaterialItem[]>([]);
+  const [matTitle, setMatTitle] = useState('');
+  const [matSubjectId, setMatSubjectId] = useState('science');
+  const [matCategory, setMatCategory] = useState<'main_sheets' | 'week1' | 'week2' | 'week3'>('main_sheets');
+  const [matBlock, setMatBlock] = useState<number>(1);
+  const [matSection, setMatSection] = useState<'all' | GradeSection>('all');
+  const [matUnit, setMatUnit] = useState('');
+  const [matPageCount, setMatPageCount] = useState('');
+  const [matFileName, setMatFileName] = useState('');
+  const [matFileUrl, setMatFileUrl] = useState('');
+  const [matFileData, setMatFileData] = useState<string | null>(null);
+  const [matFileType, setMatFileType] = useState<string>('');
+  const [selectedMatFile, setSelectedMatFile] = useState<File | null>(null);
+  const [matExercisesText, setMatExercisesText] = useState('');
+  const [matNotes, setMatNotes] = useState('');
+  const [matSuccessMsg, setMatSuccessMsg] = useState<string | null>(null);
+  const [historySuccessMsg, setHistorySuccessMsg] = useState<string | null>(null);
+  const [matSearchQuery, setMatSearchQuery] = useState('');
+  const [matFilterCategory, setMatFilterCategory] = useState<string>('all');
+
+  // Confirmation state for reset
+  const [isResetMaterialsConfirm, setIsResetMaterialsConfirm] = useState(false);
 
   // Admin lock inline auth
   const [adminPinInput, setAdminPinInput] = useState('');
+  const [showAdminPin, setShowAdminPin] = useState(false);
   const [adminPinError, setAdminPinError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const matFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Reset and sync state whenever the modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setIsUnlocked(false);
+      setAdminPinInput('');
+      setAdminPinError(null);
+      setShowAdminPin(false);
+      setMaterialsList(getSavedMaterials());
+      setSelectedMaterialIds(new Set());
+      setSelectedHistoryFileIds(new Set());
+      setSelectedTaskIndices(new Set());
+      setMatSuccessMsg(null);
+      setHistorySuccessMsg(null);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   const handleUnlockAdmin = (e: React.FormEvent) => {
     e.preventDefault();
     if (verifyAdminPassword(adminPinInput)) {
+      setIsUnlocked(true);
       setAdminLoggedIn(true);
       setAdminPinError(null);
       if (onAdminUnlock) onAdminUnlock();
     } else {
-      setAdminPinError('رمز المرور غير صحيح. يرجى التأكد والمحاولة ثانية.');
+      setAdminPinError('رمز المرور غير صحيح. يرجى إعادة المحاولة.');
     }
   };
 
   const handleBlockWeekChange = (newBlock: number, newWeek: number) => {
     setBlockNumber(newBlock);
     setWeekNumber(newWeek);
-    setWeekTitle(`خطة الأسبوع ${newWeek} (Block ${newBlock} - Week ${newWeek})`);
+    setWeekTitle(`Week ${newWeek} Plan (Block ${newBlock} - Week ${newWeek})`);
   };
 
   const subjectMap = new Map<string, Subject>();
   subjects.forEach((s) => subjectMap.set(s.id, s));
 
-  // Previous week tasks breakdown
-  const pendingLastWeekTasks = currentTasks.filter((t) => !t.isDone);
-  const completedLastWeekTasks = currentTasks.filter((t) => t.isDone);
-
-  // Handle files selection
+  // Handle files selection for Weekly Plan
   const handleFiles = (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
@@ -117,53 +202,46 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
       const fileId = `file-${Date.now()}-${index}`;
       const fileNameLower = file.name.toLowerCase();
 
-      // Guess subject from file name
       let guessedSubjectId = selectedSubjectId !== 'all' ? selectedSubjectId : 'math';
       if (fileNameLower.includes('math') || fileNameLower.includes('حساب') || fileNameLower.includes('رياضيات')) {
         guessedSubjectId = 'math';
       } else if (fileNameLower.includes('sci') || fileNameLower.includes('علوم') || fileNameLower.includes('discover')) {
         guessedSubjectId = 'science';
-      } else if (fileNameLower.includes('fr') || fileNameLower.includes('فرنسي') || fileNameLower.includes('french')) {
-        guessedSubjectId = 'french';
-      } else if (fileNameLower.includes('eng') || fileNameLower.includes('انجليزي') || fileNameLower.includes('connect')) {
+      } else if (fileNameLower.includes('eng') || fileNameLower.includes('connect') || fileNameLower.includes('انجليزي')) {
         guessedSubjectId = 'english';
-      } else if (fileNameLower.includes('arab') || fileNameLower.includes('عربي')) {
+      } else if (fileNameLower.includes('arab') || fileNameLower.includes('عربي') || fileNameLower.includes('لغة عربية')) {
         guessedSubjectId = 'arabic';
-      } else if (fileNameLower.includes('soc') || fileNameLower.includes('دراسات')) {
-        guessedSubjectId = 'social_studies';
-      } else if (fileNameLower.includes('rel') || fileNameLower.includes('دين') || fileNameLower.includes('islam')) {
-        guessedSubjectId = 'religion';
-      } else if (fileNameLower.includes('ict') || fileNameLower.includes('comp') || fileNameLower.includes('حاسب')) {
-        guessedSubjectId = 'ict';
+      } else if (fileNameLower.includes('fren') || fileNameLower.includes('fr') || fileNameLower.includes('فرنساوي')) {
+        guessedSubjectId = 'french';
+      } else if (fileNameLower.includes('comp') || fileNameLower.includes('ict') || fileNameLower.includes('حاسب')) {
+        guessedSubjectId = 'computer';
       }
 
       newFiles.push({
         id: fileId,
         name: file.name,
         size: file.size,
-        type: file.type || 'application/pdf',
+        type: file.type || 'application/octet-stream',
         uploadDate: Date.now(),
-        subjectId: guessedSubjectId,
         weekName: weekTitle,
       });
 
-      // Automatically generate draft tasks for the school days (Sun - Thu) for this subject
-      const schoolDays: DayOfWeek[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'];
-      schoolDays.forEach((day, dayIndex) => {
-        newGeneratedTasks.push({
-          day,
-          subjectId: guessedSubjectId,
-          type: dayIndex % 2 === 0 ? 'classwork' : 'homework',
-          title: `درس الأسبوع الجديد - ${file.name.replace(/\.[^/.]+$/, '')} (${DAYS_LIST.find((d) => d.key === day)?.shortAr})`,
-          details: `تم الاستخراج من ملف: ${file.name}`,
-          pages: dayIndex % 2 === 1 ? 'صفحة واجب' : undefined,
-          isDone: false,
-        });
+      const dayKeys: DayOfWeek[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'];
+      const targetDay = dayKeys[index % dayKeys.length];
+
+      newGeneratedTasks.push({
+        subjectId: guessedSubjectId,
+        day: targetDay,
+        type: 'homework' as TaskType,
+        title: `مهمة أسبوعية من ملف: ${file.name.replace(/\.[^/.]+$/, '')}`,
+        details: `تم توليدها تلقائياً من الملف المرفوع لـ (Block ${blockNumber} - Week ${weekNumber})`,
+        isDone: false,
+        section: targetSection === 'all' ? undefined : targetSection,
       });
     });
 
-    setUploadedFilesList((prev) => [...newFiles, ...prev]);
-    setGeneratedTasks((prev) => [...newGeneratedTasks, ...prev]);
+    setUploadedFilesList((prev) => [...prev, ...newFiles]);
+    setGeneratedTasks((prev) => [...prev, ...newGeneratedTasks]);
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -183,10 +261,6 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handleFiles(e.dataTransfer.files);
     }
-  };
-
-  const handleRemoveTask = (index: number) => {
-    setGeneratedTasks((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleApply = () => {
@@ -210,9 +284,280 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
     onClose();
   };
 
+  // Materials Handlers
+  const handleMatFileSelected = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const file = files[0];
+    setMatFileName(file.name);
+    setSelectedMatFile(file);
+    setMatFileType(file.type || (file.name.endsWith('.pdf') ? 'application/pdf' : ''));
+    if (!matTitle) {
+      const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+      setMatTitle(cleanName);
+    }
+
+    // Read file as Data URL
+    try {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          setMatFileData(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.warn('Error reading material file data:', err);
+    }
+  };
+
+  const handleAttachFileToExistingMaterial = async (matId: string, files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const file = files[0];
+    await saveMaterialBlob(matId, file);
+    updateMaterialItem(matId, {
+      fileName: file.name,
+      fileType: file.type || (file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : undefined),
+    });
+    setMaterialsList(getSavedMaterials());
+    setMatSuccessMsg(`تم إرفاق وتثبيت ملف PDF الأصلي للشيت: ${file.name}`);
+    setTimeout(() => setMatSuccessMsg(null), 4000);
+  };
+
+  const handleAddMaterial = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!matTitle.trim()) return;
+
+    let categoryLabel = 'Main Sheets';
+    if (matCategory === 'week1') categoryLabel = 'Week 1';
+    else if (matCategory === 'week2') categoryLabel = 'Week 2';
+    else if (matCategory === 'week3') categoryLabel = 'Week 3';
+
+    const exercises = matExercisesText
+      .split('\n')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    const detectedType =
+      selectedMatFile?.type ||
+      (matFileName.toLowerCase().endsWith('.pdf') ? 'application/pdf' : matFileType || undefined);
+
+    const newMat = addMaterialItem({
+      title: matTitle.trim(),
+      subjectId: matSubjectId,
+      blockNumber: matBlock,
+      category: matCategory,
+      categoryLabel,
+      itemType: 'sheet',
+      fileName: matFileName.trim() || undefined,
+      fileUrl: matFileUrl.trim() || undefined,
+      fileData: matFileData || undefined,
+      fileType: detectedType,
+      unitTitle: matUnit.trim() || undefined,
+      pageCount: matPageCount.trim() ? Number(matPageCount) || undefined : undefined,
+      contentPreview: exercises.length > 0 ? { type: 'exercises', items: exercises } : undefined,
+      notes: matNotes.trim() || undefined,
+      section: matSection,
+    });
+
+    // Save actual original file blob in IndexedDB for permanent storage
+    if (selectedMatFile) {
+      await saveMaterialBlob(newMat.id, selectedMatFile);
+    }
+
+    const updated = getSavedMaterials();
+    setMaterialsList(updated);
+    setMatSuccessMsg(`تم بنجاح حفظ وإدراج الشيت "${newMat.title}" بنسخته الأصلية كاملة.`);
+    setMatTitle('');
+    setMatFileName('');
+    setMatFileUrl('');
+    setMatFileData(null);
+    setMatFileType('');
+    setSelectedMatFile(null);
+    setMatUnit('');
+    setMatPageCount('');
+    setMatExercisesText('');
+    setMatNotes('');
+    setTimeout(() => setMatSuccessMsg(null), 5000);
+  };
+
+  const handleAddManualTask = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualTitle.trim()) return;
+    setGeneratedTasks((prev) => [
+      ...prev,
+      {
+        title: manualTitle.trim(),
+        subjectId: manualSubjectId,
+        day: manualDay,
+        type: manualType,
+        details: manualDetails.trim() || undefined,
+        isDone: false,
+        completedDays: [],
+        section: targetSection,
+        blockNumber,
+        weekNumber,
+      },
+    ]);
+    setManualTitle('');
+    setManualDetails('');
+    setIsManualTaskFormOpen(false);
+  };
+
+  // Direct and Multi-select Material deletion
+  const handleDeleteMaterialDirect = (id: string, title: string) => {
+    deleteMaterialItem(id);
+    const updated = getSavedMaterials();
+    setMaterialsList(updated);
+    setSelectedMaterialIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    setMatSuccessMsg(`تم حذف الشيت "${title}" بنجاح.`);
+    setTimeout(() => setMatSuccessMsg(null), 4000);
+  };
+
+  const handleDeleteSelectedMaterials = () => {
+    if (selectedMaterialIds.size === 0) return;
+    const count = selectedMaterialIds.size;
+    deleteMultipleMaterialItems(Array.from(selectedMaterialIds));
+    const updated = getSavedMaterials();
+    setMaterialsList(updated);
+    setSelectedMaterialIds(new Set());
+    setMatSuccessMsg(`تم حذف (${count}) شيتات محددة بنجاح.`);
+    setTimeout(() => setMatSuccessMsg(null), 4000);
+  };
+
+  const toggleSelectMaterial = (id: string) => {
+    setSelectedMaterialIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAllMaterials = () => {
+    if (selectedMaterialIds.size === filteredMaterials.length) {
+      setSelectedMaterialIds(new Set());
+    } else {
+      setSelectedMaterialIds(new Set(filteredMaterials.map((m) => m.id)));
+    }
+  };
+
+  const handleResetMaterials = () => {
+    setIsResetMaterialsConfirm(true);
+  };
+
+  const confirmResetMaterials = () => {
+    const def = resetToDefaultMaterials();
+    setMaterialsList(def);
+    setIsResetMaterialsConfirm(false);
+    setSelectedMaterialIds(new Set());
+    setMatSuccessMsg('تمت استعادة الشيتات الافتراضية بنجاح.');
+    setTimeout(() => setMatSuccessMsg(null), 4000);
+  };
+
+  // Direct and Multi-select History File deletion
+  const handleDeleteHistoryFileDirect = (id: string, name: string) => {
+    if (onDeleteSavedUploadedFiles) {
+      onDeleteSavedUploadedFiles([id]);
+    } else if (onDeleteSavedUploadedFile) {
+      onDeleteSavedUploadedFile(id);
+    }
+    setSelectedHistoryFileIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    setHistorySuccessMsg(`تم حذف الملف "${name}" من السجل بنجاح.`);
+    setTimeout(() => setHistorySuccessMsg(null), 4000);
+  };
+
+  const handleDeleteSelectedHistoryFiles = () => {
+    if (selectedHistoryFileIds.size === 0) return;
+    const count = selectedHistoryFileIds.size;
+    const ids = Array.from(selectedHistoryFileIds);
+    if (onDeleteSavedUploadedFiles) {
+      onDeleteSavedUploadedFiles(ids);
+    } else if (onDeleteSavedUploadedFile) {
+      ids.forEach((id) => onDeleteSavedUploadedFile(id));
+    }
+    setSelectedHistoryFileIds(new Set());
+    setHistorySuccessMsg(`تم حذف (${count}) ملفات محددة من السجل بنجاح.`);
+    setTimeout(() => setHistorySuccessMsg(null), 4000);
+  };
+
+  const toggleSelectHistoryFile = (id: string) => {
+    setSelectedHistoryFileIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAllHistoryFiles = () => {
+    if (selectedHistoryFileIds.size === savedUploadedFiles.length) {
+      setSelectedHistoryFileIds(new Set());
+    } else {
+      setSelectedHistoryFileIds(new Set(savedUploadedFiles.map((f) => f.id)));
+    }
+  };
+
+  // Weekly plan task remove & multi-delete
+  const handleRemoveTask = (index: number) => {
+    setGeneratedTasks((prev) => prev.filter((_, i) => i !== index));
+    setSelectedTaskIndices((prev) => {
+      const next = new Set<number>();
+      prev.forEach((idx) => {
+        if (idx < index) next.add(idx);
+        else if (idx > index) next.add(idx - 1);
+      });
+      return next;
+    });
+  };
+
+  const handleDeleteSelectedTasks = () => {
+    if (selectedTaskIndices.size === 0) return;
+    setGeneratedTasks((prev) => prev.filter((_, i) => !selectedTaskIndices.has(i)));
+    setSelectedTaskIndices(new Set());
+  };
+
+  const toggleSelectTask = (index: number) => {
+    setSelectedTaskIndices((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  };
+
+  const toggleSelectAllTasks = () => {
+    if (selectedTaskIndices.size === generatedTasks.length) {
+      setSelectedTaskIndices(new Set());
+    } else {
+      setSelectedTaskIndices(new Set(generatedTasks.map((_, i) => i)));
+    }
+  };
+
+  // Filter materials in admin manager
+  const filteredMaterials = materialsList.filter((m) => {
+    if (m.subjectId === 'religion') return false;
+    if (matFilterCategory !== 'all' && m.category !== matFilterCategory) return false;
+    if (matSearchQuery.trim()) {
+      const q = matSearchQuery.toLowerCase().trim();
+      const matchTitle = m.title.toLowerCase().includes(q);
+      const matchSubject = (subjectMap.get(m.subjectId)?.nameAr || m.subjectId).toLowerCase().includes(q);
+      if (!matchTitle && !matchSubject) return false;
+    }
+    return true;
+  });
+
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto animate-fadeIn">
       <div className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl border border-slate-100 my-4 flex flex-col max-h-[92vh] overflow-hidden">
+        
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
           <div className="flex items-center gap-3">
@@ -222,263 +567,220 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-lg sm:text-xl font-black text-slate-900">
-                  رفع وإضافة خطة أسبوعية جديدة (Weekly Plan)
+                  مركز رفع وتحميل الملفات والماتيريال (Admin Center)
                 </h3>
                 <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800 font-bold font-sans">
-                  Block & Week Uploader
+                  Admin Only 🔒
                 </span>
               </div>
               <p className="text-xs text-slate-500">
-                إضافة الخطط وتحديد البلوك والأسبوع مخصص للأدمن فقط كل يوم جمعة أو عند تحديث الخطة
+                إدارة ورفع الخطط الأسبوعية وشيتات المواد الرسمية (مقتصر على الأدمن فقط)
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="bg-slate-200/80 p-1 rounded-xl flex items-center text-xs font-bold font-sans">
-              <button
-                type="button"
-                onClick={() => setActiveTab('upload')}
-                className={`px-3 py-1 rounded-lg transition-all ${
-                  activeTab === 'upload' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600'
-                }`}
-              >
-                رفع وإعداد الخطة
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('history')}
-                className={`px-3 py-1 rounded-lg transition-all ${
-                  activeTab === 'history' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600'
-                }`}
-              >
-                الملفات المرفوعة ({savedUploadedFiles.length})
-              </button>
-            </div>
+            {isUnlocked && (
+              <div className="bg-slate-200/80 p-1 rounded-xl flex items-center text-xs font-bold font-sans">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('weekly_plan')}
+                  className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                    activeTab === 'weekly_plan' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600'
+                  }`}
+                >
+                  رفع الخطة الأسبوعية
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('materials')}
+                  className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                    activeTab === 'materials' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600'
+                  }`}
+                >
+                  إدارة الماتيريال ({materialsList.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('history')}
+                  className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                    activeTab === 'history' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600'
+                  }`}
+                >
+                  سجل الملفات ({savedUploadedFiles.length})
+                </button>
+              </div>
+            )}
 
             <button
               type="button"
               onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors"
+              className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* If user is not Admin: show lock gate */}
-        {!isAdmin ? (
-          <div className="p-8 text-center space-y-5 flex-1 flex flex-col items-center justify-center bg-[#F8FAFC]">
-            <div className="w-16 h-16 rounded-3xl bg-amber-100 border border-amber-200 flex items-center justify-center shadow-xs">
-              <Lock className="w-8 h-8 text-amber-700" />
+        {/* If user is not Unlocked: ALWAYS show admin password gate as the first page! */}
+        {!isUnlocked ? (
+          <div className="p-8 sm:p-12 text-center space-y-6 flex-1 flex flex-col items-center justify-center bg-[#F8FAFC]">
+            <div className="w-20 h-20 rounded-3xl bg-amber-50 border-2 border-amber-200 flex items-center justify-center shadow-xs">
+              <Lock className="w-10 h-10 text-amber-600" />
             </div>
 
             <div className="max-w-md space-y-2">
-              <h4 className="text-lg font-black text-slate-900">
-                خاص بالأدمن فقط (أ. زينب كرم) 🔒
+              <h4 className="text-xl font-black text-slate-900">
+                تسجيل دخول الأدمن 🔒
               </h4>
               <p className="text-xs text-slate-600 leading-relaxed">
-                إضافة ملفات الويكلي بلان وتحديث خطط البلوكات والأسابيع مقتصر على حساب المشرف العام.
-                يرجى إدخال رمز مرور الأدمن للمتابعة.
+                مركز إدارة ورفع الخطط الأسبوعية وشيتات المواد مخصص للمشرف العام فقط.
+                يرجى إدخال رمز المرور للمتابعة والوصول لكافة خيارات الإضافة والحذف المتعدد.
               </p>
             </div>
 
-            <form onSubmit={handleUnlockAdmin} className="w-full max-w-sm space-y-3">
+            <form onSubmit={handleUnlockAdmin} className="w-full max-w-sm space-y-3.5">
               <div className="relative">
                 <KeyRound className="w-4 h-4 text-slate-400 absolute start-3.5 top-1/2 -translate-y-1/2" />
                 <input
-                  type="password"
+                  type={showAdminPin ? 'text' : 'password'}
                   value={adminPinInput}
                   onChange={(e) => {
                     setAdminPinInput(e.target.value);
                     setAdminPinError(null);
                   }}
-                  placeholder="أدخلي رمز المرور (Admin PIN)..."
-                  className="w-full ps-10 pe-4 py-3 rounded-2xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 text-sm font-bold text-center tracking-wider bg-white"
+                  placeholder="أدخل رمز مرور الأدمن..."
+                  className="w-full ps-10 pe-11 py-3.5 rounded-2xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 text-sm font-bold text-center tracking-wider bg-white shadow-xs"
                   autoFocus
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowAdminPin(!showAdminPin)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 absolute end-2.5 top-1/2 -translate-y-1/2 transition-colors cursor-pointer"
+                  title={showAdminPin ? 'إخفاء الرمز' : 'إظهار الرمز'}
+                >
+                  {showAdminPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
 
               {adminPinError && (
-                <p className="text-xs text-rose-600 font-bold">{adminPinError}</p>
+                <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 font-bold flex items-center justify-center gap-1.5">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                  <span>{adminPinError}</span>
+                </div>
               )}
 
               <button
                 type="submit"
-                className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2"
+                className="w-full py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-md shadow-indigo-200 flex items-center justify-center gap-2 cursor-pointer active:scale-98"
               >
                 <ShieldCheck className="w-4 h-4" />
-                <span>تأكيد صلاحية الأدمن وفتح إضافة الخطة</span>
+                <span>دخول مركز الإدارة</span>
               </button>
             </form>
           </div>
-        ) : activeTab === 'upload' ? (
+        ) : activeTab === 'weekly_plan' ? (
+          /* ========================================================================= */
+          /* TAB 1: WEEKLY PLAN UPLOAD & TASK GENERATOR                                */
+          /* ========================================================================= */
           <div className="overflow-y-auto p-5 sm:p-6 space-y-5 flex-1">
             {/* Block & Week Selector Fields */}
             <div className="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-200/80 space-y-3">
               <div className="flex items-center gap-2">
                 <Layers className="w-4 h-4 text-indigo-700 stroke-[2.25]" />
-                <h4 className="text-xs font-black text-indigo-950 uppercase tracking-wider">
-                  بيانات تصنيف الخطة (Block & Week)
-                </h4>
+                <span className="text-xs font-black text-indigo-900">
+                  تحديد البلوك والأسبوع المستهدف بالخطة (Block & Week):
+                </span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                 <div>
-                  <label className="block text-[11px] font-bold text-indigo-900 mb-1">
-                    رقم البلوك (Block):
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    رقم البلوك (Block Number):
                   </label>
                   <select
                     value={blockNumber}
                     onChange={(e) => handleBlockWeekChange(Number(e.target.value), weekNumber)}
-                    className="w-full px-3 py-2 rounded-xl border border-indigo-300 bg-white text-xs font-bold text-slate-800 shadow-2xs focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-bold text-slate-800"
                   >
-                    <option value={1}>Block 1</option>
-                    <option value={2}>Block 2</option>
-                    <option value={3}>Block 3</option>
-                    <option value={4}>Block 4</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-indigo-900 mb-1">
-                    رقم الأسبوع (Week):
-                  </label>
-                  <select
-                    value={weekNumber}
-                    onChange={(e) => handleBlockWeekChange(blockNumber, Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-xl border border-indigo-300 bg-white text-xs font-bold text-slate-800 shadow-2xs focus:ring-2 focus:ring-indigo-500"
-                  >
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((num) => (
-                      <option key={num} value={num}>
-                        Week {num} (الأسبوع {num})
+                    {[1, 2, 3, 4, 5, 6].map((b) => (
+                      <option key={b} value={b}>
+                        Block {b}
                       </option>
                     ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-indigo-900 mb-1">
-                    تطبيق على فصل:
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    رقم الأسبوع (Week Number):
                   </label>
                   <select
-                    value={targetSection}
-                    onChange={(e) => setTargetSection(e.target.value as 'all' | GradeSection)}
-                    className="w-full px-3 py-2 rounded-xl border border-indigo-300 bg-white text-xs font-bold text-slate-800 shadow-2xs focus:ring-2 focus:ring-indigo-500"
+                    value={weekNumber}
+                    onChange={(e) => handleBlockWeekChange(blockNumber, Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-bold text-slate-800"
                   >
-                    <option value="all">🌟 جميع الفصول (2A, 2B, 2C)</option>
-                    <option value="2A">فصل Grade 2A فقط</option>
-                    <option value="2B">فصل Grade 2B فقط</option>
-                    <option value="2C">فصل Grade 2C فقط</option>
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((w) => (
+                      <option key={w} value={w}>
+                        Week {w}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-indigo-900 mb-1">
-                    طريقة تحديث المهام:
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    الفصل المستهدف (Target Section):
                   </label>
                   <select
-                    value={updateMode}
-                    onChange={(e) =>
-                      setUpdateMode(
-                        e.target.value as 'keep_pending_and_add' | 'replace' | 'append'
-                      )
-                    }
-                    className="w-full px-3 py-2 rounded-xl border border-indigo-300 bg-white text-xs font-bold text-slate-800 shadow-2xs focus:ring-2 focus:ring-indigo-500"
+                    value={targetSection}
+                    onChange={(e) => setTargetSection(e.target.value as 'all' | GradeSection)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-bold text-slate-800"
                   >
-                    <option value="keep_pending_and_add">⭐ ترحيل المهام غير المنجزة</option>
-                    <option value="replace">استبدال مهام الأسبوع بالكامل</option>
-                    <option value="append">إضافة دون حذف</option>
+                    <option value="all">جميع الفصول (2A, 2B, 2C معاً)</option>
+                    <option value="2A">فصل 2A فقط</option>
+                    <option value="2B">فصل 2B فقط</option>
+                    <option value="2C">فصل 2C فقط</option>
                   </select>
                 </div>
               </div>
 
-              {/* Title & Set as Current */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-                <div className="sm:col-span-2">
-                  <label className="block text-[11px] font-bold text-indigo-900 mb-1">
-                    عنوان ومسمى الخطة المعروض في التطبيق:
-                  </label>
-                  <input
-                    type="text"
-                    value={weekTitle}
-                    onChange={(e) => setWeekTitle(e.target.value)}
-                    placeholder="مثال: خطة الأسبوع الثاني (Block 1 - Week 2)..."
-                    className="w-full px-3.5 py-2 rounded-xl border border-indigo-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 text-xs font-bold text-slate-900 bg-white"
-                  />
-                </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  عنوان الخطة الأسبوعية (Week Title):
+                </label>
+                <input
+                  type="text"
+                  value={weekTitle}
+                  onChange={(e) => setWeekTitle(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300 bg-white font-bold text-xs text-slate-900"
+                />
+              </div>
 
-                <div className="flex items-center sm:pt-5">
-                  <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 rounded-xl border border-indigo-200 w-full">
-                    <input
-                      type="checkbox"
-                      checked={setAsCurrent}
-                      onChange={(e) => setSetAsCurrent(e.target.checked)}
-                      className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
-                    />
-                    <span className="text-xs font-bold text-indigo-950">
-                      تعيين كأسبوع حالي للطلاب ⭐
-                    </span>
-                  </label>
-                </div>
+              <div className="pt-1 flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="set-as-current"
+                  checked={setAsCurrent}
+                  onChange={(e) => setSetAsCurrent(e.target.checked)}
+                  className="rounded-md border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                />
+                <label htmlFor="set-as-current" className="text-xs font-bold text-slate-800 cursor-pointer">
+                  تعيين هذا الأسبوع كـ "الأسبوع الحالي المباشر" في التطبيق فوراً
+                </label>
               </div>
             </div>
 
-            {/* Explanation / Preview of Carried-Over Pending Tasks */}
-            {updateMode === 'keep_pending_and_add' && (
-              <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-300/80 shadow-2xs space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <History className="w-4 h-4 text-amber-700 stroke-[2.25]" />
-                    <span className="text-xs font-black text-amber-950">
-                      المهام غير المنجزة المحمولة من الأسبوع الماضي ({pendingLastWeekTasks.length} مهام)
-                    </span>
-                  </div>
-                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 border border-amber-300">
-                    ستحمل علامة: مهمة قديمة ⚠️
-                  </span>
-                </div>
-
-                <p className="text-xs text-amber-900 leading-relaxed">
-                  {pendingLastWeekTasks.length > 0
-                    ? `سيتم الحفاظ على هذه المهام (${pendingLastWeekTasks.length}) التي لم يتم تعليمها كـ Done ونقلها معك للأسبوع الجديد مع تمييزها بعلامة "مهمة قديمة من الأسبوع الماضي" لتكمليها، بينما يتم مسح المهام التي اكتملت (${completedLastWeekTasks.length}).`
-                    : 'ممتاز! لا توجد أي مهام معلقة من الأسبوع السابق، ستبدأ الخطة الجديدة بمهام الأسبوع الجديد بالكامل.'}
-                </p>
-
-                {pendingLastWeekTasks.length > 0 && (
-                  <div className="mt-2 max-h-28 overflow-y-auto space-y-1.5 pe-1">
-                    {pendingLastWeekTasks.map((t) => {
-                      const subj = subjectMap.get(t.subjectId);
-                      return (
-                        <div
-                          key={t.id}
-                          className="px-3 py-1.5 rounded-xl bg-white border border-amber-200 text-xs flex items-center justify-between shadow-2xs"
-                        >
-                          <div className="flex items-center gap-2 truncate">
-                            <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
-                            <span className="font-bold text-slate-800 truncate">{t.title}</span>
-                          </div>
-                          <span className="text-[10px] text-amber-800 bg-amber-50 px-2 py-0.5 rounded font-mono shrink-0">
-                            {subj?.nameEn || t.subjectId} • {t.day}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Drag & Drop Zone (Per Usability Patterns: Supports drag-and-drop and manual selection) */}
+            {/* Drag and Drop Zone */}
             <div
               onDragEnter={handleDrag}
               onDragLeave={handleDrag}
               onDragOver={handleDrag}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
-              className={`p-6 sm:p-8 rounded-3xl border-2 border-dashed text-center cursor-pointer transition-all duration-200 ${
+              className={`p-6 border-2 border-dashed rounded-3xl text-center cursor-pointer transition-all ${
                 dragActive
-                  ? 'border-indigo-600 bg-indigo-50/70 scale-101'
+                  ? 'border-indigo-500 bg-indigo-50/50 scale-[0.99]'
                   : 'border-slate-300 hover:border-indigo-400 bg-slate-50/50 hover:bg-slate-50'
               }`}
             >
@@ -486,112 +788,237 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
                 ref={fileInputRef}
                 type="file"
                 multiple
-                accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.txt"
-                onChange={(e) => handleFiles(e.target.files)}
+                accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
                 className="hidden"
+                onChange={(e) => handleFiles(e.target.files)}
               />
 
-              <div className="w-14 h-14 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center mx-auto mb-3 shadow-xs">
-                <UploadCloud className="w-7 h-7 stroke-[2]" />
+              <div className="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center mx-auto mb-3">
+                <UploadCloud className="w-6 h-6" />
               </div>
 
-              <h4 className="text-base font-black text-slate-900">
-                اسحبي وأفلتي ملفات الـ Weekly Plan هنا، أو اضغطي لاختيارها من جهازك
+              <h4 className="text-sm font-bold text-slate-800 mb-1">
+                اضغط لاختيار ملفات خطة الأسبوع أو اسحبها وأفلتها هنا
               </h4>
-              <p className="text-xs text-slate-500 mt-1">
-                يدعم ملفات الـ PDF، صور الجداول والخطط (JPG/PNG)، ومستندات Word
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                يدعم صور ومستندات الويكلي بلان (PDF, JPG, PNG, DOCX) لجميع المواد
               </p>
-
-              <div className="mt-3 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-bold text-indigo-700 shadow-2xs font-sans">
-                <span>Browse Files (اختيار الملفات)</span>
-              </div>
             </div>
 
-            {/* Uploaded Files Strip */}
-            {uploadedFilesList.length > 0 && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                  <span>الملفات التي تم إرفاقها ({uploadedFilesList.length}):</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setUploadedFilesList([]);
-                      setGeneratedTasks([]);
-                    }}
-                    className="text-rose-600 hover:underline text-[11px]"
-                  >
-                    مسح الكل
-                  </button>
+            {/* Manual Task Add Option */}
+            <div className="bg-indigo-50/40 border border-indigo-100 rounded-2xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center">
+                    <Plus className="w-3.5 h-3.5" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-800">
+                    إضافة مهمة للأسبوع يدوياً (اختياري بجانب الملفات):
+                  </span>
                 </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {uploadedFilesList.map((file) => {
-                    const sub = subjects.find((s) => s.id === file.subjectId);
-                    return (
-                      <div
-                        key={file.id}
-                        className="p-3 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-2"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
-                            <FileText className="w-4 h-4" />
-                          </div>
-                          <div className="min-w-0 truncate">
-                            <span className="text-xs font-bold text-slate-900 truncate block">
-                              {file.name}
-                            </span>
-                            <span className="text-[11px] text-slate-400 font-sans">
-                              {Math.round(file.size / 1024)} KB • {sub?.nameEn || 'All Subjects'}
-                            </span>
-                          </div>
-                        </div>
-
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 shrink-0">
-                          جاهز
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsManualTaskFormOpen(!isManualTaskFormOpen)}
+                  className="px-3 py-1 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-xs font-bold text-indigo-700 shadow-2xs transition-colors cursor-pointer"
+                >
+                  {isManualTaskFormOpen ? 'إغلاق النموذج' : '+ إضافة مهمة يدوياً'}
+                </button>
               </div>
-            )}
 
-            {/* Generated / Parsed Tasks Preview & Editor */}
+              {isManualTaskFormOpen && (
+                <form onSubmit={handleAddManualTask} className="pt-2 border-t border-indigo-100 space-y-3 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        عنوان المهمة / الواجب:
+                      </label>
+                      <input
+                        type="text"
+                        value={manualTitle}
+                        onChange={(e) => setManualTitle(e.target.value)}
+                        placeholder="مثال: قراءة درس Sound ص 14 أو حل شيت..."
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-bold text-slate-900"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        المادة:
+                      </label>
+                      <select
+                        value={manualSubjectId}
+                        onChange={(e) => setManualSubjectId(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-bold text-slate-800"
+                      >
+                        {subjects
+                          .filter((s) => s.id !== 'religion')
+                          .map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.nameAr} ({s.nameEn})
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        اليوم في الأسبوع:
+                      </label>
+                      <select
+                        value={manualDay}
+                        onChange={(e) => setManualDay(e.target.value as DayOfWeek)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-bold text-slate-800"
+                      >
+                        {DAYS_LIST.map((d) => (
+                          <option key={d.key} value={d.key}>
+                            {d.nameAr} ({d.nameEn})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        نوع المهمة:
+                      </label>
+                      <select
+                        value={manualType}
+                        onChange={(e) => setManualType(e.target.value as TaskType)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-bold text-slate-800"
+                      >
+                        <option value="homework">واجب منزلي (Homework)</option>
+                        <option value="study">مذاكرة ومراجعة (Study)</option>
+                        <option value="quiz">اختبار / كويز (Quiz)</option>
+                        <option value="bring">إحضار أدوات (Bring)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      تفاصيل إضافية أو أرقام الصفحات (اختياري):
+                    </label>
+                    <input
+                      type="text"
+                      value={manualDetails}
+                      onChange={(e) => setManualDetails(e.target.value)}
+                      placeholder="مثال: ص 14 تمرين 2 و 3 في البوكليت"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-800"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs cursor-pointer flex items-center gap-1.5 transition-colors shadow-2xs"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>إضافة المهمة لقائمة مهام الأسبوع</span>
+                  </button>
+                </form>
+              )}
+            </div>
+
+            {/* Generated Tasks preview with multi-select */}
             {generatedTasks.length > 0 && (
-              <div className="space-y-2.5 pt-2 border-t border-slate-100">
-                <div className="flex items-center justify-between text-xs font-bold text-slate-800">
-                  <span className="flex items-center gap-1.5">
-                    <Sparkles className="w-4 h-4 text-purple-600" />
-                    <span>المهام الناتجة عن الملفات ({generatedTasks.length} مهمة جاهزة للجدول):</span>
+              <div className="space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <h4 className="text-xs font-black text-slate-800">
+                    قائمة مهام الأسبوع ({generatedTasks.length}):
+                  </h4>
+                  <span className="text-[11px] text-slate-500">
+                    يمكنك حذف أي مهمة فردياً أو تحديد عدة مهام وحذفها معاً
                   </span>
                 </div>
 
-                <div className="space-y-2 max-h-56 overflow-y-auto p-2 bg-slate-50 rounded-2xl border border-slate-200">
+                {/* Multi-select bar for tasks */}
+                <div className="flex items-center justify-between gap-2 p-2.5 bg-slate-100 rounded-xl text-xs">
+                  <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-1.5 cursor-pointer font-bold text-slate-700 select-none">
+                      <input
+                        type="checkbox"
+                        checked={
+                          generatedTasks.length > 0 &&
+                          selectedTaskIndices.size === generatedTasks.length
+                        }
+                        onChange={toggleSelectAllTasks}
+                        className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                      />
+                      <span>تحديد الكل ({generatedTasks.length})</span>
+                    </label>
+
+                    {selectedTaskIndices.size > 0 && (
+                      <span className="font-bold text-indigo-700 bg-indigo-200/80 px-2 py-0.5 rounded-md text-[11px]">
+                        تم تحديد {selectedTaskIndices.size}
+                      </span>
+                    )}
+                  </div>
+
+                  {selectedTaskIndices.size > 0 && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedTaskIndices(new Set())}
+                        className="text-slate-500 hover:text-slate-700 text-xs font-bold transition-colors cursor-pointer"
+                      >
+                        إلغاء
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDeleteSelectedTasks}
+                        className="px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center gap-1 shadow-2xs transition-colors cursor-pointer"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        <span>حذف المحدد ({selectedTaskIndices.size})</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                   {generatedTasks.map((t, idx) => {
-                    const sub = subjects.find((s) => s.id === t.subjectId);
-                    const dayObj = DAYS_LIST.find((d) => d.key === t.day);
+                    const isSelected = selectedTaskIndices.has(idx);
                     return (
                       <div
                         key={idx}
-                        className="p-2.5 bg-white rounded-xl border border-slate-200 flex items-center justify-between text-xs gap-3 shadow-2xs"
+                        className={`p-2.5 rounded-xl border flex items-center justify-between text-xs transition-colors ${
+                          isSelected
+                            ? 'bg-indigo-50/60 border-indigo-300 ring-1 ring-indigo-200'
+                            : 'p-2.5 rounded-xl border border-slate-200 bg-white'
+                        }`}
                       >
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
-                          <span className="font-bold text-indigo-700 px-2 py-0.5 bg-indigo-50 rounded-md shrink-0 font-sans">
-                            {dayObj?.nameAr}
-                          </span>
-                          <span className="font-bold text-slate-800 shrink-0 font-sans">
-                            {sub?.nameEn}
-                          </span>
-                          <span className="text-slate-600 truncate">{t.title}</span>
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelectTask(idx)}
+                            className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer shrink-0"
+                            title="تحديد لحذف هذه المهمة"
+                          />
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="font-bold text-slate-900 truncate">{t.title}</span>
+                            <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 shrink-0 font-bold">
+                              {DAYS_LIST.find((d) => d.key === t.day)?.nameAr}
+                            </span>
+                            {t.details && (
+                              <span className="text-[10px] text-slate-400 truncate hidden sm:inline">
+                                • {t.details}
+                              </span>
+                            )}
+                          </div>
                         </div>
-
                         <button
                           type="button"
-                          onClick={() => handleRemoveTask(idx)}
-                          className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveTask(idx);
+                          }}
+                          className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-700 transition-colors cursor-pointer shrink-0"
                           title="حذف هذه المهمة"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     );
@@ -600,75 +1027,613 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
               </div>
             )}
           </div>
+        ) : activeTab === 'materials' ? (
+          /* ========================================================================= */
+          /* TAB 2: ADMIN MATERIALS & SHEETS UPLOAD & MANAGEMENT CENTER                */
+          /* ========================================================================= */
+          <div className="overflow-y-auto p-5 sm:p-6 space-y-6 flex-1 bg-slate-50/50">
+            
+            {/* Notification Banner */}
+            {matSuccessMsg && (
+              <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2 animate-fadeIn">
+                <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{matSuccessMsg}</span>
+              </div>
+            )}
+
+            {/* Add New Material Form */}
+            <form onSubmit={handleAddMaterial} className="bg-white rounded-2xl border border-indigo-100 p-5 shadow-xs space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center">
+                    <Plus className="w-4 h-4" />
+                  </div>
+                  <h4 className="text-sm font-black text-slate-900">
+                    رفع وإضافة شيت أو ماتيريال جديد (خاص بالأدمن)
+                  </h4>
+                </div>
+                <span className="text-[11px] text-slate-400 font-medium">
+                  يظهر فوراً في أيقونة الماتيريال للطلاب (عرض وتصفح فقط)
+                </span>
+              </div>
+
+              {/* Upload File Input Button */}
+              <div className="p-4 rounded-xl border border-dashed border-indigo-200 bg-indigo-50/30 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0">
+                    <UploadCloud className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-slate-800">
+                      تحميل ملف من جهازك (PDF, Word, صور, إلخ):
+                    </div>
+                    <div className="text-[11px] text-slate-500">
+                      {matFileName ? (
+                        <span className="font-mono text-indigo-700 font-bold">{matFileName}</span>
+                      ) : (
+                        'اختاري الملف لتعيين الاسم تلقائياً وتجهيز الشيت'
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <input
+                  ref={matFileInputRef}
+                  type="file"
+                  accept=".pdf,.docx,.doc,.png,.jpg,.jpeg,.txt"
+                  className="hidden"
+                  onChange={(e) => handleMatFileSelected(e.target.files)}
+                />
+
+                <button
+                  type="button"
+                  onClick={() => matFileInputRef.current?.click()}
+                  className="px-4 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                >
+                  اختيار ملف من الجهاز
+                </button>
+              </div>
+
+              {/* Basic Fields */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    عنوان الشيت / الماتيريال (مطلوب):
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={matTitle}
+                    onChange={(e) => setMatTitle(e.target.value)}
+                    placeholder="مثال: شيت مراجعة Unit 1، تدريبات Week 1..."
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:border-indigo-500 outline-hidden font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    المادة:
+                  </label>
+                  <select
+                    value={matSubjectId}
+                    onChange={(e) => setMatSubjectId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-bold text-slate-800"
+                  >
+                    {subjects
+                      .filter((s) => s.id !== 'religion')
+                      .map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.nameAr} ({s.nameEn})
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    التقسيم / التبويب:
+                  </label>
+                  <select
+                    value={matCategory}
+                    onChange={(e) => setMatCategory(e.target.value as any)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-bold text-slate-800"
+                  >
+                    <option value="main_sheets">Main Sheets (Block 1)</option>
+                    <option value="week1">Week 1</option>
+                    <option value="week2">Week 2</option>
+                    <option value="week3">Week 3</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    رقم البلوك:
+                  </label>
+                  <select
+                    value={matBlock}
+                    onChange={(e) => setMatBlock(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-bold text-slate-800"
+                  >
+                    {[1, 2, 3, 4, 5, 6].map((b) => (
+                      <option key={b} value={b}>
+                        Block {b}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    الفصل المستهدف:
+                  </label>
+                  <select
+                    value={matSection}
+                    onChange={(e) => setMatSection(e.target.value as any)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-bold text-slate-800"
+                  >
+                    <option value="all">جميع الفصول (2A, 2B, 2C)</option>
+                    <option value="2A">2A فقط</option>
+                    <option value="2B">2B فقط</option>
+                    <option value="2C">2C فقط</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    عدد الصفحات (اختياري):
+                  </label>
+                  <input
+                    type="text"
+                    value={matPageCount}
+                    onChange={(e) => setMatPageCount(e.target.value)}
+                    placeholder="مثال: 2 صفحة"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:border-indigo-500 outline-hidden font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    الوحدة / عنوان الدرس (اختياري):
+                  </label>
+                  <input
+                    type="text"
+                    value={matUnit}
+                    onChange={(e) => setMatUnit(e.target.value)}
+                    placeholder="مثال: Unit 1: How the World Works"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:border-indigo-500 outline-hidden font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    رابط ملف خارجي (اختياري - Google Drive / OneDrive):
+                  </label>
+                  <input
+                    type="url"
+                    value={matFileUrl}
+                    onChange={(e) => setMatFileUrl(e.target.value)}
+                    placeholder="https://..."
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:border-indigo-500 outline-hidden font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* Multiline exercises */}
+              <div className="text-xs">
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  أسئلة وفقرات الشيت المباشرة للحل والمراجعة بالتطبيق (اختياري - سطر لكل سؤال):
+                </label>
+                <textarea
+                  rows={3}
+                  value={matExercisesText}
+                  onChange={(e) => setMatExercisesText(e.target.value)}
+                  placeholder="السؤال الأول: ...&#10;السؤال الثاني: ...&#10;السؤال الثالث: ..."
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:border-indigo-500 outline-hidden font-sans text-xs leading-relaxed"
+                />
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <p className="text-[11px] text-slate-500">
+                  الماتيريال في واجهة الطلاب ستكون عرض فقط وتدريبات مباشرة بدون إمكانية تعديل أو رفع.
+                </p>
+
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-2 transition-all shadow-sm cursor-pointer active:scale-95"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>حفظ وإدراج الشيت في الماتيريال</span>
+                </button>
+              </div>
+            </form>
+
+            {/* Manage Existing Materials List */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <BookOpen className="w-4 h-4 text-indigo-600" />
+                  <h4 className="text-sm font-black text-slate-900">
+                    شيتات الماتيريال الحالية ({filteredMaterials.length})
+                  </h4>
+                </div>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <select
+                    value={matFilterCategory}
+                    onChange={(e) => setMatFilterCategory(e.target.value)}
+                    className="px-2.5 py-1.5 rounded-xl border border-slate-200 text-xs font-bold bg-slate-50 text-slate-700"
+                  >
+                    <option value="all">All Categories (جميع الأقسام)</option>
+                    <option value="main_sheets">Main Sheets</option>
+                    <option value="week1">Week 1</option>
+                    <option value="week2">Week 2</option>
+                    <option value="week3">Week 3</option>
+                  </select>
+
+                  <input
+                    type="text"
+                    value={matSearchQuery}
+                    onChange={(e) => setMatSearchQuery(e.target.value)}
+                    placeholder="بحث في الشيتات..."
+                    className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs bg-slate-50 font-bold w-40"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={handleResetMaterials}
+                    className="px-3 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-600 text-xs font-bold transition-colors cursor-pointer"
+                    title="استعادة الشيتات الافتراضية"
+                  >
+                    استعادة الافتراضي
+                  </button>
+                </div>
+              </div>
+
+              {/* Multi-select Action Bar for Materials */}
+              {filteredMaterials.length > 0 && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl text-xs">
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-800 select-none">
+                      <input
+                        type="checkbox"
+                        checked={
+                          filteredMaterials.length > 0 &&
+                          filteredMaterials.every((m) => selectedMaterialIds.has(m.id))
+                        }
+                        onChange={toggleSelectAllMaterials}
+                        className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                      />
+                      <span>تحديد الكل ({filteredMaterials.length})</span>
+                    </label>
+
+                    {selectedMaterialIds.size > 0 && (
+                      <span className="font-bold text-indigo-800 bg-indigo-200/80 px-2.5 py-0.5 rounded-lg text-xs">
+                        تم تحديد {selectedMaterialIds.size} شيت
+                      </span>
+                    )}
+                  </div>
+
+                  {selectedMaterialIds.size > 0 && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedMaterialIds(new Set())}
+                        className="px-3 py-1.5 text-slate-600 hover:text-slate-800 font-bold text-xs transition-colors cursor-pointer"
+                      >
+                        إلغاء التحديد
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDeleteSelectedMaterials}
+                        className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>حذف الشيتات المحددة ({selectedMaterialIds.size})</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {filteredMaterials.length === 0 ? (
+                <div className="text-center py-8 text-slate-400 text-xs">
+                  لا توجد شيتات مطابقة لهذا البحث أو القسم حالياً.
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                  {filteredMaterials.map((mat) => {
+                    const subObj = subjectMap.get(mat.subjectId);
+                    const isSelected = selectedMaterialIds.has(mat.id);
+                    return (
+                      <div
+                        key={mat.id}
+                        className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-3 text-xs ${
+                          isSelected
+                            ? 'bg-indigo-50/50 border-indigo-300 ring-1 ring-indigo-200'
+                            : 'border-slate-200 bg-white hover:border-indigo-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelectMaterial(mat.id)}
+                            className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer shrink-0"
+                            title="تحديد للحذف التعددي"
+                          />
+
+                          {subObj && (
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-md shrink-0 ${subObj.color.lightBg} ${subObj.color.text}`}
+                            >
+                              {subObj.nameAr}
+                            </span>
+                          )}
+                          <div className="min-w-0">
+                            <span className="font-bold text-slate-900 block truncate">
+                              {mat.title}
+                            </span>
+                            <span className="text-[11px] text-slate-400 font-sans">
+                              {mat.categoryLabel || mat.category} • Block {mat.blockNumber}{' '}
+                              {mat.pageCount ? `• ${mat.pageCount} صفحة` : ''}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[10px] text-slate-400 hidden sm:inline font-sans ml-1">
+                            {new Date(mat.createdAt).toLocaleDateString('ar-EG')}
+                          </span>
+
+                          {/* Quick Attach / Update original PDF file */}
+                          <label
+                            className="p-1.5 rounded-xl border border-slate-200 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors cursor-pointer flex items-center justify-center"
+                            title="إرفاق أو استبدال ملف PDF الأصلي للشيت"
+                          >
+                            <UploadCloud className="w-4 h-4" />
+                            <input
+                              type="file"
+                              accept=".pdf,.docx,.doc,.jpg,.jpeg,.png"
+                              className="hidden"
+                              onChange={(e) => handleAttachFileToExistingMaterial(mat.id, e.target.files)}
+                            />
+                          </label>
+
+                          {/* Eye button: View in new tab */}
+                          <button
+                            type="button"
+                            onClick={() => openMaterialSheetInNewTab(mat, subObj?.nameAr || mat.subjectId)}
+                            className="p-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 transition-colors cursor-pointer border border-indigo-200"
+                            title="عرض في تبويب جديد"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+
+                          {/* Download button */}
+                          <button
+                            type="button"
+                            onClick={() => downloadMaterialSheet(mat)}
+                            className="p-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-colors cursor-pointer border border-emerald-200"
+                            title="تحميل الملف على جهازك"
+                          >
+                            <Download className="w-4 h-4" />
+                          </button>
+
+                          {/* Delete button */}
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteMaterialDirect(mat.id, mat.title)}
+                            className="p-2 rounded-xl text-rose-500 hover:bg-rose-50 hover:text-rose-700 transition-colors cursor-pointer border border-transparent hover:border-rose-200"
+                            title="حذف هذا الشيت"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
         ) : (
-          /* Archive / History Tab */
+          /* ========================================================================= */
+          /* TAB 3: ARCHIVE / HISTORY OF UPLOADED PLANS                                 */
+          /* ========================================================================= */
           <div className="overflow-y-auto p-6 space-y-4 flex-1">
-            <h4 className="text-sm font-black text-slate-900">
-              الملفات السابقة التي تم رفعها لحفظ الخطط الأسبوعية:
-            </h4>
+            {historySuccessMsg && (
+              <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2 animate-fadeIn">
+                <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{historySuccessMsg}</span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-black text-slate-900">
+                الملفات السابقة التي تم رفعها لحفظ الخطط الأسبوعية ({savedUploadedFiles.length}):
+              </h4>
+            </div>
+
+            {/* Multi-select Action Bar for History Files */}
+            {savedUploadedFiles.length > 0 && (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-purple-50/70 border border-purple-100 rounded-xl text-xs">
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-800 select-none">
+                    <input
+                      type="checkbox"
+                      checked={
+                        savedUploadedFiles.length > 0 &&
+                        savedUploadedFiles.every((f) => selectedHistoryFileIds.has(f.id))
+                      }
+                      onChange={toggleSelectAllHistoryFiles}
+                      className="w-4 h-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                    />
+                    <span>تحديد الكل ({savedUploadedFiles.length})</span>
+                  </label>
+
+                  {selectedHistoryFileIds.size > 0 && (
+                    <span className="font-bold text-purple-800 bg-purple-200/80 px-2.5 py-0.5 rounded-lg text-xs">
+                      تم تحديد {selectedHistoryFileIds.size} ملف
+                    </span>
+                  )}
+                </div>
+
+                {selectedHistoryFileIds.size > 0 && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedHistoryFileIds(new Set())}
+                      className="px-3 py-1.5 text-slate-600 hover:text-slate-800 font-bold text-xs transition-colors cursor-pointer"
+                    >
+                      إلغاء التحديد
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDeleteSelectedHistoryFiles}
+                      className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>حذف الملفات المحددة ({selectedHistoryFileIds.size})</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {savedUploadedFiles.length === 0 ? (
               <div className="text-center py-12 text-slate-400 text-xs">
-                لا توجد ملفات سابقة محفوظة بعد. يمكنك رفع ملفات الأسبوع الجديد من تبويب "رفع ملفات".
+                لا توجد ملفات سابقة محفوظة بعد. يمكنك رفع ملفات الأسبوع الجديد من تبويب "رفع الخطة الأسبوعية".
               </div>
             ) : (
               <div className="space-y-2">
-                {savedUploadedFiles.map((f) => (
-                  <div
-                    key={f.id}
-                    className="p-3 rounded-2xl bg-white border border-slate-200 flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center">
-                        <FileCheck className="w-4 h-4" />
+                {savedUploadedFiles.map((f) => {
+                  const isSelected = selectedHistoryFileIds.has(f.id);
+                  return (
+                    <div
+                      key={f.id}
+                      className={`p-3 rounded-2xl border flex items-center justify-between transition-all ${
+                        isSelected
+                          ? 'bg-purple-50/50 border-purple-300 ring-1 ring-purple-200'
+                          : 'bg-white border-slate-200 hover:border-purple-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelectHistoryFile(f.id)}
+                          className="w-4 h-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer shrink-0"
+                          title="تحديد للمسح التعددي"
+                        />
+                        <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center shrink-0">
+                          <FileCheck className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <span className="text-xs font-bold text-slate-900 block">{f.name}</span>
+                          <span className="text-[11px] text-slate-400 font-sans">
+                            {f.weekName || 'خطة الأسبوع'} • {new Date(f.uploadDate).toLocaleDateString('ar-EG')}
+                          </span>
+                        </div>
                       </div>
-                      <div>
-                        <span className="text-xs font-bold text-slate-900 block">{f.name}</span>
-                        <span className="text-[11px] text-slate-400 font-sans">
-                          {f.weekName || 'خطة الأسبوع'} • {new Date(f.uploadDate).toLocaleDateString('ar-EG')}
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold font-sans text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg hidden sm:inline">
+                          Archived
                         </span>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteHistoryFileDirect(f.id, f.name)}
+                          className="p-2 rounded-xl text-rose-500 hover:bg-rose-50 hover:text-rose-700 transition-colors cursor-pointer border border-transparent hover:border-rose-200"
+                          title="حذف هذا الملف من السجل"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
-
-                    <span className="text-xs font-bold font-sans text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg">
-                      Archived
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
         )}
 
-        {/* Footer */}
-        <div className="px-6 py-3.5 border-t border-slate-100 bg-slate-50 text-right flex items-center justify-between">
-          <span className="text-xs text-slate-500">
-            {generatedTasks.length > 0
-              ? `سيتم تطبيق ${generatedTasks.length} مهمة على الخطة الأسبوعية`
-              : 'ارفعي الملفات ليتم تجهيز وتحديث الخطة فورياً'}
-          </span>
+        {/* Footer (Only shown when unlocked) */}
+        {isUnlocked && (
+          <div className="px-6 py-3.5 border-t border-slate-100 bg-slate-50 text-right flex items-center justify-between">
+            <span className="text-xs text-slate-500">
+              {activeTab === 'weekly_plan' ? (
+                generatedTasks.length > 0
+                  ? `سيتم تطبيق ${generatedTasks.length} مهمة على الخطة الأسبوعية`
+                  : 'ارفعي الملفات ليتم تجهيز وتحديث الخطة فورياً'
+              ) : activeTab === 'materials' ? (
+                'جميع الشيتات المرفوعة تظهر فوراً للطلاب كعرض فقط وتدريبات مباشرة'
+              ) : (
+                `إجمالي الملفات المؤرشفة: ${savedUploadedFiles.length}`
+              )}
+            </span>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-full text-xs font-semibold text-slate-600 hover:bg-slate-200 transition-colors"
-            >
-              إلغاء
-            </button>
-
-            {generatedTasks.length > 0 && (
+            <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={handleApply}
-                className="px-6 py-2 rounded-full text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm flex items-center gap-1.5 transition-all font-sans"
+                onClick={onClose}
+                className="px-4 py-2 rounded-full text-xs font-semibold text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer"
               >
-                <Check className="w-4 h-4 stroke-[2.5]" />
-                <span>تطبيق وتحديث الخطة للأسبوع الجديد</span>
+                إغلاق
               </button>
-            )}
+
+              {activeTab === 'weekly_plan' && generatedTasks.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleApply}
+                  className="px-6 py-2 rounded-full text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm flex items-center gap-1.5 transition-all font-sans cursor-pointer"
+                >
+                  <Check className="w-4 h-4 stroke-[2.5]" />
+                  <span>تطبيق وتحديث الخطة للأسبوع الجديد</span>
+                </button>
+              )}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Modal: Reset Materials to Default Confirmation */}
+        {isResetMaterialsConfirm && (
+          <div className="fixed inset-0 z-60 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl p-5 max-w-sm w-full shadow-2xl border border-slate-200 space-y-4 animate-scaleUp">
+              <div className="flex items-center gap-3 text-indigo-600">
+                <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
+                  <BookOpen className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900">استعادة الشيتات الافتراضية</h4>
+                  <span className="text-xs text-slate-500">استرجاع شيتات Block 1</span>
+                </div>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                هل تريدين استعادة كافة شيتات الماتيريال الافتراضية لبلوك 1؟
+              </p>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsResetMaterialsConfirm(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmResetMaterials}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors cursor-pointer"
+                >
+                  نعم، استعادة
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

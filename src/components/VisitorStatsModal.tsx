@@ -59,7 +59,7 @@ export const VisitorStatsModal: React.FC<VisitorStatsModalProps> = ({
     if (!isOpen) return;
 
     const savedPin = getStoredAdminPin();
-    const isAuthorizedByDefault = savedPin === '2026' || savedPin === 'admin' || savedPin === 'zeinab';
+    const isAuthorizedByDefault = savedPin === '1940' || savedPin === '2026' || savedPin === 'admin' || savedPin === 'zeinab';
 
     if (isAuthorizedByDefault) {
       setIsUnlocked(true);
@@ -217,7 +217,7 @@ export const VisitorStatsModal: React.FC<VisitorStatsModalProps> = ({
                   type="password"
                   value={pinInput}
                   onChange={(e) => setPinInput(e.target.value)}
-                  placeholder="رمز المرور (2026)"
+                  placeholder="رمز المرور..."
                   autoFocus
                   className="w-full text-center px-4 py-2.5 rounded-xl border border-slate-300 focus:border-indigo-600 text-sm font-bold font-mono outline-hidden shadow-inner"
                 />

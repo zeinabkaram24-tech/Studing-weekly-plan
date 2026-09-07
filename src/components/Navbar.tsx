@@ -85,13 +85,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const percentCompleted = totalToday > 0 ? Math.round((todayCompletedCount / totalToday) * 100) : 0;
 
   const handleUploadClick = () => {
-    if (isAdmin) {
-      onOpenUploadModal();
-    } else if (onOpenAdminLogin) {
-      onOpenAdminLogin();
-    } else {
-      onOpenUploadModal();
-    }
+    onOpenUploadModal();
   };
 
   return (
@@ -123,7 +117,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 id="desktop-header-upload-plan"
                 onClick={handleUploadClick}
                 className="p-2 rounded-xl bg-indigo-950/60 hover:bg-indigo-900/80 text-indigo-300 hover:text-white border border-indigo-800/50 transition-colors shadow-xs active:scale-95 flex items-center gap-1"
-                title={isAdmin ? 'إضافة ملفات الخطة (الأدمن)' : 'إضافة ملفات الخطة مقتصر على الأدمن'}
+                title={isAdmin ? 'إدارة ورفع ملفات الخطة والماتيريال (الأدمن)' : 'رفع وتحميل الخطط والماتيريال (خاص بالأدمن فقط)'}
               >
                 <UploadCloud className="w-4 h-4 text-indigo-400" />
                 {!isAdmin && <Lock className="w-2.5 h-2.5 text-indigo-300" />}
@@ -411,7 +405,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   type="button"
                   onClick={handleUploadClick}
                   className="p-1.5 rounded-lg bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/60 text-xs flex items-center gap-0.5 active:scale-95"
-                  title={isAdmin ? 'إضافة ملفات الخطة (الأدمن)' : 'إضافة ملفات الخطة مقتصر على الأدمن'}
+                  title={isAdmin ? 'إدارة ورفع ملفات الخطة والماتيريال (الأدمن)' : 'رفع وتحميل الخطط والماتيريال (خاص بالأدمن فقط)'}
                 >
                   <UploadCloud className="w-3.5 h-3.5 text-indigo-400" />
                   {!isAdmin && <Lock className="w-2 h-2 text-indigo-300" />}

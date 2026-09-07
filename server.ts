@@ -417,7 +417,7 @@ async function startServer() {
       normalizedEmail === "zeinabkaram24@gmail.com" ||
       normalizedEmail.includes("admin");
 
-    const isPinCorrect = pin === "2026" || pin === "admin" || pin === "zeinab";
+    const isPinCorrect = pin === "1940" || pin === "2026" || pin === "admin" || pin === "zeinab";
 
     if (!isAdminEmail && !isPinCorrect) {
       return res.status(403).json({
@@ -467,7 +467,7 @@ async function startServer() {
     const isAdminEmail =
       typeof userEmail === "string" &&
       userEmail.trim().toLowerCase() === "zeinabkaram909@gmail.com";
-    const isPinCorrect = pin === "2026" || pin === "admin" || pin === "zeinab";
+    const isPinCorrect = pin === "1940" || pin === "2026" || pin === "admin" || pin === "zeinab";
 
     if (!isAdminEmail && !isPinCorrect) {
       return res.status(403).json({ error: "Unauthorized" });

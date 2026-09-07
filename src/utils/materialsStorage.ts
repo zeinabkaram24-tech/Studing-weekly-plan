@@ -1,22 +1,36 @@
 import { MaterialItem } from '../types';
 import { INITIAL_MATERIALS_DATA } from '../data/materialsData';
+import { deleteMaterialBlob, deleteMultipleMaterialBlobs } from './materialsDb';
 
 const STORAGE_KEY = 'g2b_school_materials_v4';
 
 export function getSavedMaterials(): MaterialItem[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
+    if (raw === null) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_MATERIALS_DATA));
       return INITIAL_MATERIALS_DATA;
     }
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      // Remove any religion item if previously saved
-      const cleaned = parsed.filter((m: MaterialItem) => m.subjectId !== 'religion');
-      if (cleaned.length !== parsed.length) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
-      }
+    if (Array.isArray(parsed)) {
+      // Remove any religion item if previously saved & normalize category labels to English
+      const cleaned = parsed
+        .filter((m: MaterialItem) => m && m.subjectId !== 'religion')
+        .map((m: MaterialItem) => {
+          if (m.category === 'main_sheets' || m.categoryLabel === 'الشيتات الرئيسية') {
+            return { ...m, categoryLabel: 'Main Sheets' };
+          }
+          if (m.category === 'week1' || m.categoryLabel === 'ويك 1') {
+            return { ...m, categoryLabel: 'Week 1' };
+          }
+          if (m.category === 'week2' || m.categoryLabel === 'ويك 2') {
+            return { ...m, categoryLabel: 'Week 2' };
+          }
+          if (m.category === 'week3' || m.categoryLabel === 'ويك 3') {
+            return { ...m, categoryLabel: 'Week 3' };
+          }
+          return m;
+        });
       return cleaned;
     }
     return INITIAL_MATERIALS_DATA;
@@ -50,6 +64,33 @@ export function deleteMaterialItem(id: string): boolean {
   const current = getSavedMaterials();
   const updated = current.filter((m) => m.id !== id);
   saveMaterials(updated);
+  deleteMaterialBlob(id);
+  return true;
+}
+
+export function updateMaterialItem(id: string, updates: Partial<MaterialItem>): MaterialItem | null {
+  const current = getSavedMaterials();
+  let updatedItem: MaterialItem | null = null;
+  const updated = current.map((m) => {
+    if (m.id === id) {
+      updatedItem = { ...m, ...updates };
+      return updatedItem;
+    }
+    return m;
+  });
+  if (updatedItem) {
+    saveMaterials(updated);
+  }
+  return updatedItem;
+}
+
+export function deleteMultipleMaterialItems(ids: string[]): boolean {
+  if (!ids || ids.length === 0) return false;
+  const idSet = new Set(ids);
+  const current = getSavedMaterials();
+  const updated = current.filter((m) => !idSet.has(m.id));
+  saveMaterials(updated);
+  deleteMultipleMaterialBlobs(ids);
   return true;
 }
 
