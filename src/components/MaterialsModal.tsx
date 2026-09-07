@@ -170,7 +170,7 @@ export const MaterialsModal: React.FC<MaterialsModalProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-black text-white">ماتيريال وشيتات المواد (Materials)</h3>
+                <h3 className="text-lg font-black text-white">Materials (الماتيريال والمستندات)</h3>
                 <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/30 text-indigo-200 border border-indigo-400/30">
                   Block {selectedBlock}
                 </span>
@@ -490,10 +490,24 @@ export const MaterialsModal: React.FC<MaterialsModalProps> = ({
                           title="عرض الشيت الأصلي بنفس التنسيق"
                         >
                           <Eye className="w-3.5 h-3.5" />
-                          <span>عرض الشيت</span>
+                          <span>عرض</span>
                         </button>
 
-                        {/* 2. Open in New Tab Button */}
+                        {/* 2. Download Button: Downloads exact file */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownloadSheet(item);
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 hover:text-emerald-800 transition-all cursor-pointer border border-emerald-200 active:scale-95 flex items-center gap-1.5 shadow-2xs text-xs font-bold"
+                          title="تنزيل الشيت على جهازك بالتنسيق الأصلي"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>تنزيل</span>
+                        </button>
+
+                        {/* 3. Open in New Tab Button */}
                         <button
                           type="button"
                           onClick={(e) => {
@@ -501,12 +515,12 @@ export const MaterialsModal: React.FC<MaterialsModalProps> = ({
                             handleOpenSheetInNewTab(item);
                           }}
                           className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer border border-slate-200 active:scale-95 flex items-center justify-center shadow-2xs"
-                          title="فتح الملف الأصلي في نافذة مستقلة"
+                          title="فتح الرابط / الملف الأصلي في نافذة مستقلة"
                         >
                           <ExternalLink className="w-4 h-4" />
                         </button>
 
-                        {/* 3. Print Button: Prints the sheet */}
+                        {/* 4. Print Button: Prints the sheet */}
                         <button
                           type="button"
                           onClick={(e) => {
@@ -532,7 +546,7 @@ export const MaterialsModal: React.FC<MaterialsModalProps> = ({
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-indigo-500 shrink-0" />
             <span>
-              قسم الماتيريال مخصص للعرض والمذاكرة للطلاب (عرض فقط). تحميل وتنزيل الشيتات وإدارتها متاح للأدمن بالرقم السري 1940 من أيقونة الرفع والإدارة بجوار عداد الزوار.
+              قسم الماتيريال والشيتات الرسمية لطلاب Grade 2 • يتم عرض وتحميل الملفات بنفس التنسيق والألوان والصيغة الأصلية.
             </span>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -583,6 +597,17 @@ export const MaterialsModal: React.FC<MaterialsModalProps> = ({
 
               {/* Buttons in Modal Header */}
               <div className="flex items-center gap-2 shrink-0">
+                {/* Download Button */}
+                <button
+                  type="button"
+                  onClick={() => handleDownloadSheet(viewingSheet)}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                  title="تنزيل الشيت على جهازك بالتنسيق الأصلي"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">تنزيل</span>
+                </button>
+
                 {/* 1. Open in Full Window Button */}
                 <button
                   type="button"
@@ -597,7 +622,7 @@ export const MaterialsModal: React.FC<MaterialsModalProps> = ({
                   title="فتح الملف الأصلي في نافذة مستقلة كاملة"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">فتح في نافذة كاملة</span>
+                  <span className="hidden sm:inline">نافذة مستقلة</span>
                 </button>
 
                 {/* 2. Print Button: Prints sheet */}

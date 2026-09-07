@@ -182,6 +182,12 @@ export default function App() {
     return loadSavedUploadedFiles();
   });
 
+  // Keep browser document title updated with current active block and week
+  useEffect(() => {
+    const title = activePlan?.title || `Block ${activeBlockNumber} - Week ${activeWeekNumber}`;
+    document.title = `${title} | Studying Weekly Plan`;
+  }, [activePlan, activeBlockNumber, activeWeekNumber]);
+
   // Class Selection Modal (Initial first-entry prompt or triggered from button)
   const [isClassSelectorOpen, setIsClassSelectorOpen] = useState(false);
   const [showInitialClassPrompt, setShowInitialClassPrompt] = useState(() => {

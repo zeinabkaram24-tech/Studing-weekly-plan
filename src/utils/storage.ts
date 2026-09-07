@@ -259,12 +259,12 @@ export function saveStudent(student: StudentProfile): void {
 export function loadWeekTitle(): string {
   try {
     const saved = localStorage.getItem(STORAGE_KEYS.WEEK_TITLE);
-    if (saved && !saved.includes('الأسبوع الأول')) {
+    if (saved && !saved.includes('الأسبوع الأول') && !saved.includes('Week 2') && !saved.includes('Week 1 Plan')) {
       return saved;
     }
-    return 'Week 1 Plan (Block 1 - Week 1)';
+    return 'Block 1 - Week 1';
   } catch {
-    return 'Week 1 Plan (Block 1 - Week 1)';
+    return 'Block 1 - Week 1';
   }
 }
 
@@ -432,8 +432,8 @@ export function getInitialWeeklyPlansArchive(): WeeklyPlanArchiveEntry[] {
     id: 'b1-w1',
     blockNumber: 1,
     weekNumber: 1,
-    title: 'Week 1 Plan (Block 1 - Week 1)',
-    createdAt: Date.now() - 7 * 86400000,
+    title: 'Block 1 - Week 1',
+    createdAt: Date.now(),
     startDate: 'الأحد 31 أغسطس',
     endDate: 'الخميس 4 سبتمبر',
     tasksBySection: {
@@ -442,41 +442,11 @@ export function getInitialWeeklyPlansArchive(): WeeklyPlanArchiveEntry[] {
       '2C': filterOutArtTasks(TASKS_2C),
     },
     uploadedFiles: [],
-    isCurrent: false,
+    isCurrent: true,
     notes: 'الخطة التأسيسية للأسبوع الأول - مدارس النيل المصرية الدولية فرع المنيا',
   };
 
-  const week2Entry: WeeklyPlanArchiveEntry = {
-    id: 'b1-w2',
-    blockNumber: 1,
-    weekNumber: 2,
-    title: 'Week 2 Plan (Block 1 - Week 2)',
-    createdAt: Date.now(),
-    startDate: 'الأحد 7 سبتمبر',
-    endDate: 'الخميس 11 سبتمبر',
-    tasksBySection: {
-      '2A': filterOutArtTasks(TASKS_2A).map((t) => ({
-        ...t,
-        id: `w2-${t.id}`,
-        isDone: false,
-      })),
-      '2B': filterOutArtTasks(TASKS_2B).map((t) => ({
-        ...t,
-        id: `w2-${t.id}`,
-        isDone: false,
-      })),
-      '2C': filterOutArtTasks(TASKS_2C).map((t) => ({
-        ...t,
-        id: `w2-${t.id}`,
-        isDone: false,
-      })),
-    },
-    uploadedFiles: [],
-    isCurrent: true,
-    notes: 'خطة الأسبوع الثاني (أسبوع الجمعة الحالي) - تدريبات ومتابعة شاملة',
-  };
-
-  return [week2Entry, week1Entry];
+  return [week1Entry];
 }
 
 export function loadWeeklyPlansArchive(): WeeklyPlanArchiveEntry[] {
@@ -485,25 +455,26 @@ export function loadWeeklyPlansArchive(): WeeklyPlanArchiveEntry[] {
     if (saved) {
       const parsed: WeeklyPlanArchiveEntry[] = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        let entries = parsed;
-        // Ensure Week 2 exists if only older single entry was stored
-        const hasWeek2 = entries.some(
-          (e) => e.id === 'b1-w2' || (e.blockNumber === 1 && e.weekNumber === 2)
+        // Filter out any auto-seeded Week 2 that was generated before without user-created custom tasks
+        let entries = parsed.filter(
+          (e) => !(e.id === 'b1-w2' && (e.notes?.includes('الجمعة الحالي') || e.title?.includes('Week 2') || e.weekNumber === 2))
         );
-        if (!hasWeek2) {
-          const defaults = getInitialWeeklyPlansArchive();
-          const w2 = defaults.find((e) => e.weekNumber === 2);
-          if (w2) {
-            entries = [w2, ...entries];
-          }
+        if (entries.length === 0) {
+          entries = getInitialWeeklyPlansArchive();
         }
 
-        // Ensure each entry has tasks filtered and titles migrated to English Week format
+        // Ensure Week 1 is marked as current if no other plan is set
+        const hasCurrent = entries.some((e) => e.isCurrent);
+        if (!hasCurrent && entries.length > 0) {
+          entries[0].isCurrent = true;
+        }
+
+        // Ensure each entry has tasks filtered and default title set to Block 1 - Week 1
         return entries.map((entry) => ({
           ...entry,
           title:
-            entry.title && entry.title.includes('الأسبوع الأول')
-              ? entry.title.replace(/خطة الأسبوع الأول/g, 'Week 1 Plan')
+            entry.id === 'b1-w1' && (!entry.title || entry.title.includes('الأسبوع الأول') || entry.title.includes('Week 1 Plan'))
+              ? 'Block 1 - Week 1'
               : entry.title,
           tasksBySection: {
             '2A': filterOutArtTasks(entry.tasksBySection?.['2A'] || []),
@@ -532,13 +503,13 @@ export function saveWeeklyPlansArchive(archive: WeeklyPlanArchiveEntry[]): void 
 export function getActiveWeeklyPlanId(): string {
   try {
     const saved = localStorage.getItem(STORAGE_KEYS.ACTIVE_PLAN_ID);
-    if (saved) return saved;
+    if (saved && saved !== 'b1-w2') return saved;
   } catch {
     // ignore
   }
   const archive = loadWeeklyPlansArchive();
   const latest = getLatestWeeklyPlan(archive);
-  return latest.id;
+  return latest?.id || 'b1-w1';
 }
 
 export function setActiveWeeklyPlanId(id: string): void {

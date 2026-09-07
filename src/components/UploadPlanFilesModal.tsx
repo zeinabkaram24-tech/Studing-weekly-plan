@@ -30,8 +30,11 @@ import {
   CheckSquare,
   Square,
   Users,
+  Link as LinkIcon,
+  FolderUp,
+  CalendarPlus,
 } from 'lucide-react';
-import { verifyAdminPassword, setAdminLoggedIn } from '../utils/storage';
+import { verifyAdminPassword, setAdminLoggedIn, isAdminLoggedIn } from '../utils/storage';
 import {
   getSavedMaterials,
   addMaterialItem,
@@ -96,15 +99,21 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
   visitorStats,
   onRefreshStats,
 }) => {
-  // Always lock by default when entering the upload center so the password prompt is the first thing seen!
-  const [isUnlocked, setIsUnlocked] = useState(false);
+  // Admin is fully unlocked if already logged in as admin - no repeated password prompt!
+  const [isUnlocked, setIsUnlocked] = useState(() => isAdmin || isAdminLoggedIn());
   const [activeTab, setActiveTab] = useState<AdminUploadTab>(initialTab || 'materials');
+  const [matInputMode, setMatInputMode] = useState<'link' | 'file'>('link');
 
   useEffect(() => {
-    if (isOpen && initialTab) {
-      setActiveTab(initialTab);
+    if (isOpen) {
+      if (initialTab) {
+        setActiveTab(initialTab);
+      }
+      if (isAdmin || isAdminLoggedIn()) {
+        setIsUnlocked(true);
+      }
     }
-  }, [isOpen, initialTab]);
+  }, [isOpen, initialTab, isAdmin]);
 
   // Multi-selection states for bulk deletion
   const [selectedMaterialIds, setSelectedMaterialIds] = useState<Set<string>>(new Set());
@@ -172,7 +181,11 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
   // Reset and sync state whenever the modal opens
   useEffect(() => {
     if (isOpen) {
-      setIsUnlocked(false);
+      if (isAdmin || isAdminLoggedIn()) {
+        setIsUnlocked(true);
+      } else {
+        setIsUnlocked(false);
+      }
       setAdminPinInput('');
       setAdminPinError(null);
       setShowAdminPin(false);
@@ -183,7 +196,7 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
       setMatSuccessMsg(null);
       setHistorySuccessMsg(null);
     }
-  }, [isOpen]);
+  }, [isOpen, isAdmin]);
 
   if (!isOpen) return null;
 
@@ -379,7 +392,17 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
     let finalFileUrl = matFileUrl.trim() || undefined;
     let finalFileName = matFileName.trim() || selectedMatFile?.name || undefined;
 
-    // Direct server upload for 100% binary preservation
+    if (matInputMode === 'link') {
+      if (!finalFileUrl) {
+        alert('يرجى إدخال رابط الملف (Google Drive أو OneDrive أو أي رابط مباشر) لإدراج الشيت.');
+        return;
+      }
+      if (!finalFileName) {
+        finalFileName = `${matTitle.trim()}.pdf`;
+      }
+    }
+
+    // Direct server upload for 100% binary preservation if a local file is chosen
     if (selectedMatFile) {
       try {
         const formData = new FormData();
@@ -427,7 +450,7 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
     const updated = getSavedMaterials();
     setMaterialsList(updated);
     setLastAddedMat(newMat);
-    setMatSuccessMsg(`تم بنجاح حفظ وإدخال الشيت "${newMat.title}" بنفس تنسيقه الأصلي بالكامل.`);
+    setMatSuccessMsg(`تم بنجاح حفظ وإدراج الشيت "${newMat.title}" بنفس صيغته وتنسيقه وألوانه الأصلية 100%.`);
     setMatTitle('');
     setMatFileName('');
     setMatFileUrl('');
@@ -719,43 +742,45 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
               <div className="bg-slate-200/80 p-1 rounded-xl flex items-center text-xs font-bold font-sans flex-wrap gap-1">
                 <button
                   type="button"
-                  onClick={() => setActiveTab('materials')}
-                  className={`px-3 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
-                    activeTab === 'materials' ? 'bg-white text-indigo-700 shadow-2xs font-bold' : 'text-slate-600'
+                  id="modal-tab-weekly-plan"
+                  onClick={() => setActiveTab('weekly_plan')}
+                  className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                    activeTab === 'weekly_plan' ? 'bg-indigo-600 text-white shadow-xs font-bold' : 'text-slate-700 hover:text-indigo-700'
                   }`}
                 >
-                  <BookOpen className="w-3.5 h-3.5" />
-                  <span>تحميل ومسح الشيتات ({materialsList.length})</span>
+                  <CalendarPlus className="w-4 h-4" />
+                  <span>الخطة الأسبوعية (Weekly Plan)</span>
+                </button>
+                <button
+                  type="button"
+                  id="modal-tab-materials"
+                  onClick={() => setActiveTab('materials')}
+                  className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                    activeTab === 'materials' ? 'bg-emerald-600 text-white shadow-xs font-bold' : 'text-slate-700 hover:text-emerald-700'
+                  }`}
+                >
+                  <FolderUp className="w-4 h-4" />
+                  <span>Materials ({materialsList.length})</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveTab('visitors')}
-                  className={`px-3 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
-                    activeTab === 'visitors' ? 'bg-white text-indigo-700 shadow-2xs font-bold' : 'text-slate-600'
+                  className={`px-2.5 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 text-[11px] ${
+                    activeTab === 'visitors' ? 'bg-white text-slate-800 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
                   <Users className="w-3.5 h-3.5" />
-                  <span>عدد المستخدمين والزائرين</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('weekly_plan')}
-                  className={`px-3 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
-                    activeTab === 'weekly_plan' ? 'bg-white text-indigo-700 shadow-2xs font-bold' : 'text-slate-600'
-                  }`}
-                >
-                  <UploadCloud className="w-3.5 h-3.5" />
-                  <span>رفع الخطة الأسبوعية</span>
+                  <span>الزوار</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveTab('history')}
-                  className={`px-3 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
-                    activeTab === 'history' ? 'bg-white text-indigo-700 shadow-2xs font-bold' : 'text-slate-600'
+                  className={`px-2.5 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 text-[11px] ${
+                    activeTab === 'history' ? 'bg-white text-slate-800 shadow-2xs font-bold' : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
                   <History className="w-3.5 h-3.5" />
-                  <span>سجل الملفات ({savedUploadedFiles.length})</span>
+                  <span>السجل</span>
                 </button>
               </div>
             )}
@@ -1189,15 +1214,25 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
                   <span>{matSuccessMsg}</span>
                 </div>
                 {lastAddedMat && (
-                  <button
-                    type="button"
-                    onClick={() => handleAdminDownloadSheet(lastAddedMat)}
-                    className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer active:scale-95 ms-auto"
-                    title="تنزيل هذا الشيت فورياً على جهازك بنفس التنسيق الأصلي"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    <span>تنزيل الشيت الآن ({lastAddedMat.fileName ? lastAddedMat.fileName.split('.').pop()?.toUpperCase() : 'PDF'})</span>
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-emerald-200/60">
+                    <span className="text-[11px] text-emerald-800 font-bold">اختبار فوري للملف والتنسيق:</span>
+                    <button
+                      type="button"
+                      onClick={() => openMaterialSheetInNewTab(lastAddedMat, subjectMap.get(lastAddedMat.subjectId)?.nameAr || lastAddedMat.subjectId)}
+                      className="px-3 py-1.5 rounded-xl bg-white hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-emerald-700" />
+                      <span>فتح الرابط للتأكد من الألوان والتنسيق الأصلي 100%</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAdminDownloadSheet(lastAddedMat)}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer active:scale-95"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>تنزيل الشيت للتأكد من التحميل ({lastAddedMat.fileName ? lastAddedMat.fileName.split('.').pop()?.toUpperCase() : 'PDF'})</span>
+                    </button>
+                  </div>
                 )}
               </div>
             )}
@@ -1210,50 +1245,128 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
                     <Plus className="w-4 h-4" />
                   </div>
                   <h4 className="text-sm font-black text-slate-900">
-                    رفع وإضافة شيت أو ماتيريال جديد (خاص بالأدمن)
+                    إدراج ورفع شيت أو ماتيريال جديد (خاص بالأدمن)
                   </h4>
                 </div>
                 <span className="text-[11px] text-slate-400 font-medium">
-                  يظهر فوراً في أيقونة الماتيريال للطلاب (عرض وتصفح فقط)
+                  يظهر فوراً في أيقونة الماتيريال للطلاب بنفس التنسيق الأصلي 100%
                 </span>
               </div>
 
-              {/* Upload File Input Button */}
-              <div className="p-4 rounded-xl border border-dashed border-indigo-200 bg-indigo-50/30 flex flex-col sm:flex-row items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0">
-                    <UploadCloud className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-slate-800">
-                      تحميل ملف من جهازك (PDF, Word, صور, إلخ):
-                    </div>
-                    <div className="text-[11px] text-slate-500">
-                      {matFileName ? (
-                        <span className="font-mono text-indigo-700 font-bold">{matFileName}</span>
-                      ) : (
-                        'اختاري الملف لتعيين الاسم تلقائياً وتجهيز الشيت'
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <input
-                  ref={matFileInputRef}
-                  type="file"
-                  accept=".pdf,.docx,.doc,.png,.jpg,.jpeg,.txt"
-                  className="hidden"
-                  onChange={(e) => handleMatFileSelected(e.target.files)}
-                />
-
+              {/* Mode Toggle: Direct Link (Recommended for 100% formatting) vs Local File */}
+              <div className="p-1.5 bg-slate-100 rounded-2xl flex flex-col sm:flex-row gap-1.5">
                 <button
                   type="button"
-                  onClick={() => matFileInputRef.current?.click()}
-                  className="px-4 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                  id="btn-mode-link"
+                  onClick={() => setMatInputMode('link')}
+                  className={`flex-1 py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    matInputMode === 'link'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
+                  }`}
                 >
-                  اختيار ملف من الجهاز
+                  <LinkIcon className="w-4 h-4" />
+                  <span>إدخال رابط مباشر (Google Drive / OneDrive) — الحفاظ على 100% من التنسيق والألوان</span>
+                </button>
+                <button
+                  type="button"
+                  id="btn-mode-file"
+                  onClick={() => setMatInputMode('file')}
+                  className={`py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    matInputMode === 'file'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
+                  }`}
+                >
+                  <UploadCloud className="w-4 h-4" />
+                  <span>رفع ملف من جهازك</span>
                 </button>
               </div>
+
+              {/* Mode 1: Direct Link */}
+              {matInputMode === 'link' && (
+                <div className="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-200 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                    <label className="block text-xs font-bold text-indigo-950">
+                      رابط الملف الأصلي (Google Drive أو OneDrive أو أي رابط مباشر):
+                    </label>
+                    <span className="text-[11px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full inline-block">
+                      ✓ يضمن 100% بقاء الألوان، الخطوط، والصيغة الأصلية دون أي تعديل
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="url"
+                      required={matInputMode === 'link'}
+                      value={matFileUrl}
+                      onChange={(e) => setMatFileUrl(e.target.value)}
+                      placeholder="https://drive.google.com/file/d/.../view?usp=sharing"
+                      className="flex-1 px-3.5 py-2.5 rounded-xl border border-indigo-300 focus:ring-2 focus:ring-indigo-500 bg-white font-mono text-xs text-slate-800 shadow-2xs"
+                    />
+                    {matFileUrl.trim() && (
+                      <a
+                        href={matFileUrl.trim()}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3.5 py-2.5 rounded-xl bg-white border border-indigo-200 hover:bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center gap-1.5 shrink-0 transition-colors shadow-2xs"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span>تجربة الرابط ↗</span>
+                      </a>
+                    )}
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-white/90 border border-indigo-100 text-xs text-indigo-950 space-y-1">
+                    <div className="font-bold flex items-center gap-1.5 text-indigo-700">
+                      <Sparkles className="w-4 h-4 text-indigo-600" />
+                      <span>طريقة الحفظ المباشر بدون تغيير:</span>
+                    </div>
+                    <p className="text-slate-600 text-[11px] leading-relaxed">
+                      ضعي رابط ملفك كما هو؛ سيتولى النظام فتحه للطلاب عبر عارض Google الرسمي، ويتيح لهم تنزيله مباشرة على أجهزتهم بنفس الدقة، الألوان، والتنسيق الأصلي تماماً دون أي إعادة رسم أو مساس به.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Mode 2: Local File Upload */}
+              {matInputMode === 'file' && (
+                <div className="p-4 rounded-xl border border-dashed border-indigo-200 bg-indigo-50/30 flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0">
+                      <UploadCloud className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-slate-800">
+                        تحميل ملف من جهازك (PDF, Word, صور, إلخ):
+                      </div>
+                      <div className="text-[11px] text-slate-500">
+                        {matFileName ? (
+                          <span className="font-mono text-indigo-700 font-bold">{matFileName}</span>
+                        ) : (
+                          'اختاري الملف لتعيين الاسم تلقائياً وتجهيز الشيت'
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <input
+                    ref={matFileInputRef}
+                    type="file"
+                    accept=".pdf,.docx,.doc,.png,.jpg,.jpeg,.txt"
+                    className="hidden"
+                    onChange={(e) => handleMatFileSelected(e.target.files)}
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => matFileInputRef.current?.click()}
+                    className="px-4 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                  >
+                    اختيار ملف من الجهاز
+                  </button>
+                </div>
+              )}
 
               {/* Basic Fields */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
@@ -1369,18 +1482,20 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
                   />
                 </div>
 
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    رابط ملف خارجي (اختياري - Google Drive / OneDrive):
-                  </label>
-                  <input
-                    type="url"
-                    value={matFileUrl}
-                    onChange={(e) => setMatFileUrl(e.target.value)}
-                    placeholder="https://..."
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:border-indigo-500 outline-hidden font-mono"
-                  />
-                </div>
+                {matInputMode === 'file' && (
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      رابط ملف خارجي بديل (اختياري):
+                    </label>
+                    <input
+                      type="url"
+                      value={matFileUrl}
+                      onChange={(e) => setMatFileUrl(e.target.value)}
+                      placeholder="https://..."
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:border-indigo-500 outline-hidden font-mono"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Multiline exercises */}
@@ -1399,11 +1514,12 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
 
               <div className="flex items-center justify-between pt-2">
                 <p className="text-[11px] text-slate-500">
-                  الماتيريال في واجهة الطلاب ستكون عرض فقط وتدريبات مباشرة بدون إمكانية تعديل أو رفع.
+                  الماتيريال في واجهة الطلاب ستكون عرض وتنزيل مباشر بدون إمكانية تعديل أو مساس بالملف.
                 </p>
 
                 <button
                   type="submit"
+                  id="btn-submit-material"
                   className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-2 transition-all shadow-sm cursor-pointer active:scale-95"
                 >
                   <Check className="w-4 h-4" />

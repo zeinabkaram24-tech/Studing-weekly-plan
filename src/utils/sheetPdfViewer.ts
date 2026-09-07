@@ -563,6 +563,19 @@ export async function openMaterialSheetInNewTab(
   item: MaterialItem,
   subjectNameAr: string
 ): Promise<void> {
+  // If item is a direct online URL (Google Drive, OneDrive, cloud link):
+  // Directly open target URL without writing temporary document to prevent any cross-origin restrictions
+  if (item.fileUrl && (item.fileUrl.startsWith('http://') || item.fileUrl.startsWith('https://'))) {
+    let targetUrl = item.fileUrl;
+    // Format Google Drive links to /view for best full-page native document viewing
+    const driveMatch = item.fileUrl.match(/drive\.google\.com\/(?:file\/d\/|open\?id=)([a-zA-Z0-9_-]+)/);
+    if (driveMatch && driveMatch[1]) {
+      targetUrl = `https://drive.google.com/file/d/${driveMatch[1]}/view`;
+    }
+    window.open(targetUrl, '_blank', 'noopener,noreferrer');
+    return;
+  }
+
   // CRITICAL: Open window synchronously during the user click gesture!
   // This prevents browser popup blockers from suppressing the new tab.
   const newTab = window.open('about:blank', '_blank');
@@ -596,7 +609,7 @@ export async function openMaterialSheetInNewTab(
   `);
 
   try {
-    // 1. PRIMARY METHOD (Local & Offline): Retrieve from IndexedDB
+    // 2. PRIMARY LOCAL METHOD: Retrieve exact binary from IndexedDB
     const storedBlob = await getMaterialBlob(item.id);
     if (storedBlob) {
       const isPdf =
@@ -606,13 +619,18 @@ export async function openMaterialSheetInNewTab(
       const mime = isPdf ? 'application/pdf' : (storedBlob.type || 'application/pdf');
       const pdfBlob = new Blob([storedBlob], { type: mime });
       const blobUrl = URL.createObjectURL(pdfBlob);
-
-      // Direct navigation to the Blob URL in the new tab opens browser's native PDF viewer
       newTab.location.href = blobUrl;
       return;
     }
 
-    // 2. SECONDARY LOCAL METHOD: Check if item has Base64 fileData
+    // 3. SERVER FILE ENDPOINT: Direct server path to the uploaded file
+    if (item.fileName || (item.fileUrl && item.fileUrl.startsWith('/api/'))) {
+      const candidateUrl = item.fileUrl || `/api/materials/file/${encodeURIComponent(item.fileName || '')}`;
+      newTab.location.href = candidateUrl;
+      return;
+    }
+
+    // 4. Base64 fileData
     if (item.fileData) {
       const pdfBlob = dataUrlToBlob(item.fileData);
       const blobUrl = URL.createObjectURL(pdfBlob);
@@ -620,35 +638,13 @@ export async function openMaterialSheetInNewTab(
       return;
     }
 
-    // 3. DIRECT ONLINE URL: If item has an explicit public online URL
-    if (item.fileUrl && (item.fileUrl.startsWith('http://') || item.fileUrl.startsWith('https://'))) {
-      newTab.location.href = item.fileUrl;
-      return;
-    }
-
-    // 4. Server API Endpoint (only if file actually exists on server)
-    if (item.fileName || (item.fileUrl && item.fileUrl.startsWith('/api/'))) {
-      const candidateUrl = item.fileUrl || `/api/materials/file/${encodeURIComponent(item.fileName || '')}`;
-      try {
-        const testRes = await fetch(candidateUrl, { method: 'HEAD' });
-        if (testRes.ok) {
-          newTab.location.href = candidateUrl;
-          return;
-        }
-      } catch (checkErr) {
-        console.warn('Server file endpoint check failed, falling back to local generated worksheet:', checkErr);
-      }
-    }
-
-    // 5. RELIABLE FALLBACK: Generate the full A4 printable curriculum worksheet inside the new tab
-    // Never leaves the user with a 404 or black screen!
+    // 5. Printable worksheet fallback only if absolutely no file or link is attached
     const fullHtml = generateSheetHtml(item, subjectNameAr);
     newTab.document.open();
     newTab.document.write(fullHtml);
     newTab.document.close();
   } catch (err) {
     console.error('Failed to open sheet in new tab:', err);
-    // Safe Fallback: write the generated HTML
     const fullHtml = generateSheetHtml(item, subjectNameAr);
     newTab.document.open();
     newTab.document.write(fullHtml);
@@ -660,11 +656,35 @@ export async function openMaterialSheetInNewTab(
  * Downloads the exact uploaded file onto the user's device (phone, tablet, computer)
  * completely untransformed with 100% original binary and layout intact.
  */
-export async function downloadMaterialSheet(item: MaterialItem, adminPin = '1111'): Promise<void> {
+export async function downloadMaterialSheet(item: MaterialItem): Promise<void> {
   try {
     const filename = item.fileName || `${item.title}.pdf`;
 
-    // 1. If stored as a binary Blob in IndexedDB (exact original uploaded file)
+    // 1. Direct Online URL: If link is Google Drive or public file
+    if (item.fileUrl && (item.fileUrl.startsWith('http://') || item.fileUrl.startsWith('https://'))) {
+      // Check if it's a Google Drive link to convert to direct download URL
+      let downloadUrl = item.fileUrl;
+      const driveMatch = item.fileUrl.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([a-zA-Z0-9_-]+)/);
+      if (driveMatch && driveMatch[1]) {
+        downloadUrl = `https://drive.google.com/uc?export=download&id=${driveMatch[1]}`;
+      }
+
+      // Use an anchor tag with target="_blank" and download attribute
+      // This reliably triggers the download without popup blocker suppression
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        if (document.body.contains(a)) document.body.removeChild(a);
+      }, 3000);
+      return;
+    }
+
+    // 2. If stored as a binary Blob in IndexedDB (exact original uploaded file)
     try {
       const storedBlob = await getMaterialBlob(item.id);
       if (storedBlob) {
@@ -690,7 +710,48 @@ export async function downloadMaterialSheet(item: MaterialItem, adminPin = '1111
       console.warn('Could not read blob from IndexedDB:', blobErr);
     }
 
-    // 2. Base64 fileData (local & instant)
+    // 3. Direct server download endpoint (fetches binary stream for 100% reliable download)
+    const serverFileName =
+      item.fileName ||
+      (item.fileUrl?.startsWith('/api/materials/file/')
+        ? decodeURIComponent(item.fileUrl.replace('/api/materials/file/', ''))
+        : undefined);
+
+    if (serverFileName) {
+      try {
+        const serverDownloadUrl = `/api/materials/download/${encodeURIComponent(serverFileName)}`;
+        const res = await fetch(serverDownloadUrl);
+        if (res.ok) {
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => {
+            if (document.body.contains(a)) document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }, 60000);
+          return;
+        }
+      } catch (err) {
+        console.warn('Direct fetch download error, using anchor fallback:', err);
+      }
+
+      // Fallback anchor navigation
+      const a = document.createElement('a');
+      a.href = `/api/materials/download/${encodeURIComponent(serverFileName)}`;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        if (document.body.contains(a)) document.body.removeChild(a);
+      }, 3000);
+      return;
+    }
+
+    // 4. Base64 fileData (local & instant)
     if (item.fileData) {
       const blob = dataUrlToBlob(item.fileData);
       const url = URL.createObjectURL(blob);
@@ -703,34 +764,6 @@ export async function downloadMaterialSheet(item: MaterialItem, adminPin = '1111
         if (document.body.contains(a)) document.body.removeChild(a);
         URL.revokeObjectURL(url);
       }, 60000);
-      return;
-    }
-
-    // 3. Direct server download endpoint (serves with Content-Disposition: attachment)
-    if (item.fileName) {
-      const serverDownloadUrl = `/api/materials/download/${encodeURIComponent(item.fileName)}?pin=${encodeURIComponent(adminPin)}`;
-      const a = document.createElement('a');
-      a.href = serverDownloadUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        if (document.body.contains(a)) document.body.removeChild(a);
-      }, 1000);
-      return;
-    }
-
-    // 4. If direct online fileUrl is provided
-    if (item.fileUrl && (item.fileUrl.startsWith('http://') || item.fileUrl.startsWith('https://'))) {
-      const a = document.createElement('a');
-      a.href = item.fileUrl;
-      a.download = filename;
-      a.target = '_blank';
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        if (document.body.contains(a)) document.body.removeChild(a);
-      }, 1000);
       return;
     }
 
@@ -851,6 +884,11 @@ export async function getMaterialFileUrl(item: MaterialItem): Promise<string | n
     if (candidateUrl) {
       // If external full URL (e.g. https://...), return directly
       if (candidateUrl.startsWith('http://') || candidateUrl.startsWith('https://')) {
+        // For Google Drive links, convert /view or /edit to /preview for safe iframe embedding!
+        const driveMatch = candidateUrl.match(/drive\.google\.com\/(?:file\/d\/|open\?id=)([a-zA-Z0-9_-]+)/);
+        if (driveMatch && driveMatch[1]) {
+          return `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
+        }
         return candidateUrl;
       }
 

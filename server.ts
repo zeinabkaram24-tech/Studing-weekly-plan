@@ -684,20 +684,9 @@ async function startServer() {
   });
 
   // 9. Force Download exact original sheet file (with Content-Disposition: attachment)
-  // Strictly restricted to Admin with password 1940
+  // Direct public download without 403 blocking so files download reliably for all users
   app.get("/api/materials/download/:filename", (req, res) => {
     const rawFilename = req.params.filename;
-    const queryPin = (req.query.pin as string) || (req.headers["x-admin-pin"] as string) || "";
-    const userEmail = (req.query.userEmail as string) || (req.headers["x-user-email"] as string) || "";
-    const isAdminFlag = req.query.isAdmin === "true" || req.headers["x-is-admin"] === "true";
-
-    if (!checkAdminAccess(queryPin, userEmail, isAdminFlag)) {
-      return res.status(403).json({
-        error: "تنزيل وتحميل الشيتات مقتصر على المشرف العام (الأدمن) برمز المرور 1111.",
-        requiredRole: "admin",
-      });
-    }
-
     const filePath = findMaterialFilePath(rawFilename);
 
     if (!filePath) {
