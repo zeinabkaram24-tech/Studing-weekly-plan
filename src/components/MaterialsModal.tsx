@@ -53,6 +53,7 @@ export const MaterialsModal: React.FC<MaterialsModalProps> = ({
   // In-app sheet content viewer
   const [viewingSheet, setViewingSheet] = useState<MaterialItem | null>(null);
   const [viewingFileUrl, setViewingFileUrl] = useState<string | null>(null);
+  const [isResolvingUrl, setIsResolvingUrl] = useState<boolean>(false);
   const [solvedExercises, setSolvedExercises] = useState<Record<string, boolean>>({});
 
   // Load materials on open
@@ -62,21 +63,28 @@ export const MaterialsModal: React.FC<MaterialsModalProps> = ({
     }
   }, [isOpen]);
 
-  // Resolve file URL for viewingSheet with synchronous initial check
+  // Resolve file URL for viewingSheet safely after verifying it exists
   useEffect(() => {
     let isMounted = true;
     if (viewingSheet) {
-      const syncUrl =
-        viewingSheet.fileUrl ||
-        (viewingSheet.fileName ? `/api/materials/file/${encodeURIComponent(viewingSheet.fileName)}` : null);
-      if (syncUrl) {
-        setViewingFileUrl(syncUrl);
-      }
-      getMaterialFileUrl(viewingSheet).then((url) => {
-        if (isMounted && url) setViewingFileUrl(url);
-      });
+      setViewingFileUrl(null);
+      setIsResolvingUrl(true);
+      getMaterialFileUrl(viewingSheet)
+        .then((url) => {
+          if (isMounted) {
+            setViewingFileUrl(url);
+            setIsResolvingUrl(false);
+          }
+        })
+        .catch(() => {
+          if (isMounted) {
+            setViewingFileUrl(null);
+            setIsResolvingUrl(false);
+          }
+        });
     } else {
       setViewingFileUrl(null);
+      setIsResolvingUrl(false);
     }
     return () => {
       isMounted = false;
@@ -616,8 +624,12 @@ export const MaterialsModal: React.FC<MaterialsModalProps> = ({
 
             {/* Viewer Body */}
             <div className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-4 bg-slate-900">
-              {/* If real uploaded PDF or file exists, embed it directly keeping 100% original formatting! */}
-              {viewingFileUrl ? (
+              {isResolvingUrl ? (
+                <div className="w-full h-[72vh] sm:h-[76vh] rounded-2xl flex flex-col items-center justify-center border border-slate-800 bg-slate-950 text-slate-400 space-y-3">
+                  <div className="w-8 h-8 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                  <p className="text-xs font-bold text-slate-300">جاري فتح وتجهيز الشيت بالتنسيق الأصلي...</p>
+                </div>
+              ) : viewingFileUrl ? (
                 <div className="w-full h-[72vh] sm:h-[76vh] rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 shadow-inner">
                   <iframe
                     src={viewingFileUrl}

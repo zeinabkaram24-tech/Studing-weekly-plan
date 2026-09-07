@@ -854,12 +854,7 @@ export async function printMaterialSheet(
  */
 export async function getMaterialFileUrl(item: MaterialItem): Promise<string | null> {
   try {
-    if (item.fileUrl && (item.fileUrl.startsWith('/api/') || item.fileUrl.startsWith('http') || item.fileUrl.startsWith('/materials_files/'))) {
-      return item.fileUrl;
-    }
-    if (item.fileName) {
-      return `/api/materials/file/${encodeURIComponent(item.fileName)}`;
-    }
+    // 1. Prioritize IndexedDB blob (100% reliable locally, offline, and on static hosts like Vercel)
     const storedBlob = await getMaterialBlob(item.id);
     if (storedBlob) {
       const isPdf =
@@ -869,11 +864,33 @@ export async function getMaterialFileUrl(item: MaterialItem): Promise<string | n
       const mime = isPdf ? 'application/pdf' : (storedBlob.type || 'application/pdf');
       return URL.createObjectURL(new Blob([storedBlob], { type: mime }));
     }
+
+    // 2. Base64 fallback if stored
     if (item.fileData) {
       return URL.createObjectURL(dataUrlToBlob(item.fileData));
     }
-    if (item.fileUrl && item.fileUrl.startsWith('http')) {
-      return item.fileUrl;
+
+    // 3. Candidate server URL or external URL
+    const candidateUrl =
+      item.fileUrl ||
+      (item.fileName ? `/api/materials/file/${encodeURIComponent(item.fileName)}` : null);
+
+    if (candidateUrl) {
+      // If external full URL (e.g. https://...), return directly
+      if (candidateUrl.startsWith('http://') || candidateUrl.startsWith('https://')) {
+        return candidateUrl;
+      }
+
+      // If relative server URL, test with HEAD request to verify file is reachable and not 404
+      try {
+        const testRes = await fetch(candidateUrl, { method: 'HEAD' });
+        if (testRes.ok) {
+          return candidateUrl;
+        }
+        console.warn(`File URL ${candidateUrl} returned ${testRes.status}. Avoiding broken iframe.`);
+      } catch (headErr) {
+        console.warn(`Could not verify candidate file URL ${candidateUrl}:`, headErr);
+      }
     }
   } catch (err) {
     console.warn('Could not resolve material file URL:', err);
