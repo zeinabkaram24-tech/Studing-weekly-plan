@@ -655,12 +655,38 @@ export const MaterialsModal: React.FC<MaterialsModalProps> = ({
                   <p className="text-xs font-bold text-slate-300">جاري فتح وتجهيز الشيت بالتنسيق الأصلي...</p>
                 </div>
               ) : viewingFileUrl ? (
-                <div className="w-full h-[72vh] sm:h-[76vh] rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 shadow-inner">
-                  <iframe
-                    src={viewingFileUrl}
-                    title={viewingSheet.title}
-                    className="w-full h-full border-none"
-                  />
+                <div className="w-full min-h-[72vh] sm:min-h-[76vh] rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 shadow-inner flex flex-col">
+                  <object
+                    data={viewingFileUrl}
+                    type="application/pdf"
+                    aria-label={viewingSheet.title}
+                    className="w-full flex-1 min-h-[62vh] border-none"
+                  >
+                    <div className="h-full min-h-[62vh] flex flex-col items-center justify-center gap-4 p-6 text-center text-white">
+                      <FileText className="w-12 h-12 text-amber-300" />
+                      <p className="text-sm font-bold">هذا الجهاز لا يعرض PDF داخل النافذة.</p>
+                      <a
+                        href={viewingFileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 px-5 py-3 text-sm font-black text-slate-950"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        فتح ملف PDF في نافذة جديدة
+                      </a>
+                    </div>
+                  </object>
+                  <div className="shrink-0 border-t border-slate-700 bg-slate-900 p-3 text-center">
+                    <a
+                      href={viewingFileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-xs font-bold text-indigo-200 hover:text-white"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      إذا لم يظهر الملف، اضغطي هنا لفتحه مباشرة
+                    </a>
+                  </div>
                 </div>
               ) : (
                 <>
