@@ -516,47 +516,8 @@ export const TodayView: React.FC<TodayViewProps> = ({
         </div>
       </div>
 
-      {/* 5. TASKS LIST: Classwork first, then a prominent Homework focus area */}
+      {/* 5. TASKS LIST: Homework first, then Classwork */}
       <section id="today-tasks-section" className="space-y-5">
-        <div className="rounded-3xl border border-indigo-100 bg-white p-4 sm:p-5 shadow-xs">
-          <div className="flex items-center justify-between gap-3 mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-indigo-50 text-indigo-700 flex items-center justify-center border border-indigo-100">
-                <Layers className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-xl font-black text-slate-900">أعمال الفصل</h3>
-                <p className="text-xs text-slate-500">Classwork • المهام التي تُنجز داخل الفصل</p>
-              </div>
-            </div>
-            <span className="px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-700 text-xs font-black border border-indigo-100">
-              {classworkTasks.length} مهام
-            </span>
-          </div>
-
-          {classworkTasks.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {classworkTasks.map((task) => {
-                const subj = subjectMap.get(task.subjectId);
-                return (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    subject={subj}
-                    onToggleDone={onToggleDone}
-                    onEdit={onEditTask}
-                    onDelete={onDeleteTask}
-                    onSavePersonalNote={onSavePersonalNote}
-                    isVisitor={isVisitor}
-                  />
-                );
-              })}
-            </div>
-          ) : (
-            <p className="py-5 text-center text-sm text-slate-400">لا توجد أعمال فصل مطلوبة اليوم.</p>
-          )}
-        </div>
-
         <div className="relative overflow-hidden rounded-3xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 via-orange-50 to-white p-4 sm:p-6 shadow-md">
           <div className="absolute -left-12 -top-12 w-32 h-32 rounded-full bg-amber-200/40 blur-2xl pointer-events-none" />
           <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
@@ -609,6 +570,46 @@ export const TodayView: React.FC<TodayViewProps> = ({
               <p className="text-sm font-bold text-amber-900">لا توجد واجبات منزلية اليوم.</p>
               <p className="text-xs text-amber-700/70 mt-1">استمتع بوقتك أو راجع مهام الغد.</p>
             </div>
+          )}
+        </div>
+
+
+        <div className="rounded-3xl border border-indigo-100 bg-white p-4 sm:p-5 shadow-xs">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-indigo-50 text-indigo-700 flex items-center justify-center border border-indigo-100">
+                <Layers className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-slate-900">أعمال الفصل</h3>
+                <p className="text-xs text-slate-500">Classwork • المهام التي تُنجز داخل الفصل</p>
+              </div>
+            </div>
+            <span className="px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-700 text-xs font-black border border-indigo-100">
+              {classworkTasks.length} مهام
+            </span>
+          </div>
+
+          {classworkTasks.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {classworkTasks.map((task) => {
+                const subj = subjectMap.get(task.subjectId);
+                return (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    subject={subj}
+                    onToggleDone={onToggleDone}
+                    onEdit={onEditTask}
+                    onDelete={onDeleteTask}
+                    onSavePersonalNote={onSavePersonalNote}
+                    isVisitor={isVisitor}
+                  />
+                );
+              })}
+            </div>
+          ) : (
+            <p className="py-5 text-center text-sm text-slate-400">لا توجد أعمال فصل مطلوبة اليوم.</p>
           )}
         </div>
 
