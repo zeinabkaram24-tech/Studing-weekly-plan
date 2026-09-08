@@ -99,37 +99,17 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
   const targetTasks = tasks.filter(
     (t) => t.day === prepTargetDay && (!t.section || t.section === section)
   );
-  const targetSupplies = targetTasks.filter((t) => t.type === 'supplies');
   const targetQuizzes = targetTasks.filter((t) => t.type === 'quiz' || t.type === 'dictation');
-  const targetArtTasks = targetTasks.filter(
-    (t) =>
-      t.subjectId === 'arts' ||
-      t.title?.includes('التربية الفنية') ||
-      t.title?.includes('الرسم') ||
-      t.title?.toLowerCase().includes('art')
-  );
-  const prepNotePattern = /مطلوب|إحضار|احضار|أدوات|أداه|مستلزمات|bring|suppl(y|ies)|materials|needed/i;
-  const prepSubjectIds = uniqueSubjectIds.filter((subjId) =>
-    targetTasks.some((task) =>
-      task.subjectId === subjId && (
-        targetSupplies.some((supply) => supply.id === task.id) ||
-        Boolean(task.notes?.trim()) ||
-        Boolean(task.details && prepNotePattern.test(task.details))
-      )
-    )
-  );
 
   // Only explicit Weekly Plan notes are shown in the bag section.
   // No generic subject/book placeholder is ever generated.
   const weeklyPlanNotes = targetTasks
-    .filter((task) => Boolean(task.notes?.trim()))
+    .filter((task) => Boolean(task.notes?.trim()) || task.type === 'supplies')
     .map((task) => ({
       id: task.id,
       subjectId: task.subjectId,
-      text: task.notes!.trim(),
+      text: task.notes?.trim() || task.details?.trim() || task.title,
     }));
-
-  const toggleItem = (_id: string) => undefined;
 
   return (
     <div
