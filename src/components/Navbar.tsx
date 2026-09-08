@@ -1,15 +1,11 @@
 import React from 'react';
 import { GradeSection, StudentProfile, UserRole } from '../types';
 import {
-  Calendar,
   Clock,
   Edit2,
   FileSpreadsheet,
-  Plus,
-  Sparkles,
   Printer,
   RotateCcw,
-  ListTodo,
   UploadCloud,
   Users,
   School,
@@ -274,22 +270,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
           </button>
 
-          {/* 2. Full Weekly Schedule */}
-          <button
-            type="button"
-            id="tab-weekly-desktop"
-            onClick={() => onSelectTab('weekly')}
-            className={`w-full flex items-center gap-2.5 p-3 rounded-2xl transition-all text-xs sm:text-sm font-bold ${
-              currentTab === 'weekly'
-                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-950/60'
-                : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
-            }`}
-          >
-            <Calendar className="w-4 h-4" />
-            <span>المخطط الأسبوعي الكامل</span>
-          </button>
-
-          {/* 3. School Timetable */}
+          {/* 2. School Timetable */}
           <button
             type="button"
             id="tab-timetable-desktop"
@@ -330,30 +311,9 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           )}
 
-          {/* Action Tools Section (Hidden for visitor to ensure pure read-only experience) */}
+          {/* Action Tools Section: read-only for students and visitors */}
           {userRole !== 'visitor' && (
             <div className="pt-3 mt-3 border-t border-slate-800/80 space-y-2">
-              <button
-                type="button"
-                id="sidebar-add-task"
-                onClick={onOpenAddTask}
-                className="w-full bg-slate-900 hover:bg-slate-800 text-indigo-300 font-bold p-2.5 rounded-2xl text-xs flex items-center justify-center gap-2 border border-slate-800 transition-colors font-sans"
-              >
-                <Plus className="w-4 h-4 stroke-[2.5]" />
-                <span>+ Add Weekly Plan Task</span>
-              </button>
-
-              <button
-                type="button"
-                id="sidebar-smart-paste"
-                onClick={onOpenSmartPaste}
-                className="w-full bg-slate-900 hover:bg-slate-800 text-purple-300 font-bold p-2.5 rounded-2xl text-xs flex items-center justify-center gap-2 border border-slate-800 transition-colors font-sans"
-                title="لصق رسائل المدرسة الذكية"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-                <span>Smart Paste (لصق ذكي)</span>
-              </button>
-
               <div className="flex items-center gap-2 pt-1">
                 <button
                   type="button"
@@ -483,7 +443,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Mobile Tabs */}
-          <div className="grid grid-cols-3 gap-1 bg-slate-900 p-1 rounded-2xl border border-slate-800">
+          <div className="grid grid-cols-2 gap-1 bg-slate-900 p-1 rounded-2xl border border-slate-800">
             <button
               type="button"
               id="tab-today-mobile"
@@ -496,20 +456,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <Clock className="w-3.5 h-3.5" />
               <span>اليوم ({todayPendingCount})</span>
-            </button>
-
-            <button
-              type="button"
-              id="tab-weekly-mobile"
-              onClick={() => onSelectTab('weekly')}
-              className={`flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                currentTab === 'weekly'
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'text-slate-400'
-              }`}
-            >
-              <Calendar className="w-3.5 h-3.5" />
-              <span>المخطط</span>
             </button>
 
             <button
