@@ -249,8 +249,60 @@ export function parseWeeklyPlanTextWithLinks(
   const tasks: PlanTask[] = [];
   let currentDay = defaultDay;
   let notesColumnIndex = -1;
+  let pendingNoteLines: string[] = [];
+
+  const isDayHeader = (value: string): boolean => {
+    const lowerValue = value.toLowerCase();
+    return lowerValue.includes('الأحد') || lowerValue.includes('الاحد') || lowerValue.includes('sunday') ||
+      lowerValue.includes('الإثنين') || lowerValue.includes('الاثنين') || lowerValue.includes('monday') ||
+      lowerValue.includes('الثلاثاء') || lowerValue.includes('tuesday') ||
+      lowerValue.includes('الأربعاء') || lowerValue.includes('الاربعاء') || lowerValue.includes('wednesday') ||
+      lowerValue.includes('الخميس') || lowerValue.includes('thursday');
+  };
+
+  const isNotesStart = (value: string): boolean =>
+    /^(notes?|ملاحظات(?:\s+أخرى)?|ملاحظات أخرى)\s*[:：-]|please\s+bring\b|bring\b|يرجى\s+إحضار|إحضار|احضار/i.test(value.trim());
+
+  const isNotesContinuation = (value: string): boolean =>
+    /^(board|marker|chart|whiteboard|and\s+100|100\s+chart|و?ماركر|ومخطط|الـ?100)\b/i.test(value.trim());
+
+  const attachPendingNotes = () => {
+    const note = pendingNoteLines.join(' ').replace(/\s+/g, ' ').trim();
+    if (note) {
+      for (let i = tasks.length - 1; i >= 0; i -= 1) {
+        if (tasks[i].day === currentDay && tasks[i].subjectId === 'math') {
+          tasks[i].notes = note;
+          break;
+        }
+      }
+    }
+    pendingNoteLines = [];
+  };
 
   lines.forEach((line, index) => {
+    const trimmedLine = line.trim();
+    // A PDF row often ends with a multi-line Notes cell immediately before
+    // the next day header. Attach that note to the previous day's Math task
+    // before changing currentDay, otherwise it is lost or assigned late.
+    if (pendingNoteLines.length > 0 && isDayHeader(trimmedLine)) {
+      attachPendingNotes();
+    }
+    if (isNotesStart(trimmedLine)) {
+      attachPendingNotes();
+      const inline = trimmedLine.match(/^(?:notes?|ملاحظات(?:\s+أخرى)?|ملاحظات أخرى)\s*[:：-]\s*(.*)$/i)?.[1];
+      pendingNoteLines = [inline?.trim() || trimmedLine];
+      return;
+    }
+    if (pendingNoteLines.length > 0 && (isNotesContinuation(trimmedLine) || !isDayHeader(trimmedLine))) {
+      // PDF layout splits one Notes cell over several physical lines.
+      // Keep collecting until the next day or a new recognizable row.
+      if (isNotesContinuation(trimmedLine)) {
+        pendingNoteLines.push(trimmedLine);
+        return;
+      }
+      attachPendingNotes();
+    }
+
     const cells = line.split('\t').map((cell) => cell.trim());
     const headerCellIndex = cells.findIndex((cell) =>
       /^(notes?|ملاحظات(?:\s+أخرى)?|ملاحظات أخرى)$/i.test(cell)
@@ -259,9 +311,7 @@ export function parseWeeklyPlanTextWithLinks(
       notesColumnIndex = headerCellIndex;
     }
     const inlineNote = line.match(/(?:notes?|ملاحظات(?:\s+أخرى)?)\s*[:：-]\s*(.+)$/i)?.[1]?.trim();
-    const rowNote = notesColumnIndex >= 0
-      ? cells[notesColumnIndex]?.trim()
-      : inlineNote;
+    const rowNote = notesColumnIndex >= 0 ? cells[notesColumnIndex]?.trim() : inlineNote;
     const lower = line.toLowerCase();
 
     // Check for day change
@@ -348,5 +398,6 @@ export function parseWeeklyPlanTextWithLinks(
     }
   });
 
+  attachPendingNotes();
   return processTasksAndExtractLinkTasks(tasks, subjects);
 }
