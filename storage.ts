@@ -434,8 +434,8 @@ export function getInitialWeeklyPlansArchive(): WeeklyPlanArchiveEntry[] {
     weekNumber: 1,
     title: 'Block 1 - Week 1',
     createdAt: Date.now(),
-    startDate: 'الأحد 31 أغسطس',
-    endDate: 'الخميس 4 سبتمبر',
+    startDate: 'الأحد 6 سبتمبر 2026',
+    endDate: 'الخميس 10 سبتمبر 2026',
     tasksBySection: {
       '2A': filterOutArtTasks(TASKS_2A),
       '2B': filterOutArtTasks(TASKS_2B),
@@ -447,6 +447,34 @@ export function getInitialWeeklyPlansArchive(): WeeklyPlanArchiveEntry[] {
   };
 
   return [week1Entry];
+}
+
+// Keep an already-saved local Week 1 archive aligned with the official ICT
+// plan shipped in the application. This is intentionally limited to ICT and
+// b1-w1 so other administrator-edited subjects/weeks remain untouched.
+function mergeOfficialWeek1IctTasks(entry: WeeklyPlanArchiveEntry): WeeklyPlanArchiveEntry {
+  if (entry.id !== 'b1-w1') return entry;
+  const defaultsBySection: Record<GradeSection, PlanTask[]> = {
+    '2A': filterOutArtTasks(TASKS_2A),
+    '2B': filterOutArtTasks(TASKS_2B),
+    '2C': filterOutArtTasks(TASKS_2C),
+  };
+  const tasksBySection = (['2A', '2B', '2C'] as GradeSection[]).reduce(
+    (result, section) => {
+      const savedTasks = entry.tasksBySection?.[section] || [];
+      const savedNonIct = savedTasks.filter((task) => task.subjectId !== 'ict');
+      const officialIct = defaultsBySection[section].filter((task) => task.subjectId === 'ict');
+      result[section] = [...savedNonIct, ...officialIct];
+      return result;
+    },
+    {} as Record<GradeSection, PlanTask[]>
+  );
+  return {
+    ...entry,
+    startDate: 'الأحد 6 سبتمبر 2026',
+    endDate: 'الخميس 10 سبتمبر 2026',
+    tasksBySection,
+  };
 }
 
 export function loadWeeklyPlansArchive(): WeeklyPlanArchiveEntry[] {
@@ -471,7 +499,7 @@ export function loadWeeklyPlansArchive(): WeeklyPlanArchiveEntry[] {
 
         // Ensure each entry has tasks filtered and default title set to Block 1 - Week 1
         return entries.map((entry) => ({
-          ...entry,
+          ...mergeOfficialWeek1IctTasks(entry),
           title:
             entry.id === 'b1-w1' && (!entry.title || entry.title.includes('الأسبوع الأول') || entry.title.includes('Week 1 Plan'))
               ? 'Block 1 - Week 1'
