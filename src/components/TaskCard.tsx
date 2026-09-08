@@ -78,9 +78,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       {/* Subject Icon & Task Details */}
       <div className={`flex items-start sm:items-center flex-1 min-w-0 ${compact ? 'gap-2.5 sm:gap-3' : 'gap-3.5 sm:gap-4'}`}>
         <div
-          className={`${compact ? 'w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-xl' : 'w-11 h-11 sm:w-13 sm:h-13 rounded-2xl'} flex items-center justify-center shrink-0 border ${iconBg} ${iconColor} ${borderColor} shadow-2xs group-hover:scale-105 transition-transform`}
+          className={`${compact ? 'w-9 h-9 rounded-xl' : 'w-11 h-11 sm:w-13 sm:h-13 rounded-2xl'} flex items-center justify-center shrink-0 border ${iconBg} ${iconColor} ${borderColor} shadow-2xs group-hover:scale-105 transition-transform`}
         >
-          <SubjectIcon name={subject?.iconName || 'BookOpen'} className={`${compact ? 'w-4 h-4 sm:w-4.5 sm:h-4.5 md:w-5 md:h-5 lg:w-5.5 lg:h-5.5' : 'w-5 h-5 sm:w-6 sm:h-6'} stroke-[2]`} />
+          <SubjectIcon name={subject?.iconName || 'BookOpen'} className={`${compact ? 'w-4 h-4' : 'w-5 h-5 sm:w-6 sm:h-6'} stroke-[2]`} />
         </div>
 
         <div className="flex-1 min-w-0">
