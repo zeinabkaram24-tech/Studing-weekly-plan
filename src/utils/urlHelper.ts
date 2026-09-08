@@ -248,8 +248,20 @@ export function parseWeeklyPlanTextWithLinks(
   const lines = rawText.split('\n').map((l) => l.trim()).filter(Boolean);
   const tasks: PlanTask[] = [];
   let currentDay = defaultDay;
+  let notesColumnIndex = -1;
 
   lines.forEach((line, index) => {
+    const cells = line.split('\t').map((cell) => cell.trim());
+    const headerCellIndex = cells.findIndex((cell) =>
+      /^(notes?|ملاحظات(?:\s+أخرى)?|ملاحظات أخرى)$/i.test(cell)
+    );
+    if (headerCellIndex >= 0) {
+      notesColumnIndex = headerCellIndex;
+    }
+    const inlineNote = line.match(/(?:notes?|ملاحظات(?:\s+أخرى)?)\s*[:：-]\s*(.+)$/i)?.[1]?.trim();
+    const rowNote = notesColumnIndex >= 0
+      ? cells[notesColumnIndex]?.trim()
+      : inlineNote;
     const lower = line.toLowerCase();
 
     // Check for day change
@@ -329,6 +341,7 @@ export function parseWeeklyPlanTextWithLinks(
         pages,
         linkUrl: urls[0] || undefined,
         details: urls.length > 0 ? `رابط مرفق: ${urls.join(', ')}` : undefined,
+        notes: rowNote || undefined,
         isDone: false,
         createdAt: Date.now(),
       });
@@ -337,4 +350,3 @@ export function parseWeeklyPlanTextWithLinks(
 
   return processTasksAndExtractLinkTasks(tasks, subjects);
 }
-
