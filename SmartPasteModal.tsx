@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { DAYS_LIST } from '../data/defaultData';
-import { DayOfWeek, PlanTask, Subject } from '../types';
+import { DayOfWeek, PlanTask, Subject, TaskType } from '../types';
 import { X, Sparkles, Check, ExternalLink, Headphones } from 'lucide-react';
-import { parseWeeklyPlanTextWithLinks } from '../utils/urlHelper';
+import { processTasksAndExtractLinkTasks, extractAllUrls, extractFirstUrl } from '../utils/urlHelper';
 
 interface SmartPasteModalProps {
   isOpen: boolean;
@@ -27,8 +27,101 @@ export const SmartPasteModal: React.FC<SmartPasteModalProps> = ({
 
   const handleParse = () => {
     if (!inputText.trim()) return;
-    const parsed = parseWeeklyPlanTextWithLinks(inputText, targetDay, subjects);
-    setParsedPreview(parsed.map(({ id, createdAt, ...task }) => task));
+    const lines = inputText.split('\n').map((l) => l.trim()).filter(Boolean);
+    const newTasks: Omit<PlanTask, 'id' | 'createdAt'>[] = [];
+    let currentDay = targetDay;
+
+    for (const line of lines) {
+      const lower = line.toLowerCase();
+      // Detect day in Arabic or English
+      if (lower.includes('الأحد') || lower.includes('sunday')) currentDay = 'sunday';
+      else if (lower.includes('الإثنين') || lower.includes('الاثنين') || lower.includes('monday')) currentDay = 'monday';
+      else if (lower.includes('الثلاثاء') || lower.includes('tuesday')) currentDay = 'tuesday';
+      else if (lower.includes('الأربعاء') || lower.includes('الاربعاء') || lower.includes('wednesday')) currentDay = 'wednesday';
+      else if (lower.includes('الخميس') || lower.includes('thursday')) currentDay = 'thursday';
+
+      // Match Subject
+      let matchedSubject = subjects.find((s) => s.id === 'math');
+      let taskType: TaskType = 'homework';
+
+      if (lower.includes('math') || lower.includes('رياضيات') || lower.includes('حساب')) {
+        matchedSubject = subjects.find((s) => s.id === 'math');
+      } else if (lower.includes('english') || lower.includes('انجليزي') || lower.includes('إنجليزي') || lower.includes('connect')) {
+        matchedSubject = subjects.find((s) => s.id === 'english');
+      } else if (lower.includes('science') || lower.includes('علوم') || lower.includes('discover')) {
+        matchedSubject = subjects.find((s) => s.id === 'science');
+      } else if (lower.includes('français') || lower.includes('francais') || lower.includes('french') || lower.includes('فرنساوي') || lower.includes('فرنسي')) {
+        matchedSubject = subjects.find((s) => s.id === 'french');
+      } else if (lower.includes('arabic') || lower.includes('عربي') || lower.includes('لغة عربية')) {
+        matchedSubject = subjects.find((s) => s.id === 'arabic');
+      } else if (lower.includes('social') || lower.includes('دراسات')) {
+        matchedSubject = subjects.find((s) => s.id === 'social_studies');
+      } else if (lower.includes('دين') || lower.includes('religion') || lower.includes('تربية دينية') || lower.includes('islamic')) {
+        matchedSubject = subjects.find((s) => s.id === 'religion');
+      } else if (lower.includes('ict') || lower.includes('computer') || lower.includes('حاسب') || lower.includes('تكنولوجيا')) {
+        matchedSubject = subjects.find((s) => s.id === 'ict');
+      } else if (lower.includes('art') || lower.includes('رسم') || lower.includes('فنية')) {
+        matchedSubject = subjects.find((s) => s.id === 'arts');
+      } else if (lower.includes('music') || lower.includes('موسيقى')) {
+        matchedSubject = subjects.find((s) => s.id === 'music');
+      } else if (lower.includes('pe') || lower.includes('رياضة') || lower.includes('بدنية')) {
+        matchedSubject = subjects.find((s) => s.id === 'pe');
+      }
+
+      // Check task type
+      if (lower.includes('إملاء') || lower.includes('املاء') || lower.includes('spelling') || lower.includes('dictation')) {
+        taskType = 'dictation';
+      } else if (lower.includes('مذاكرة') || lower.includes('حفظ') || lower.includes('study') || lower.includes('قراءة')) {
+        taskType = 'study';
+      } else if (lower.includes('كويز') || lower.includes('امتحان') || lower.includes('quiz') || lower.includes('test')) {
+        taskType = 'quiz';
+      } else if (lower.includes('أدوات') || lower.includes('احضار') || lower.includes('supplies') || lower.includes('white board')) {
+        taskType = 'supplies';
+      } else if (lower.includes('classwork') || lower.includes('شرح') || lower.includes('داخل الفصل') || lower.includes('fiche de classe')) {
+        taskType = 'classwork';
+      }
+
+      // Extract pages
+      const pageMatch = line.match(/(?:p\.|page|صفحة|ص|pages)\s*([0-9\u0660-\u0669]+(?:\s*[-–toإلى]\s*[0-9\u0660-\u0669]+)?)/i);
+      const pages = pageMatch ? pageMatch[0] : undefined;
+
+      // Clean Title
+      let title = line;
+      if (line.includes(':')) {
+        const parts = line.split(':');
+        title = parts.slice(1).join(':').trim();
+      } else if (line.includes('-')) {
+        const parts = line.split('-');
+        if (parts.length > 1 && parts[0].length < 20) {
+          title = parts.slice(1).join('-').trim();
+        }
+      }
+
+      if (title.length > 2 && !title.startsWith('الخطة') && !title.startsWith('Weekly Plan')) {
+        const lineUrls = extractAllUrls(line);
+        newTasks.push({
+          day: currentDay,
+          subjectId: matchedSubject?.id || 'math',
+          type: taskType,
+          title: title.slice(0, 90),
+          details: line,
+          pages,
+          linkUrl: lineUrls[0] || undefined,
+          isDone: false,
+        });
+      }
+    }
+
+    // Automatically expand any URLs into separate 'استماع / مشاهدة الرابط التالي: [اسم المادة أو الدرس]' tasks
+    const tempFullTasks: PlanTask[] = newTasks.map((t, i) => ({
+      ...t,
+      id: `temp-${Date.now()}-${i}`,
+      createdAt: Date.now(),
+    }));
+    const expanded = processTasksAndExtractLinkTasks(tempFullTasks, subjects);
+    const finalCleaned: Omit<PlanTask, 'id' | 'createdAt'>[] = expanded.map(({ id, createdAt, ...rest }) => rest);
+
+    setParsedPreview(finalCleaned);
   };
 
   const handleConfirmImport = () => {

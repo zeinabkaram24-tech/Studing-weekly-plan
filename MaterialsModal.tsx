@@ -54,67 +54,54 @@ export const MaterialsModal: React.FC<MaterialsModalProps> = ({
   const [viewingSheet, setViewingSheet] = useState<MaterialItem | null>(null);
   const [viewingFileUrl, setViewingFileUrl] = useState<string | null>(null);
   const [isResolvingUrl, setIsResolvingUrl] = useState<boolean>(false);
-  const [viewerError, setViewerError] = useState<string | null>(null);
   const [solvedExercises, setSolvedExercises] = useState<Record<string, boolean>>({});
 
-  // Load materials on open
+  // Load the local cache immediately, then hydrate it from the shared server
+  // store so students/visitors see the same admin-uploaded materials.
   useEffect(() => {
-    if (!isOpen) {
-      setViewingSheet(null);
-      return;
-    }
-
-    let isMounted = true;
-    const localMaterials = getSavedMaterials();
-    setMaterials(localMaterials);
-
-    // Public read path: every role refreshes the shared list. Admin is only
-    // required for mutations; reading never sends a PIN or session flag.
-    syncMaterialsFromServer().then((syncedMaterials) => {
-      if (isMounted) setMaterials(syncedMaterials);
+    if (!isOpen) return;
+    let active = true;
+    setMaterials(getSavedMaterials());
+    syncMaterialsFromServer().then((serverMaterials) => {
+      if (active) setMaterials(serverMaterials);
     });
-
+    const refresh = () => {
+      if (active) syncMaterialsFromServer().then((next) => active && setMaterials(next));
+    };
+    window.addEventListener('focus', refresh);
+    window.addEventListener('storage', refresh);
     return () => {
-      isMounted = false;
+      active = false;
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('storage', refresh);
     };
   }, [isOpen]);
 
-  // Resolve a fresh file URL for every open and revoke it when the viewer closes.
+  // Resolve file URL for viewingSheet safely after verifying it exists
   useEffect(() => {
     let isMounted = true;
-    let createdObjectUrl: string | null = null;
     if (viewingSheet) {
       setViewingFileUrl(null);
-      setViewerError(null);
       setIsResolvingUrl(true);
       getMaterialFileUrl(viewingSheet)
         .then((url) => {
           if (isMounted) {
-            if (url?.startsWith('blob:')) createdObjectUrl = url;
             setViewingFileUrl(url);
-            const hasOriginalFile = Boolean(viewingSheet.fileName || viewingSheet.fileUrl || viewingSheet.fileData);
-            if (!url && hasOriginalFile) {
-              setViewerError('تعذر العثور على الملف الأصلي. اضغطي «تنزيل» للمحاولة من الخادم مرة أخرى.');
-            }
             setIsResolvingUrl(false);
           }
         })
-        .catch((error) => {
-          console.warn('Failed to resolve material for public viewer:', error);
+        .catch(() => {
           if (isMounted) {
             setViewingFileUrl(null);
-            setViewerError('حدث خطأ مؤقت أثناء تجهيز الملف. يرجى المحاولة مرة أخرى.');
             setIsResolvingUrl(false);
           }
         });
     } else {
       setViewingFileUrl(null);
-      setViewerError(null);
       setIsResolvingUrl(false);
     }
     return () => {
       isMounted = false;
-      if (createdObjectUrl) URL.revokeObjectURL(createdObjectUrl);
     };
   }, [viewingSheet]);
 
@@ -680,23 +667,6 @@ export const MaterialsModal: React.FC<MaterialsModalProps> = ({
                 <div className="w-full h-[72vh] sm:h-[76vh] rounded-2xl flex flex-col items-center justify-center border border-slate-800 bg-slate-950 text-slate-400 space-y-3">
                   <div className="w-8 h-8 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin" />
                   <p className="text-xs font-bold text-slate-300">جاري فتح وتجهيز الشيت بالتنسيق الأصلي...</p>
-                </div>
-              ) : viewerError ? (
-                <div className="w-full h-[72vh] sm:h-[76vh] rounded-2xl flex flex-col items-center justify-center border border-rose-900/40 bg-slate-950 text-center text-slate-300 space-y-3 p-6">
-                  <AlertCircle className="w-10 h-10 text-rose-400" />
-                  <p className="text-sm font-bold text-white">تعذر فتح الملف</p>
-                  <p className="text-xs leading-6 max-w-md">{viewerError}</p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const current = viewingSheet;
-                      setViewingSheet(null);
-                      window.setTimeout(() => setViewingSheet(current), 0);
-                    }}
-                    className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold cursor-pointer"
-                  >
-                    إعادة المحاولة
-                  </button>
                 </div>
               ) : viewingFileUrl ? (
                 <div className="w-full h-[72vh] sm:h-[76vh] rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 shadow-inner">

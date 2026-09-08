@@ -51,6 +51,7 @@ import {
 import { VisitorStatsSummary } from '../types';
 import { VisitorStatsPanel } from './VisitorStatsPanel';
 import { processTasksAndExtractLinkTasks, extractFirstUrl, parseWeeklyPlanTextWithLinks } from '../utils/urlHelper';
+import { extractWeeklyPlanText } from '../utils/planFileParser';
 
 export type AdminUploadTab = 'materials' | 'visitors' | 'weekly_plan' | 'history';
 
@@ -227,13 +228,13 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
   subjects.forEach((s) => subjectMap.set(s.id, s));
 
   // Handle files selection for Weekly Plan
-  const handleFiles = (files: FileList | null) => {
+  const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
     const newFiles: UploadedPlanFile[] = [];
     const newGeneratedTasks: Omit<PlanTask, 'id' | 'createdAt'>[] = [];
 
-    Array.from(files).forEach((file, index) => {
+    await Promise.all(Array.from(files).map(async (file, index) => {
       const fileId = `file-${Date.now()}-${index}`;
       const fileNameLower = file.name.toLowerCase();
 
@@ -252,6 +253,26 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
         guessedSubjectId = 'computer';
       }
 
+      let extractedCount = 0;
+      try {
+        const rawText = await extractWeeklyPlanText(file);
+        const extracted = parseWeeklyPlanTextWithLinks(
+          rawText,
+          'sunday',
+          subjects,
+          targetSection === 'all' ? undefined : targetSection
+        );
+        if (extracted.length > 0) {
+          extractedCount = extracted.length;
+          newGeneratedTasks.push(...extracted.map(({ id, createdAt, ...task }) => ({
+            ...task,
+            subjectId: task.subjectId || guessedSubjectId,
+          })));
+        }
+      } catch (error) {
+        console.warn('Could not extract weekly plan file; using a visible fallback task:', error);
+      }
+
       newFiles.push({
         id: fileId,
         name: file.name,
@@ -259,21 +280,24 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
         type: file.type || 'application/octet-stream',
         uploadDate: Date.now(),
         weekName: weekTitle,
-      });
-
-      const dayKeys: DayOfWeek[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'];
-      const targetDay = dayKeys[index % dayKeys.length];
-
-      newGeneratedTasks.push({
         subjectId: guessedSubjectId,
-        day: targetDay,
-        type: 'homework' as TaskType,
-        title: `مهمة أسبوعية من ملف: ${file.name.replace(/\.[^/.]+$/, '')}`,
-        details: `تم توليدها تلقائياً من الملف المرفوع لـ (Block ${blockNumber} - Week ${weekNumber})`,
-        isDone: false,
-        section: targetSection === 'all' ? undefined : targetSection,
+        extractedTaskCount: extractedCount,
       });
-    });
+
+      if (extractedCount === 0) {
+        const dayKeys: DayOfWeek[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'];
+        const targetDay = dayKeys[index % dayKeys.length];
+        newGeneratedTasks.push({
+          subjectId: guessedSubjectId,
+          day: targetDay,
+          type: 'homework' as TaskType,
+          title: `مهمة أسبوعية من ملف: ${file.name.replace(/\.[^/.]+$/, '')}`,
+          details: `تم رفع الملف بالكامل، ولم يتم العثور على نص قابل للاستخراج تلقائياً. (Block ${blockNumber} - Week ${weekNumber})`,
+          isDone: false,
+          section: targetSection === 'all' ? undefined : targetSection,
+        });
+      }
+    }));
 
     setUploadedFilesList((prev) => [...prev, ...newFiles]);
     setGeneratedTasks((prev) => [...prev, ...newGeneratedTasks]);
