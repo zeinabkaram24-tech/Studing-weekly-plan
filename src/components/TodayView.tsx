@@ -519,10 +519,11 @@ export const TodayView: React.FC<TodayViewProps> = ({
               {homeworkTasks.map((task) => {
                 const subj = subjectMap.get(task.subjectId);
                 return (
-                  <div key={task.id} className="rounded-2xl ring-2 ring-amber-200/80 shadow-sm [&>div]:border-amber-200 [&>div]:bg-white/95">
+                  <div key={task.id} className="rounded-xl ring-1 ring-amber-200/80 shadow-sm [&>div]:border-amber-200 [&>div]:bg-white/95">
                     <TaskCard
                       task={task}
                       subject={subj}
+                      compact
                       onToggleDone={onToggleDone}
                       onEdit={onEditTask}
                       onDelete={onDeleteTask}
