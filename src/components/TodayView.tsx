@@ -8,7 +8,6 @@ import { triggerAllDoneCelebration } from '../utils/celebration';
 import {
   CheckCircle2,
   Layers,
-  Plus,
   Share2,
   Sparkles,
   Check,
@@ -17,7 +16,6 @@ import {
   ExternalLink,
   ChevronLeft,
   ChevronRight,
-  ListTodo,
   FolderArchive,
   FolderOpen,
 } from 'lucide-react';
@@ -60,9 +58,7 @@ export const TodayView: React.FC<TodayViewProps> = ({
   onEditTask,
   onDeleteTask,
   onSavePersonalNote,
-  onAddTaskForDay,
   onOpenTimetableModal,
-  onOpenWeekDaysModal,
   onOpenArchiveModal,
   onOpenMaterialsModal,
   activeBlockNumber = 1,
@@ -230,18 +226,6 @@ export const TodayView: React.FC<TodayViewProps> = ({
             <span className="font-bold">عرض الجدول ({selectedSection})</span>
           </button>
 
-          {/* Requested Icon 2: All Days of Week & Weekly Plan Button */}
-          <button
-            type="button"
-            id="btn-open-weekdays-modal"
-            onClick={onOpenWeekDaysModal}
-            className="px-4 py-2.5 rounded-2xl text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white shadow-sm transition-all duration-150 flex items-center gap-2 font-sans active:scale-95 cursor-pointer"
-            title="عرض كل أيام الأسبوع والمخطط الكامل"
-          >
-            <ListTodo className="w-4 h-4 text-purple-200 stroke-[2.5]" />
-            <span className="font-bold">أيام الأسبوع والمخطط</span>
-          </button>
-
           {/* Requested Feature: Archive & Memory of Weeks Button */}
           {onOpenArchiveModal && (
             <button
@@ -309,20 +293,14 @@ export const TodayView: React.FC<TodayViewProps> = ({
               <ChevronRight className="w-5 h-5" />
             </button>
 
-            {/* Clickable Day Title that opens Weekdays Planner Modal as requested */}
-            <button
-              type="button"
-              onClick={onOpenWeekDaysModal}
-              className="text-right group flex items-baseline gap-2.5"
-              title="اضغط هنا لعرض كل أيام الأسبوع والمخطط"
-            >
+            <div className="text-right flex items-baseline gap-2.5">
               <h2 className="text-3xl sm:text-4xl font-black text-slate-900 group-hover:text-indigo-600 transition-colors">
                 يوم {currentDayInfo.nameAr}
               </h2>
               <span className="text-indigo-600 text-lg sm:text-xl font-bold font-sans">
                 {currentDayInfo.nameEn}
               </span>
-            </button>
+            </div>
 
             <button
               type="button"
@@ -503,16 +481,6 @@ export const TodayView: React.FC<TodayViewProps> = ({
             </button>
           )}
 
-          {!isVisitor && (
-            <button
-              type="button"
-              onClick={() => onAddTaskForDay(selectedDay)}
-              className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors flex items-center gap-1.5 shadow-xs font-sans"
-            >
-              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-              <span>Add Task</span>
-            </button>
-          )}
         </div>
       </div>
 
@@ -613,22 +581,6 @@ export const TodayView: React.FC<TodayViewProps> = ({
           )}
         </div>
 
-        {!isVisitor && (
-          <div
-            id="btn-add-task-today-grid"
-            onClick={() => onAddTaskForDay(selectedDay)}
-            className="bg-slate-50 hover:bg-indigo-50/60 border-2 border-dashed border-slate-300 hover:border-indigo-400 p-6 rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all duration-150 group text-center min-h-[110px]"
-            title="إضافة مهمة جديدة لخطة اليوم"
-          >
-            <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-              <Plus className="w-5 h-5 stroke-[2.5]" />
-            </div>
-            <span className="text-slate-800 group-hover:text-indigo-700 font-bold text-sm">
-              إضافة خطة مادة / واجب ليوم {currentDayInfo.nameAr}
-            </span>
-            <span className="text-slate-400 text-xs mt-0.5 font-sans">Add Weekly Plan Task</span>
-          </div>
-        )}
       </section>
 
       {/* Empty State message if filter returned empty */}
