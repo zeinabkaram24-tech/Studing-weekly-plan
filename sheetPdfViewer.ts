@@ -793,14 +793,40 @@ export async function printMaterialSheet(
   item: MaterialItem,
   subjectNameAr: string
 ): Promise<void> {
+  // Open synchronously inside the click handler so popup blockers do not
+  // suppress the print tab while IndexedDB/server data is being resolved.
+  const printWin = window.open('about:blank', '_blank');
+  if (!printWin) {
+    alert('تم حظر فتح نافذة الطباعة. يرجى السماح بالنوافذ المنبثقة لهذا الموقع.');
+    return;
+  }
+  printWin.document.write('<!doctype html><title>جاري تجهيز الملف للطباعة...</title><p style="font-family:sans-serif;text-align:center;margin-top:20vh">جاري تجهيز الملف للطباعة...</p>');
+  printWin.document.close();
+
+  const navigateAndPrint = (url: string, revoke?: () => void) => {
+    let printed = false;
+    const printOnce = () => {
+      if (printed) return;
+      printed = true;
+      printWin.focus();
+      // Give the browser PDF viewer a moment to finish rendering before the
+      // native print dialog is opened.
+      window.setTimeout(() => printWin.print(), 250);
+      if (revoke) window.setTimeout(revoke, 60_000);
+    };
+    printWin.addEventListener('load', printOnce, { once: true });
+    printWin.location.href = url;
+    // Some embedded PDF viewers do not dispatch load reliably.
+    window.setTimeout(printOnce, 1800);
+  };
+
   try {
     if (item.fileName) {
       const serverUrl = `/api/materials/file/${encodeURIComponent(item.fileName)}`;
       try {
         const check = await fetch(serverUrl, { method: 'HEAD' });
         if (check.ok) {
-          const printWin = window.open(serverUrl, '_blank');
-          if (printWin) printWin.focus();
+          navigateAndPrint(serverUrl);
           return;
         }
       } catch {
@@ -817,41 +843,31 @@ export async function printMaterialSheet(
       const mime = isPdf ? 'application/pdf' : (storedBlob.type || 'application/pdf');
       const blob = new Blob([storedBlob], { type: mime });
       const blobUrl = URL.createObjectURL(blob);
-      const printWin = window.open(blobUrl, '_blank');
-      if (printWin) {
-        printWin.focus();
-      }
+      navigateAndPrint(blobUrl, () => URL.revokeObjectURL(blobUrl));
       return;
     }
 
     if (item.fileData) {
       const blob = dataUrlToBlob(item.fileData);
       const blobUrl = URL.createObjectURL(blob);
-      const printWin = window.open(blobUrl, '_blank');
-      if (printWin) {
-        printWin.focus();
-      }
+      navigateAndPrint(blobUrl, () => URL.revokeObjectURL(blobUrl));
       return;
     }
 
     if (item.fileUrl && item.fileUrl.startsWith('http')) {
-      window.open(item.fileUrl, '_blank');
+      navigateAndPrint(item.fileUrl);
       return;
     }
 
     // Printable HTML fallback
-    const printWin = window.open('about:blank', '_blank');
-    if (printWin) {
-      const fullHtml = generateSheetHtml(item, subjectNameAr);
-      printWin.document.open();
-      printWin.document.write(fullHtml);
-      printWin.document.close();
-      setTimeout(() => {
-        printWin.print();
-      }, 500);
-    }
+    const fullHtml = generateSheetHtml(item, subjectNameAr);
+    printWin.document.open();
+    printWin.document.write(fullHtml);
+    printWin.document.close();
+    printWin.onload = () => window.setTimeout(() => printWin.print(), 500);
   } catch (err) {
     console.error('Error printing material sheet:', err);
+    printWin.close();
   }
 }
 

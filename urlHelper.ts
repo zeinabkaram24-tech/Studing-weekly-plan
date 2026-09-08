@@ -181,17 +181,22 @@ export function processTasksAndExtractLinkTasks(tasks: PlanTask[], subjects?: Su
     // Determine subject name
     const subjectName = subjectMap.get(task.subjectId) || (task.subjectId ? task.subjectId.toUpperCase() : 'المادة');
 
-    // Never rewrite, truncate, or drop the original task. Its title/details/
-    // notes are the source of truth for the weekly plan and must remain exactly
-    // as entered. Link tasks are added alongside it, not instead of it.
-    result.push({ ...task });
-
-    // Use a cleaned copy only for the label of the separate link task.
-    let lessonTitle = task.title.trim();
+    // Clean title from the raw URL
+    let cleanedTitle = task.title;
     allUrls.forEach((u) => {
-      lessonTitle = lessonTitle.replace(u, '');
+      cleanedTitle = cleanedTitle.replace(u, '').replace(/(?:رابط|link|فيديو|video|url)[:\s-]*/gi, '').trim();
     });
-    lessonTitle = lessonTitle.replace(/(?:رابط|link|فيديو|video|url)[:\s-]*/gi, '').trim() || subjectName;
+
+    const lessonTitle = cleanedTitle.length > 2 ? cleanedTitle : subjectName;
+    const hasSubstantiveTask = cleanedTitle.length > 2 || (task.pages && task.pages.length > 0);
+
+    // Keep the main task if it had substantive non-link content (e.g. homework, pages)
+    if (hasSubstantiveTask) {
+      result.push({
+        ...task,
+        title: cleanedTitle || task.title,
+      });
+    }
 
     // Create a separate distinct task for each URL
     allUrls.forEach((url, idx) => {
@@ -240,53 +245,55 @@ export function parseWeeklyPlanTextWithLinks(
 ): PlanTask[] {
   if (!rawText || !rawText.trim()) return [];
 
-  const lines = rawText.split('\n').map((l) => l.trim()).filter(Boolean);
+  // Normalize common table exports while preserving the original row text.
+  // This keeps every cell/detail available to the student instead of reducing
+  // a row to only the first detected phrase.
+  const lines = rawText
+    .replace(/\r/g, '')
+    .split('\n')
+    .flatMap((line) => line.includes('\t') ? [line, ...line.split('\t').filter(Boolean)] : [line])
+    .map((l) => l.trim())
+    .filter(Boolean);
   const tasks: PlanTask[] = [];
   let currentDay = defaultDay;
 
-  lines.forEach((sourceLine, index) => {
-    // A day is recognized only as a line/header prefix. This prevents a word
-    // such as "Monday" inside a homework explanation from moving the task.
-    const dayHeader = sourceLine.match(/^(?:day\s*)?(الأحد|sunday|الإثنين|الاثنين|monday|الثلاثاء|tuesday|الأربعاء|الاربعاء|wednesday|الخميس|thursday)(?:\s*[:\-|]\s*|\t+|\s*$)/i);
-    let line = sourceLine;
-    if (dayHeader) {
-      const dayName = dayHeader[1].toLowerCase();
-      if (dayName === 'الأحد' || dayName === 'sunday') currentDay = 'sunday';
-      else if (dayName === 'الإثنين' || dayName === 'الاثنين' || dayName === 'monday') currentDay = 'monday';
-      else if (dayName === 'الثلاثاء' || dayName === 'tuesday') currentDay = 'tuesday';
-      else if (dayName === 'الأربعاء' || dayName === 'الاربعاء' || dayName === 'wednesday') currentDay = 'wednesday';
-      else if (dayName === 'الخميس' || dayName === 'thursday') currentDay = 'thursday';
-      line = sourceLine.slice(dayHeader[0].length).trim();
-      if (!line) return;
-    }
-
+  lines.forEach((line, index) => {
     const lower = line.toLowerCase();
-    const subjectPrefix = line.match(/^([^:–\-|\t]{1,40})\s*(?:[:–\-|]|\t+)\s*/)?.[1]?.trim();
-    const subjectText = (subjectPrefix || line).toLowerCase();
+
+    // Check for day change
+    if (lower.includes('الأحد') || lower.includes('sunday')) currentDay = 'sunday';
+    else if (lower.includes('الإثنين') || lower.includes('الاثنين') || lower.includes('monday')) currentDay = 'monday';
+    else if (lower.includes('الثلاثاء') || lower.includes('tuesday')) currentDay = 'tuesday';
+    else if (lower.includes('الأربعاء') || lower.includes('الاربعاء') || lower.includes('wednesday')) currentDay = 'wednesday';
+    else if (lower.includes('الخميس') || lower.includes('thursday')) currentDay = 'thursday';
+    else if (lower.includes('الجمعة') || lower.includes('friday')) currentDay = 'friday';
+
+    const isDayOnlyHeader = /^(الأحد|الاحد|الإثنين|الاثنين|الثلاثاء|الأربعاء|الاربعاء|الخميس|الجمعة|sunday|monday|tuesday|wednesday|thursday|friday)\s*[:：-]?$/i.test(line);
+    if (isDayOnlyHeader) return;
 
     // Match Subject
     let matchedSubject = subjects.find((s) => s.id === 'math');
-    if (subjectText.includes('math') || subjectText.includes('رياضيات') || subjectText.includes('حساب')) {
+    if (lower.includes('math') || lower.includes('رياضيات') || lower.includes('حساب')) {
       matchedSubject = subjects.find((s) => s.id === 'math');
-    } else if (subjectText.includes('english') || subjectText.includes('انجليزي') || subjectText.includes('إنجليزي') || subjectText.includes('connect')) {
+    } else if (lower.includes('english') || lower.includes('انجليزي') || lower.includes('إنجليزي') || lower.includes('connect')) {
       matchedSubject = subjects.find((s) => s.id === 'english');
-    } else if (subjectText.includes('science') || subjectText.includes('علوم') || subjectText.includes('discover')) {
+    } else if (lower.includes('science') || lower.includes('علوم') || lower.includes('discover')) {
       matchedSubject = subjects.find((s) => s.id === 'science');
-    } else if (subjectText.includes('français') || subjectText.includes('francais') || subjectText.includes('french') || subjectText.includes('فرنساوي') || subjectText.includes('فرنسي')) {
+    } else if (lower.includes('français') || lower.includes('francais') || lower.includes('french') || lower.includes('فرنساوي') || lower.includes('فرنسي')) {
       matchedSubject = subjects.find((s) => s.id === 'french');
-    } else if (subjectText.includes('arabic') || subjectText.includes('عربي') || subjectText.includes('لغة عربية')) {
+    } else if (lower.includes('arabic') || lower.includes('عربي') || lower.includes('لغة عربية')) {
       matchedSubject = subjects.find((s) => s.id === 'arabic');
-    } else if (subjectText.includes('social') || subjectText.includes('دراسات')) {
+    } else if (lower.includes('social') || lower.includes('دراسات')) {
       matchedSubject = subjects.find((s) => s.id === 'social_studies');
-    } else if (subjectText.includes('دين') || subjectText.includes('religion') || subjectText.includes('تربية دينية') || subjectText.includes('islamic')) {
+    } else if (lower.includes('دين') || lower.includes('religion') || lower.includes('تربية دينية') || lower.includes('islamic')) {
       matchedSubject = subjects.find((s) => s.id === 'religion');
-    } else if (subjectText.includes('ict') || subjectText.includes('computer') || subjectText.includes('حاسب') || subjectText.includes('تكنولوجيا')) {
+    } else if (lower.includes('ict') || lower.includes('computer') || lower.includes('حاسب') || lower.includes('تكنولوجيا')) {
       matchedSubject = subjects.find((s) => s.id === 'ict');
-    } else if (subjectText.includes('art') || subjectText.includes('رسم') || subjectText.includes('فنية')) {
+    } else if (lower.includes('art') || lower.includes('رسم') || lower.includes('فنية')) {
       matchedSubject = subjects.find((s) => s.id === 'arts');
-    } else if (subjectText.includes('music') || subjectText.includes('موسيقى')) {
+    } else if (lower.includes('music') || lower.includes('موسيقى')) {
       matchedSubject = subjects.find((s) => s.id === 'music');
-    } else if (subjectText.includes('pe') || subjectText.includes('رياضة') || subjectText.includes('بدنية')) {
+    } else if (lower.includes('pe') || lower.includes('رياضة') || lower.includes('بدنية')) {
       matchedSubject = subjects.find((s) => s.id === 'pe');
     }
 
@@ -311,15 +318,18 @@ export function parseWeeklyPlanTextWithLinks(
     // Check for URLs
     const urls = extractAllUrls(line);
 
-    // Clean Title
-    // Strip only a recognized-looking subject prefix. This avoids splitting
-    // URLs at "https://" or deleting hyphenated homework text.
-    const hasRecognizedSubjectPrefix = Boolean(subjectPrefix && /math|رياضيات|حساب|english|انجليزي|إنجليزي|connect|science|علوم|discover|français|francais|french|فرنساوي|فرنسي|arabic|عربي|لغة عربية|social|دراسات|دين|religion|تربية دينية|islamic|ict|computer|حاسب|تكنولوجيا|art|رسم|فنية|music|موسيقى|\bpe\b|رياضة|بدنية/i.test(subjectPrefix));
-    const title = hasRecognizedSubjectPrefix
-      ? line.slice(subjectPrefix.length).replace(/^\s*[:–\-|]\s*/, '').trim()
-      : line;
+    // Clean only the structural prefix; keep the complete source row in details.
+    let title = line;
+    const colonIndex = line.indexOf(':');
+    if (colonIndex > -1 && colonIndex < 80) {
+      title = line.slice(colonIndex + 1).trim();
+    } else {
+      const columns = line.split(/\t|\s{2,}|\s*[|]\s*/).map((part) => part.trim()).filter(Boolean);
+      if (columns.length > 1) title = columns.slice(1).join(' — ');
+    }
 
-    if (title.length > 2 && !title.startsWith('الخطة') && !title.startsWith('Weekly Plan')) {
+    const looksLikeHeader = /^(الخطة|weekly plan|day|اليوم|المادة|subject)\b/i.test(title);
+    if (title.length > 2 && !looksLikeHeader) {
       tasks.push({
         id: `raw-task-${Date.now()}-${index}`,
         day: currentDay,
@@ -329,9 +339,10 @@ export function parseWeeklyPlanTextWithLinks(
         title,
         pages,
         linkUrl: urls[0] || undefined,
-        // Preserve the original row verbatim for auditability and display.
-        // The structured title/subject/day fields are derived in addition to it.
-        details: sourceLine,
+        // Preserve the complete original row so no homework/revision cell is lost.
+        details: urls.length > 0
+          ? `${line}\nرابط مرفق: ${urls.join(', ')}`
+          : line,
         isDone: false,
         createdAt: Date.now(),
       });
@@ -340,3 +351,4 @@ export function parseWeeklyPlanTextWithLinks(
 
   return processTasksAndExtractLinkTasks(tasks, subjects);
 }
+

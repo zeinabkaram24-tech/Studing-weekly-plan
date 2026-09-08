@@ -63,6 +63,7 @@ export function saveMaterials(materials: MaterialItem[], asAdmin?: boolean): voi
 
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
+    window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY }));
   } catch (err) {
     console.error('Failed to save materials to localStorage', err);
   }
@@ -88,31 +89,12 @@ export function saveMaterials(materials: MaterialItem[], asAdmin?: boolean): voi
 
 export async function syncMaterialsFromServer(): Promise<MaterialItem[]> {
   try {
-    const res = await fetch('/api/materials', { cache: 'no-store' });
+    const res = await fetch('/api/materials');
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data.materials)) {
-        const cleaned = data.materials
-          .filter((m: MaterialItem) => m && m.subjectId !== 'religion')
-          .map((m: MaterialItem) => ({
-            ...m,
-            categoryLabel:
-              m.category === 'main_sheets' ? 'Main Sheets' :
-              m.category === 'week1' ? 'Week 1' :
-              m.category === 'week2' ? 'Week 2' :
-              m.category === 'week3' ? 'Week 3' :
-              m.categoryLabel,
-          }));
-        // Keep already-uploaded local materials when a fresh deployment has
-        // not created materials.json yet. This is a read fallback, not an
-        // authorization check, and it prevents the admin's local library from
-        // disappearing while the public server list is being initialized.
-        const localMaterials = getSavedMaterials();
-        if (cleaned.length === 0 && localMaterials.length > 0) {
-          return localMaterials;
-        }
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
-        return cleaned;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data.materials));
+        return data.materials;
       }
     }
   } catch (err) {

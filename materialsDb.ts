@@ -50,8 +50,9 @@ export async function saveMaterialBlob(materialId: string, blob: Blob | File): P
 }
 
 export async function getMaterialBlob(materialId: string): Promise<Blob | null> {
-  // Always prefer a fresh readonly IndexedDB transaction. The file must not
-  // depend on an Admin session or on a Blob URL created by a previous user.
+  if (memoryCache.has(materialId)) {
+    return memoryCache.get(materialId) || null;
+  }
   try {
     const db = await openDB();
     return new Promise((resolve, reject) => {
@@ -64,19 +65,13 @@ export async function getMaterialBlob(materialId: string): Promise<Blob | null> 
         if (result) {
           memoryCache.set(materialId, result);
         }
-        db.close();
         resolve(result);
       };
-      request.onerror = () => {
-        db.close();
-        reject(request.error);
-      };
+      request.onerror = () => reject(request.error);
     });
   } catch (err) {
-    // Memory is only a fallback for browsers without IndexedDB or a transient
-    // storage error; it is never the source of authorization decisions.
     console.warn('Could not read file from IndexedDB:', err);
-    return memoryCache.get(materialId) || null;
+    return null;
   }
 }
 
