@@ -542,18 +542,18 @@ export const TodayView: React.FC<TodayViewProps> = ({
         </div>
 
 
-        <div className="rounded-3xl border border-indigo-100 bg-white p-4 sm:p-5 shadow-xs">
+        <div className="relative overflow-hidden rounded-3xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 via-orange-50 to-white p-4 sm:p-6 shadow-md">
           <div className="flex items-center justify-between gap-3 mb-4">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-indigo-50 text-indigo-700 flex items-center justify-center border border-indigo-100">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-sm">
                 <Layers className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-xl font-black text-slate-900">أعمال الفصل</h3>
-                <p className="text-xs text-slate-500">Classwork • المهام التي تُنجز داخل الفصل</p>
+                <h3 className="text-2xl font-black text-amber-950">أعمال الفصل</h3>
+                <p className="text-xs sm:text-sm text-amber-800/80 font-medium">Classwork • المهام التي تُنجز داخل الفصل</p>
               </div>
             </div>
-            <span className="px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-700 text-xs font-black border border-indigo-100">
+            <span className="px-3 py-1 rounded-full bg-amber-500 text-white text-xs font-black shadow-sm">
               {classworkTasks.length} مهام
             </span>
           </div>
@@ -563,16 +563,17 @@ export const TodayView: React.FC<TodayViewProps> = ({
               {classworkTasks.map((task) => {
                 const subj = subjectMap.get(task.subjectId);
                 return (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    subject={subj}
-                    onToggleDone={onToggleDone}
-                    onEdit={onEditTask}
-                    onDelete={onDeleteTask}
-                    onSavePersonalNote={onSavePersonalNote}
-                    isVisitor={isVisitor}
-                  />
+                  <div key={task.id} className="rounded-2xl ring-2 ring-amber-200/80 shadow-sm [&>div]:border-amber-200 [&>div]:bg-white/95">
+                    <TaskCard
+                      task={task}
+                      subject={subj}
+                      onToggleDone={onToggleDone}
+                      onEdit={onEditTask}
+                      onDelete={onDeleteTask}
+                      onSavePersonalNote={onSavePersonalNote}
+                      isVisitor={isVisitor}
+                    />
+                  </div>
                 );
               })}
             </div>
