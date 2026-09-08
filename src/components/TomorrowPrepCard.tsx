@@ -109,6 +109,16 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
       t.title?.includes('الرسم') ||
       t.title?.toLowerCase().includes('art')
   );
+  const prepNotePattern = /مطلوب|إحضار|احضار|أدوات|أداه|مستلزمات|bring|suppl(y|ies)|materials|needed/i;
+  const prepSubjectIds = uniqueSubjectIds.filter((subjId) =>
+    targetTasks.some((task) =>
+      task.subjectId === subjId && (
+        targetSupplies.some((supply) => supply.id === task.id) ||
+        Boolean(task.notes?.trim()) ||
+        Boolean(task.details && prepNotePattern.test(task.details))
+      )
+    )
+  );
 
   // Build checklist items
   const checkableItemIds: string[] = [];
@@ -311,20 +321,20 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
             </div>
           )}
 
-          {/* 1. Subject-by-Subject Books & Materials Checklist */}
-          <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-amber-200/70 space-y-2.5">
+          {/* Only show subjects that have an explicit note/supply in the weekly plan. */}
+          {prepSubjectIds.length > 0 && <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-amber-200/70 space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                 <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
-                <span>مستلزمات وكتب المواد المقررة لغداً (فصل {section}):</span>
+                <span>ملاحظات ومطلوبات الغد من الـWeekly Plan:</span>
               </span>
               <span className="text-[11px] font-sans text-slate-400">
-                {uniqueSubjectIds.length} مواد مقررة غداً
+                {prepSubjectIds.length} مواد بها ملاحظات
               </span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {uniqueSubjectIds.map((subjId) => {
+              {prepSubjectIds.map((subjId) => {
                 const subj = subjectMap.get(subjId);
                 const periods = subjectPeriodsMap.get(subjId) || [];
                 const itemId = `subject-book-${subjId}`;
@@ -337,13 +347,13 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
                 const subjectPlanNotes = targetTasks
                   .filter((t) => t.subjectId === subjId)
                   .flatMap((t) => [t.notes, t.details])
-                  .filter((value): value is string => Boolean(value && /مطلوب|إحضار|احضار|أدوات|أداه|مستلزمات|bring|suppl(y|ies)|materials|needed/i.test(value)))
+                  .filter((value): value is string => Boolean(value && prepNotePattern.test(value)))
                   .map((value) => value.trim())
                   .filter((value, index, values) => values.indexOf(value) === index);
                 const suppliesText = [
                   ...subjectPlanSupplies.map((s) => s.title + (s.details ? ` (${s.details})` : '')),
                   ...subjectPlanNotes,
-                ].filter((value, index, values) => values.indexOf(value) === index).join(' • ') || 'كتب المادة أو مستلزمات المادة';
+                ].filter((value, index, values) => values.indexOf(value) === index).join(' • ');
 
                 return (
                   <div
@@ -374,15 +384,13 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
                           {formatPeriodsAr(periods)}
                         </span>
                       </div>
-                      <div className="text-[11px] text-slate-700 leading-snug">
-                        {suppliesText}
-                      </div>
+                      <div className="text-[11px] text-slate-700 leading-snug">{suppliesText}</div>
                     </div>
                   </div>
                 );
               })}
             </div>
-          </div>
+          </div>}
 
           {/* 2. Special Supplies Specified in Weekly Plan (if any) */}
           {targetSupplies.length > 0 && (
