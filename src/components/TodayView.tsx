@@ -115,6 +115,16 @@ export const TodayView: React.FC<TodayViewProps> = ({
   const pendingCount = totalCount - completedCount;
   const percentCompleted = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
+  // Keep the requested order: classwork first, then homework as a prominent
+  // focus area. The active filter still applies to both sections.
+  const classworkTasks = filteredTasks.filter((task) => task.type !== 'homework');
+  const homeworkTasks = filteredTasks.filter((task) => task.type === 'homework');
+  const totalHomeworkCount = dayTasks.filter((task) => task.type === 'homework').length;
+  const completedHomeworkCount = dayTasks.filter((task) => task.type === 'homework' && task.isDone).length;
+  const homeworkPercent = totalHomeworkCount > 0
+    ? Math.round((completedHomeworkCount / totalHomeworkCount) * 100)
+    : 0;
+
   // Timetable periods for this day (from image: 8 periods)
   const dayPeriods = timetable[selectedDay] || [];
 
@@ -506,25 +516,102 @@ export const TodayView: React.FC<TodayViewProps> = ({
         </div>
       </div>
 
-      {/* 5. TASKS LIST (المطلوب من المواد يومياً) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filteredTasks.map((task) => {
-          const subj = subjectMap.get(task.subjectId);
-          return (
-            <TaskCard
-              key={task.id}
-              task={task}
-              subject={subj}
-              onToggleDone={onToggleDone}
-              onEdit={onEditTask}
-              onDelete={onDeleteTask}
-              onSavePersonalNote={onSavePersonalNote}
-              isVisitor={isVisitor}
-            />
-          );
-        })}
+      {/* 5. TASKS LIST: Classwork first, then a prominent Homework focus area */}
+      <section id="today-tasks-section" className="space-y-5">
+        <div className="rounded-3xl border border-indigo-100 bg-white p-4 sm:p-5 shadow-xs">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-indigo-50 text-indigo-700 flex items-center justify-center border border-indigo-100">
+                <Layers className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-slate-900">أعمال الفصل</h3>
+                <p className="text-xs text-slate-500">Classwork • المهام التي تُنجز داخل الفصل</p>
+              </div>
+            </div>
+            <span className="px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-700 text-xs font-black border border-indigo-100">
+              {classworkTasks.length} مهام
+            </span>
+          </div>
 
-        {/* Card for "+ Add Task / Classwork / Homework" */}
+          {classworkTasks.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {classworkTasks.map((task) => {
+                const subj = subjectMap.get(task.subjectId);
+                return (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    subject={subj}
+                    onToggleDone={onToggleDone}
+                    onEdit={onEditTask}
+                    onDelete={onDeleteTask}
+                    onSavePersonalNote={onSavePersonalNote}
+                    isVisitor={isVisitor}
+                  />
+                );
+              })}
+            </div>
+          ) : (
+            <p className="py-5 text-center text-sm text-slate-400">لا توجد أعمال فصل مطلوبة اليوم.</p>
+          )}
+        </div>
+
+        <div className="relative overflow-hidden rounded-3xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 via-orange-50 to-white p-4 sm:p-6 shadow-md">
+          <div className="absolute -left-12 -top-12 w-32 h-32 rounded-full bg-amber-200/40 blur-2xl pointer-events-none" />
+          <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-sm">
+                <FolderOpen className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-2xl font-black text-amber-950">الواجب المنزلي</h3>
+                  <span className="px-3 py-1 rounded-full bg-amber-500 text-white text-xs font-black shadow-sm">
+                    {totalHomeworkCount} واجبات
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm text-amber-800/80 font-medium">Homework • أولوية اليوم</p>
+              </div>
+            </div>
+            <div className="min-w-[180px]">
+              <div className="flex items-center justify-between text-xs font-black text-amber-900 mb-1.5">
+                <span>{completedHomeworkCount}/{totalHomeworkCount} مكتمل</span>
+                <span>{homeworkPercent}%</span>
+              </div>
+              <div className="h-2.5 rounded-full bg-amber-100 overflow-hidden border border-amber-200">
+                <div className="h-full rounded-full bg-amber-500 transition-all duration-300" style={{ width: `${homeworkPercent}%` }} />
+              </div>
+            </div>
+          </div>
+
+          {homeworkTasks.length > 0 ? (
+            <div className="relative grid grid-cols-1 gap-4">
+              {homeworkTasks.map((task) => {
+                const subj = subjectMap.get(task.subjectId);
+                return (
+                  <div key={task.id} className="rounded-2xl ring-2 ring-amber-200/80 shadow-sm [&>div]:border-amber-200 [&>div]:bg-white/95">
+                    <TaskCard
+                      task={task}
+                      subject={subj}
+                      onToggleDone={onToggleDone}
+                      onEdit={onEditTask}
+                      onDelete={onDeleteTask}
+                      onSavePersonalNote={onSavePersonalNote}
+                      isVisitor={isVisitor}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="relative rounded-2xl border border-dashed border-amber-300 bg-white/60 py-7 text-center">
+              <p className="text-sm font-bold text-amber-900">لا توجد واجبات منزلية اليوم.</p>
+              <p className="text-xs text-amber-700/70 mt-1">استمتع بوقتك أو راجع مهام الغد.</p>
+            </div>
+          )}
+        </div>
+
         {!isVisitor && (
           <div
             id="btn-add-task-today-grid"
@@ -538,12 +625,10 @@ export const TodayView: React.FC<TodayViewProps> = ({
             <span className="text-slate-800 group-hover:text-indigo-700 font-bold text-sm">
               إضافة خطة مادة / واجب ليوم {currentDayInfo.nameAr}
             </span>
-            <span className="text-slate-400 text-xs mt-0.5 font-sans">
-              Add Weekly Plan Task
-            </span>
+            <span className="text-slate-400 text-xs mt-0.5 font-sans">Add Weekly Plan Task</span>
           </div>
         )}
-      </div>
+      </section>
 
       {/* Empty State message if filter returned empty */}
       {filteredTasks.length === 0 && totalCount > 0 && (
