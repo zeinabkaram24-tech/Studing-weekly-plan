@@ -892,16 +892,11 @@ export async function getMaterialFileUrl(item: MaterialItem): Promise<string | n
         return candidateUrl;
       }
 
-      // If relative server URL, test with HEAD request to verify file is reachable and not 404
-      try {
-        const testRes = await fetch(candidateUrl, { method: 'HEAD' });
-        if (testRes.ok) {
-          return candidateUrl;
-        }
-        console.warn(`File URL ${candidateUrl} returned ${testRes.status}. Avoiding broken iframe.`);
-      } catch (headErr) {
-        console.warn(`Could not verify candidate file URL ${candidateUrl}:`, headErr);
-      }
+      // Do not probe relative URLs with HEAD. Some mobile browsers, CDNs,
+      // serverless hosts, and cross-origin deployments reject HEAD even when
+      // a normal GET can open the PDF. Return the URL and let the browser use
+      // its native PDF viewer or the fallback link in MaterialsModal.
+      return candidateUrl;
     }
   } catch (err) {
     console.warn('Could not resolve material file URL:', err);
