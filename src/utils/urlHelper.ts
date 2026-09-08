@@ -261,7 +261,7 @@ export function parseWeeklyPlanTextWithLinks(
   };
 
   const isNotesStart = (value: string): boolean =>
-    /^(notes?|ملاحظات(?:\s+أخرى)?|ملاحظات أخرى)\s*[:：-]|please\s+bring\b|bring\b|يرجى\s+إحضار|إحضار|احضار/i.test(value.trim());
+    /(?:^(?:notes?|ملاحظات(?:\s+أخرى)?|ملاحظات أخرى)\s*[:：-]|please\s+bring\b|bring\b|يرجى\s+إحضار|إحضار|احضار)/i.test(value.trim());
 
   const isNotesContinuation = (value: string): boolean =>
     /^(board|marker|chart|whiteboard|and\s+100|100\s+chart|و?ماركر|ومخطط|الـ?100)\b/i.test(value.trim());
@@ -290,7 +290,8 @@ export function parseWeeklyPlanTextWithLinks(
     if (isNotesStart(trimmedLine)) {
       attachPendingNotes();
       const inline = trimmedLine.match(/^(?:notes?|ملاحظات(?:\s+أخرى)?|ملاحظات أخرى)\s*[:：-]\s*(.*)$/i)?.[1];
-      pendingNoteLines = [inline?.trim() || trimmedLine];
+      const bringText = trimmedLine.match(/(?:please\s+bring|bring|يرجى\s+إحضار|إحضار|احضار)\b.*$/i)?.[0];
+      pendingNoteLines = [inline?.trim() || bringText?.trim() || trimmedLine];
       return;
     }
     if (pendingNoteLines.length > 0 && (isNotesContinuation(trimmedLine) || !isDayHeader(trimmedLine))) {
@@ -396,6 +397,24 @@ export function parseWeeklyPlanTextWithLinks(
         createdAt: Date.now(),
       });
     }
+  });
+
+  // PDF text extraction may place the Notes column before/after the topic
+  // column, so recover the complete note from each day's text block and bind
+  // it to that day's Math task explicitly.
+  const normalizedPlanText = rawText.replace(/\s+/g, ' ');
+  const dayPatterns: Array<[DayOfWeek, RegExp]> = [
+    ['monday', /monday\b([\s\S]*?)(?=tuesday\b|wednesday\b|thursday\b|$)/i],
+    ['tuesday', /tuesday\b([\s\S]*?)(?=wednesday\b|thursday\b|$)/i],
+    ['wednesday', /wednesday\b([\s\S]*?)(?=thursday\b|$)/i],
+    ['thursday', /thursday\b([\s\S]*?)$/i],
+  ];
+  dayPatterns.forEach(([day, pattern]) => {
+    const dayBlock = normalizedPlanText.match(pattern)?.[1] || '';
+    const note = dayBlock.match(/(?:please\s+bring|bring)\b.*?(?:100\s+chart|chart)/i)?.[0]?.trim();
+    if (!note) return;
+    const mathTask = tasks.find((task) => task.day === day && task.subjectId === 'math');
+    if (mathTask) mathTask.notes = note;
   });
 
   attachPendingNotes();
