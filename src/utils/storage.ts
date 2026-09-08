@@ -92,13 +92,24 @@ export function filterOutArtTasks(tasks: PlanTask[]): PlanTask[] {
     }));
 }
 
+/**
+ * Keep tasks uploaded/created in an older plan, but add any newly shipped
+ * default tasks that are missing from that plan. This is important because
+ * plans are persisted in localStorage and Global Storage across deployments.
+ */
+export function mergeWithDefaultTasks(tasks: PlanTask[], section: GradeSection): PlanTask[] {
+  const defaults = filterOutArtTasks(GRADE_TASKS[section] || []);
+  const existingIds = new Set(tasks.map((task) => task.id));
+  return filterOutArtTasks([...tasks, ...defaults.filter((task) => !existingIds.has(task.id))]);
+}
+
 export function loadSavedTasks(section: GradeSection = '2A'): PlanTask[] {
   try {
     const key = `${STORAGE_KEYS.TASKS}_${section}`;
     const saved = localStorage.getItem(key);
     if (saved) {
       const parsed: PlanTask[] = JSON.parse(saved);
-      return filterOutArtTasks(parsed);
+      return mergeWithDefaultTasks(parsed, section);
     }
   } catch (e) {
     console.error('Failed to load tasks', e);
@@ -477,9 +488,9 @@ export function loadWeeklyPlansArchive(): WeeklyPlanArchiveEntry[] {
               ? 'Block 1 - Week 1'
               : entry.title,
           tasksBySection: {
-            '2A': filterOutArtTasks(entry.tasksBySection?.['2A'] || []),
-            '2B': filterOutArtTasks(entry.tasksBySection?.['2B'] || []),
-            '2C': filterOutArtTasks(entry.tasksBySection?.['2C'] || []),
+            '2A': mergeWithDefaultTasks(entry.tasksBySection?.['2A'] || [], '2A'),
+            '2B': mergeWithDefaultTasks(entry.tasksBySection?.['2B'] || [], '2B'),
+            '2C': mergeWithDefaultTasks(entry.tasksBySection?.['2C'] || [], '2C'),
           },
         }));
       }
