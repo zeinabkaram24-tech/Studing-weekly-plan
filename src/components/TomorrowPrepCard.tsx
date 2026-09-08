@@ -56,7 +56,6 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
   section = '2A',
   onSelectDay,
 }) => {
-  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
 
   const subjectMap = new Map<string, Subject>();
@@ -120,39 +119,17 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
     )
   );
 
-  // Build checklist items
-  const checkableItemIds: string[] = [];
+  // Only explicit Weekly Plan notes are shown in the bag section.
+  // No generic subject/book placeholder is ever generated.
+  const weeklyPlanNotes = targetTasks
+    .filter((task) => Boolean(task.notes?.trim()))
+    .map((task) => ({
+      id: task.id,
+      subjectId: task.subjectId,
+      text: task.notes!.trim(),
+    }));
 
-  // 1. Each scheduled subject's books & materials
-  uniqueSubjectIds.forEach((subjId) => {
-    checkableItemIds.push(`subject-book-${subjId}`);
-  });
-
-  // 2. Special tools & supplies specified in weekly plan
-  targetSupplies.forEach((supp) => {
-    checkableItemIds.push(`supp-${supp.id}`);
-  });
-
-  const toggleItem = (id: string) => {
-    setCheckedItems((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  const handlePackAll = () => {
-    const allChecked: Record<string, boolean> = {};
-    checkableItemIds.forEach((id) => {
-      allChecked[id] = true;
-    });
-    setCheckedItems(allChecked);
-  };
-
-  const handleReset = () => {
-    setCheckedItems({});
-  };
-
-  const totalCheckItems = checkableItemIds.length;
-  const completedCheckItems = checkableItemIds.filter((id) => checkedItems[id]).length;
-  const prepProgress = totalCheckItems > 0 ? Math.round((completedCheckItems / totalCheckItems) * 100) : 0;
-  const isAllReady = totalCheckItems > 0 && completedCheckItems === totalCheckItems;
+  const toggleItem = (_id: string) => undefined;
 
   return (
     <div
@@ -221,221 +198,59 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
               </span>
             </div>
 
-            {/* Periods Scrollable Chips */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1.5 scrollbar-none">
+            {/* Same period-card layout used by Today's schedule */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
               {targetPeriods.map((slot) => {
                 const sub = subjectMap.get(slot.subjectId);
                 return (
                   <div
                     key={slot.period}
-                    className={`shrink-0 px-3 py-1.5 rounded-xl border flex items-center gap-2 text-xs font-bold ${
+                    className={`p-2.5 rounded-2xl border flex flex-col justify-between transition-all hover:scale-102 ${
                       sub?.color.lightBg || 'bg-white'
                     } ${sub?.color.border || 'border-slate-200'}`}
                   >
-                    <span className="text-[10px] font-mono text-slate-500 font-normal">P{slot.period}</span>
-                    <SubjectIcon name={sub?.iconName || 'BookOpen'} className={`w-3.5 h-3.5 ${sub?.color.text}`} />
-                    <span className={`font-sans ${sub?.color.text}`}>{sub?.nameEn || slot.subjectId}</span>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-bold font-mono px-1.5 py-0.5 rounded-md bg-white/80 text-slate-700">
+                        P{slot.period}
+                      </span>
+                      <SubjectIcon name={sub?.iconName || 'BookOpen'} className={`w-3.5 h-3.5 ${sub?.color.text}`} />
+                    </div>
+                    <div className="font-bold text-xs text-slate-900 truncate font-sans">
+                      {sub?.nameEn || slot.subjectId}
+                    </div>
+                    <div className="text-[10px] text-slate-500 truncate">
+                      {sub?.nameAr}
+                    </div>
+                    <div className="text-[9px] text-slate-400 font-mono mt-1 pt-1 border-t border-black/5">
+                      {slot.timeRange}
+                    </div>
                   </div>
                 );
               })}
             </div>
           </div>
 
-          {/* Quick Pack All / Progress Header */}
-          <div className="bg-amber-100/60 p-3 rounded-2xl flex flex-wrap items-center justify-between gap-2 border border-amber-200/80">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                <span>نسبة تجهيز الحقيبة لغداً:</span>
-              </span>
-              <span className="text-xs font-mono font-black text-amber-800 bg-white px-2 py-0.5 rounded-lg border border-amber-200">
-                {completedCheckItems} / {totalCheckItems} ({prepProgress}%)
-              </span>
-              {isAllReady && (
-                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-lg border border-emerald-300">
-                  جاهز تماماً! 🎉
-                </span>
-              )}
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={handlePackAll}
-                className="px-2.5 py-1 rounded-xl bg-white hover:bg-emerald-50 text-emerald-700 hover:text-emerald-800 font-bold text-xs border border-emerald-300 flex items-center gap-1 transition-colors"
-                title="تحديد كل الكتب والأدوات جاهزة"
-              >
-                <CheckCheck className="w-3.5 h-3.5 text-emerald-600" />
-                <span>تحديد الكل جاهز</span>
-              </button>
-              {completedCheckItems > 0 && (
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  className="px-2 py-1 rounded-xl bg-white hover:bg-slate-100 text-slate-500 hover:text-slate-700 text-xs border border-slate-200 flex items-center gap-1 transition-colors"
-                  title="إلغاء التحديد"
-                >
-                  <RotateCcw className="w-3 h-3" />
-                  <span>إعادة ضبط</span>
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* SPECIAL ART HIGHLIGHT IF SCHEDULED TOMORROW */}
-          {uniqueSubjectIds.includes('arts') && (
-            <div className="bg-purple-50 p-3.5 rounded-2xl border border-purple-200 shadow-xs">
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="flex items-center gap-2 font-black text-sm text-purple-950">
-                  <Palette className="w-4 h-4 text-purple-700" />
-                  <span>🎨 مستلزمات حصة التربية الفنية (Art) المقررة في جدول غداً:</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  {(subjectPeriodsMap.get('arts') || []).map((p) => (
-                    <span
-                      key={p}
-                      className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-lg bg-purple-700 text-white"
-                    >
-                      الحصة P{p}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {targetArtTasks.length > 0 ? (
-                <div className="space-y-1.5 mt-2">
-                  <span className="text-[11px] font-bold text-purple-900 block">
-                    المطلوب بالويكلي بلان بالنص:
-                  </span>
-                  {targetArtTasks.map((t) => (
-                    <div key={t.id} className="text-xs text-purple-950 font-bold bg-white p-2 rounded-xl border border-purple-200">
-                      • {t.title} {t.details ? `- ${t.details}` : ''} {t.pages ? `(${t.pages})` : ''}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-[11px] text-purple-900 font-medium leading-relaxed">
-                  📌 مستلزمات المادة (لا توجد أدوات إضافية مدونة بالويكلي بلان).
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Only show subjects that have an explicit note/supply in the weekly plan. */}
-          {prepSubjectIds.length > 0 && <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-amber-200/70 space-y-2.5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
-                <span>ملاحظات ومطلوبات الغد من الـWeekly Plan:</span>
-              </span>
-              <span className="text-[11px] font-sans text-slate-400">
-                {prepSubjectIds.length} مواد بها ملاحظات
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {prepSubjectIds.map((subjId) => {
-                const subj = subjectMap.get(subjId);
-                const periods = subjectPeriodsMap.get(subjId) || [];
-                const itemId = `subject-book-${subjId}`;
-                const isChecked = !!checkedItems[itemId];
-
-                // Carry explicit notes from the weekly plan into the bag checklist.
-                // The parser keeps the original row in details, so notes such as
-                // "إحضار" / "مطلوب" / "أدوات" are not lost.
-                const subjectPlanSupplies = targetSupplies.filter((s) => s.subjectId === subjId);
-                const subjectPlanNotes = targetTasks
-                  .filter((t) => t.subjectId === subjId)
-                  .flatMap((t) => [t.notes, t.details])
-                  .filter((value): value is string => Boolean(value && prepNotePattern.test(value)))
-                  .map((value) => value.trim())
-                  .filter((value, index, values) => values.indexOf(value) === index);
-                const suppliesText = [
-                  ...subjectPlanSupplies.map((s) => s.title + (s.details ? ` (${s.details})` : '')),
-                  ...subjectPlanNotes,
-                ].filter((value, index, values) => values.indexOf(value) === index).join(' • ');
-
-                return (
-                  <div
-                    key={subjId}
-                    onClick={() => toggleItem(itemId)}
-                    className={`p-3 rounded-xl border flex items-start gap-3 cursor-pointer transition-all duration-150 ${
-                      isChecked
-                        ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950'
-                        : 'bg-slate-50/70 hover:bg-slate-100/80 border-slate-200 text-slate-800'
-                    }`}
-                  >
-                    <div className="mt-0.5 shrink-0">
-                      {isChecked ? (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600 stroke-[2.5]" />
-                      ) : (
-                        <Circle className="w-4 h-4 text-slate-400" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <SubjectIcon name={subj?.iconName || 'BookOpen'} className={`w-4 h-4 ${subj?.color.text}`} />
-                          <span className="font-bold text-xs text-slate-900 font-sans truncate">
-                            {subj?.nameEn || subj?.nameAr || subjId}
-                          </span>
-                        </div>
-                        <span className="text-[11px] font-sans font-bold px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100 shrink-0">
-                          {formatPeriodsAr(periods)}
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-slate-700 leading-snug">{suppliesText}</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>}
-
-          {/* 2. Special Supplies Specified in Weekly Plan (if any) */}
-          {targetSupplies.length > 0 && (
-            <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-indigo-200/70 space-y-2">
+          {/* Exact notes from the Weekly Plan only. */}
+          {weeklyPlanNotes.length > 0 && (
+            <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-amber-200/70 space-y-2.5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-indigo-900 flex items-center gap-1.5">
-                  <Briefcase className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>مستلزمات وأدوات محددة بالويكلي بلان بالنص:</span>
+                <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>ملاحظات ومطلوبات الغد من الـWeekly Plan:</span>
+                </span>
+                <span className="text-[11px] font-sans text-slate-400">
+                  {weeklyPlanNotes.length} ملاحظات
                 </span>
               </div>
-              <div className="space-y-1.5">
-                {targetSupplies.map((supp) => {
-                  const s = subjectMap.get(supp.subjectId);
-                  const itemId = `supp-${supp.id}`;
-                  const isChecked = !!checkedItems[itemId];
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {weeklyPlanNotes.map((note) => {
+                  const subj = subjectMap.get(note.subjectId);
                   return (
-                    <div
-                      key={supp.id}
-                      onClick={() => toggleItem(itemId)}
-                      className={`p-2.5 rounded-xl border flex items-start gap-2.5 cursor-pointer transition-all ${
-                        isChecked
-                          ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
-                          : 'bg-indigo-50/50 hover:bg-indigo-100/60 border-indigo-200 text-slate-800'
-                      }`}
-                    >
-                      <div className="mt-0.5 shrink-0">
-                        {isChecked ? (
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600 stroke-[2.5]" />
-                        ) : (
-                          <Circle className="w-4 h-4 text-indigo-500" />
-                        )}
-                      </div>
-                      <div className="flex-1 text-xs">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-indigo-950 font-sans">{s?.nameEn}:</span>
-                          <span className="font-medium text-slate-900">{supp.title}</span>
-                          {supp.pages && (
-                            <span className="text-[10px] font-mono font-bold bg-white px-1.5 py-0.2 rounded border border-indigo-200 text-indigo-800">
-                              {supp.pages}
-                            </span>
-                          )}
-                        </div>
-                        {supp.details && (
-                          <p className="text-[11px] text-slate-600 mt-0.5">{supp.details}</p>
-                        )}
+                    <div key={note.id} className="p-2.5 rounded-xl border border-slate-200 bg-slate-50/70 flex items-start gap-3">
+                      <SubjectIcon name={subj?.iconName || 'BookOpen'} className={`w-3.5 h-3.5 mt-0.5 ${subj?.color.text || 'text-indigo-600'}`} />
+                      <div className="min-w-0">
+                        <div className="text-[11px] font-bold text-slate-900">{subj?.nameEn || subj?.nameAr || note.subjectId}</div>
+                        <div className="text-[11px] text-slate-700 leading-snug">{note.text}</div>
                       </div>
                     </div>
                   );
@@ -444,7 +259,7 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
             </div>
           )}
 
-          {/* 3. Upcoming Quizzes or Dictation notice */}
+          {/* Upcoming Quizzes or Dictation notice */}
           {targetQuizzes.length > 0 && (
             <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-xs flex items-center gap-2.5 shadow-2xs">
               <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
