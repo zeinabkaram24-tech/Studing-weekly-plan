@@ -99,8 +99,21 @@ export function filterOutArtTasks(tasks: PlanTask[]): PlanTask[] {
  */
 export function mergeWithDefaultTasks(tasks: PlanTask[], section: GradeSection): PlanTask[] {
   const defaults = filterOutArtTasks(GRADE_TASKS[section] || []);
-  const existingIds = new Set(tasks.map((task) => task.id));
-  return filterOutArtTasks([...tasks, ...defaults.filter((task) => !existingIds.has(task.id))]);
+  const existingById = new Map(tasks.map((task) => [task.id, task]));
+  const defaultIds = new Set(defaults.map((task) => task.id));
+  const mergedDefaults = defaults.map((defaultTask) => {
+    const existing = existingById.get(defaultTask.id);
+    if (!existing) return defaultTask;
+    return {
+      ...defaultTask,
+      ...existing,
+      // Backfill newly shipped official data without overwriting the user's
+      // completion state or personal note.
+      notes: existing.notes?.trim() || defaultTask.notes,
+    };
+  });
+  const extraTasks = tasks.filter((task) => !defaultIds.has(task.id));
+  return filterOutArtTasks([...mergedDefaults, ...extraTasks]);
 }
 
 export function loadSavedTasks(section: GradeSection = '2A'): PlanTask[] {
