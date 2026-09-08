@@ -9,7 +9,6 @@ import {
   Circle,
   ArrowLeft,
   Calendar,
-  AlertCircle,
   ChevronDown,
   ChevronUp,
   CheckCheck,
@@ -101,7 +100,6 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
   const targetTasks = tasks.filter(
     (t) => t.day === prepTargetDay && (!t.section || t.section === section)
   );
-  const targetHomeworks = targetTasks.filter((t) => t.type === 'homework');
   const targetSupplies = targetTasks.filter((t) => t.type === 'supplies');
   const targetQuizzes = targetTasks.filter((t) => t.type === 'quiz' || t.type === 'dictation');
   const targetArtTasks = targetTasks.filter(
@@ -120,12 +118,7 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
     checkableItemIds.push(`subject-book-${subjId}`);
   });
 
-  // 2. Homework submissions if any
-  targetHomeworks.forEach((hw) => {
-    checkableItemIds.push(`hw-${hw.id}`);
-  });
-
-  // 3. Special tools & supplies specified in weekly plan
+  // 2. Special tools & supplies specified in weekly plan
   targetSupplies.forEach((supp) => {
     checkableItemIds.push(`supp-${supp.id}`);
   });
@@ -337,11 +330,20 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
                 const itemId = `subject-book-${subjId}`;
                 const isChecked = !!checkedItems[itemId];
 
-                // Check if the weekly plan explicitly specifies supplies or tools for this subject tomorrow
+                // Carry explicit notes from the weekly plan into the bag checklist.
+                // The parser keeps the original row in details, so notes such as
+                // "إحضار" / "مطلوب" / "أدوات" are not lost.
                 const subjectPlanSupplies = targetSupplies.filter((s) => s.subjectId === subjId);
-                const suppliesText = subjectPlanSupplies.length > 0
-                  ? subjectPlanSupplies.map((s) => s.title + (s.details ? ` (${s.details})` : '')).join(' • ')
-                  : 'كتب المادة أو مستلزمات المادة';
+                const subjectPlanNotes = targetTasks
+                  .filter((t) => t.subjectId === subjId)
+                  .flatMap((t) => [t.notes, t.details])
+                  .filter((value): value is string => Boolean(value && /مطلوب|إحضار|احضار|أدوات|أداه|مستلزمات|bring|suppl(y|ies)|materials|needed/i.test(value)))
+                  .map((value) => value.trim())
+                  .filter((value, index, values) => values.indexOf(value) === index);
+                const suppliesText = [
+                  ...subjectPlanSupplies.map((s) => s.title + (s.details ? ` (${s.details})` : '')),
+                  ...subjectPlanNotes,
+                ].filter((value, index, values) => values.indexOf(value) === index).join(' • ') || 'كتب المادة أو مستلزمات المادة';
 
                 return (
                   <div
@@ -382,60 +384,7 @@ export const TomorrowPrepCard: React.FC<TomorrowPrepCardProps> = ({
             </div>
           </div>
 
-          {/* 2. Homework to Submit Tomorrow (if any) */}
-          {targetHomeworks.length > 0 && (
-            <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-amber-200/70 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
-                  <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
-                  <span>المطلوب في الويكلي بلان لغداً بالنص ({targetHomeworks.length} تكليف):</span>
-                </span>
-              </div>
-
-              <div className="space-y-1.5">
-                {targetHomeworks.map((hw) => {
-                  const s = subjectMap.get(hw.subjectId);
-                  const itemId = `hw-${hw.id}`;
-                  const isChecked = !!checkedItems[itemId];
-                  return (
-                    <div
-                      key={hw.id}
-                      onClick={() => toggleItem(itemId)}
-                      className={`p-2.5 rounded-xl border flex items-start gap-2.5 cursor-pointer transition-all ${
-                        isChecked
-                          ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
-                          : 'bg-amber-50/50 hover:bg-amber-100/60 border-amber-200 text-slate-800'
-                      }`}
-                    >
-                      <div className="mt-0.5 shrink-0">
-                        {isChecked ? (
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600 stroke-[2.5]" />
-                        ) : (
-                          <Circle className="w-4 h-4 text-amber-500" />
-                        )}
-                      </div>
-                      <div className="flex-1 text-xs">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-amber-950 font-sans">{s?.nameEn}:</span>
-                          <span className="font-medium text-slate-900">{hw.title}</span>
-                          {hw.pages && (
-                            <span className="text-[10px] font-mono font-bold bg-white px-1.5 py-0.2 rounded border border-amber-200 text-amber-800">
-                              {hw.pages}
-                            </span>
-                          )}
-                        </div>
-                        {hw.details && (
-                          <p className="text-[11px] text-slate-600 mt-0.5">{hw.details}</p>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* 3. Special Supplies Specified in Weekly Plan (if any) */}
+          {/* 2. Special Supplies Specified in Weekly Plan (if any) */}
           {targetSupplies.length > 0 && (
             <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-indigo-200/70 space-y-2">
               <div className="flex items-center justify-between">
