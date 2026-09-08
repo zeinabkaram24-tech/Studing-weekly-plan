@@ -793,19 +793,31 @@ export async function printMaterialSheet(
   item: MaterialItem,
   subjectNameAr: string
 ): Promise<void> {
+  // Open synchronously from the click event so mobile browsers do not block
+  // the print window after the later async IndexedDB/file work completes.
+  const printWin = window.open('about:blank', '_blank');
+  if (!printWin) {
+    alert('يرجى السماح بالنوافذ المنبثقة لهذا الموقع حتى تعمل الطباعة.');
+    return;
+  }
+
+  const openPdfAndPrint = (url: string) => {
+    printWin.location.href = url;
+    window.setTimeout(() => {
+      try {
+        printWin.focus();
+        printWin.print();
+      } catch (error) {
+        console.warn('The browser opened the PDF but did not expose print():', error);
+      }
+    }, 1200);
+  };
+
   try {
     if (item.fileName) {
-      const serverUrl = `/api/materials/file/${encodeURIComponent(item.fileName)}`;
-      try {
-        const check = await fetch(serverUrl, { method: 'HEAD' });
-        if (check.ok) {
-          const printWin = window.open(serverUrl, '_blank');
-          if (printWin) printWin.focus();
-          return;
-        }
-      } catch {
-        // Fallback
-      }
+      const serverUrl = item.fileUrl || `/api/materials/file/${encodeURIComponent(item.fileName)}`;
+      openPdfAndPrint(serverUrl);
+      return;
     }
 
     const storedBlob = await getMaterialBlob(item.id);
@@ -817,39 +829,28 @@ export async function printMaterialSheet(
       const mime = isPdf ? 'application/pdf' : (storedBlob.type || 'application/pdf');
       const blob = new Blob([storedBlob], { type: mime });
       const blobUrl = URL.createObjectURL(blob);
-      const printWin = window.open(blobUrl, '_blank');
-      if (printWin) {
-        printWin.focus();
-      }
+      openPdfAndPrint(blobUrl);
       return;
     }
 
     if (item.fileData) {
       const blob = dataUrlToBlob(item.fileData);
       const blobUrl = URL.createObjectURL(blob);
-      const printWin = window.open(blobUrl, '_blank');
-      if (printWin) {
-        printWin.focus();
-      }
+      openPdfAndPrint(blobUrl);
       return;
     }
 
     if (item.fileUrl && item.fileUrl.startsWith('http')) {
-      window.open(item.fileUrl, '_blank');
+      openPdfAndPrint(item.fileUrl);
       return;
     }
 
     // Printable HTML fallback
-    const printWin = window.open('about:blank', '_blank');
-    if (printWin) {
-      const fullHtml = generateSheetHtml(item, subjectNameAr);
-      printWin.document.open();
-      printWin.document.write(fullHtml);
-      printWin.document.close();
-      setTimeout(() => {
-        printWin.print();
-      }, 500);
-    }
+    const fullHtml = generateSheetHtml(item, subjectNameAr);
+    printWin.document.open();
+    printWin.document.write(fullHtml);
+    printWin.document.close();
+    setTimeout(() => printWin.print(), 500);
   } catch (err) {
     console.error('Error printing material sheet:', err);
   }
