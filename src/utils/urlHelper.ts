@@ -300,7 +300,21 @@ export function parseWeeklyPlanTextWithLinks(
       ? dayTasks.filter((task) => task.subjectId === namedSubject)
       : dayTasks;
     targetTasks.forEach((task) => {
-      task.notes = task.notes ? `${task.notes} ${normalizedNote}`.trim() : normalizedNote;
+      const existingNotes = task.notes?.split(' | ').map((item) => item.trim()).filter(Boolean) || [];
+      if (!existingNotes.includes(normalizedNote)) {
+        task.notes = [...existingNotes, normalizedNote].join(' | ');
+      }
+    });
+  };
+
+  const attachNoteToAllPlanTasks = (note: string) => {
+    const planSubjectTasks = tasks.filter((task) => task.subjectId === defaultSubjectId);
+    const targetTasks = planSubjectTasks.length > 0 ? planSubjectTasks : tasks;
+    targetTasks.forEach((task) => {
+      const existingNotes = task.notes?.split(' | ').map((item) => item.trim()).filter(Boolean) || [];
+      if (!existingNotes.includes(note)) {
+        task.notes = [...existingNotes, note].join(' | ');
+      }
     });
   };
 
@@ -440,6 +454,14 @@ export function parseWeeklyPlanTextWithLinks(
     if (!note) return;
     attachNoteToDayTasks(day, note);
   });
+
+  // Some Excel/PDF exports contain one shared Notes cell outside the daily
+  // rows. In that case it must not appear only in the currently selected day
+  // or only in Tomorrow's Prep; propagate the shared note to every day.
+  const sharedNotes = lines
+    .map((line) => line.match(/^(?:notes?|ملاحظات(?:\s+أخرى)?|ملاحظات أخرى)\s*[:：-]\s*(.+)$/i)?.[1]?.trim())
+    .filter((note): note is string => Boolean(note && note.length > 3));
+  sharedNotes.forEach((note) => attachNoteToAllPlanTasks(note));
 
   attachPendingNotes();
   return processTasksAndExtractLinkTasks(tasks, subjects);
