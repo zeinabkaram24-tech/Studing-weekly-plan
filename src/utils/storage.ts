@@ -92,43 +92,36 @@ export function filterOutArtTasks(tasks: PlanTask[]): PlanTask[] {
     }));
 }
 
-/**
- * Keep tasks uploaded/created in an older plan, but add any newly shipped
- * default tasks that are missing from that plan. This is important because
- * plans are persisted in localStorage and Global Storage across deployments.
- */
-export function mergeWithDefaultTasks(tasks: PlanTask[], section: GradeSection): PlanTask[] {
-  const defaults = filterOutArtTasks(GRADE_TASKS[section] || []);
-  const existingById = new Map(tasks.map((task) => [task.id, task]));
-  const defaultIds = new Set(defaults.map((task) => task.id));
-  const mergedDefaults = defaults.map((defaultTask) => {
-    const existing = existingById.get(defaultTask.id);
-    if (!existing) return defaultTask;
-    return {
-      ...defaultTask,
-      ...existing,
-      // Backfill newly shipped official data without overwriting the user's
-      // completion state or personal note.
-      notes: existing.notes?.trim() || defaultTask.notes,
-    };
-  });
-  const extraTasks = tasks.filter((task) => !defaultIds.has(task.id));
-  return filterOutArtTasks([...mergedDefaults, ...extraTasks]);
-}
-
 export function loadSavedTasks(section: GradeSection = '2A'): PlanTask[] {
   try {
     const key = `${STORAGE_KEYS.TASKS}_${section}`;
     const saved = localStorage.getItem(key);
     if (saved) {
       const parsed: PlanTask[] = JSON.parse(saved);
-      return mergeWithDefaultTasks(parsed, section);
+      return normalizeOfficialTasks(parsed, section);
     }
   } catch (e) {
     console.error('Failed to load tasks', e);
   }
   const defaults = GRADE_TASKS[section] || DEFAULT_TASKS;
-  return filterOutArtTasks(defaults);
+  return normalizeOfficialTasks(defaults, section);
+}
+
+/**
+ * Repairs old local/server copies of Week 1. Older copies contain the old
+ * ICT wording and Arabic classwork only, so they must not be allowed to
+ * overwrite the current official ICT links and Arabic homework.
+ */
+export function normalizeOfficialTasks(tasks: PlanTask[], section: GradeSection): PlanTask[] {
+  const cleaned = filterOutArtTasks(tasks || []);
+  const defaults = filterOutArtTasks(GRADE_TASKS[section] || DEFAULT_TASKS);
+  const withoutOldIct = cleaned.filter((task) => task.subjectId !== 'ict');
+  const officialIct = defaults.filter((task) => task.subjectId === 'ict');
+  const hasArabicHomework = cleaned.some((task) => task.subjectId === 'arabic' && task.type === 'homework');
+  const officialArabicHomework = hasArabicHomework
+    ? []
+    : defaults.filter((task) => task.subjectId === 'arabic' && task.type === 'homework');
+  return [...withoutOldIct, ...officialIct, ...officialArabicHomework];
 }
 
 export function saveTasks(tasks: PlanTask[], section: GradeSection = '2A'): void {
@@ -501,9 +494,9 @@ export function loadWeeklyPlansArchive(): WeeklyPlanArchiveEntry[] {
               ? 'Block 1 - Week 1'
               : entry.title,
           tasksBySection: {
-            '2A': mergeWithDefaultTasks(entry.tasksBySection?.['2A'] || [], '2A'),
-            '2B': mergeWithDefaultTasks(entry.tasksBySection?.['2B'] || [], '2B'),
-            '2C': mergeWithDefaultTasks(entry.tasksBySection?.['2C'] || [], '2C'),
+            '2A': normalizeOfficialTasks(entry.tasksBySection?.['2A'] || [], '2A'),
+            '2B': normalizeOfficialTasks(entry.tasksBySection?.['2B'] || [], '2B'),
+            '2C': normalizeOfficialTasks(entry.tasksBySection?.['2C'] || [], '2C'),
           },
         }));
       }
