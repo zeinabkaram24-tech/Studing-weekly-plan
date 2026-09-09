@@ -592,6 +592,7 @@ export default function App() {
                       title: taskData.title,
                       details: taskData.details,
                       pages: taskData.pages,
+                      notes: taskData.notes,
                     }
                   : t
               );
@@ -614,6 +615,7 @@ export default function App() {
         title: taskData.title,
         details: taskData.details,
         pages: taskData.pages,
+        notes: taskData.notes,
         isDone: Boolean(taskData.isDone),
         personalNotes: taskData.personalNotes,
         isPersonalTask: true,
@@ -638,6 +640,7 @@ export default function App() {
                 title: taskData.title,
                 details: taskData.details,
                 pages: taskData.pages,
+                notes: taskData.notes,
               }
             : t
         );
@@ -655,6 +658,7 @@ export default function App() {
         title: taskData.title,
         details: taskData.details,
         pages: taskData.pages,
+        notes: taskData.notes,
         isDone: false,
         createdAt: Date.now(),
       };
