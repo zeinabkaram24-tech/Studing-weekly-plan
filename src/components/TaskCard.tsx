@@ -76,11 +76,11 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       }`}
     >
       {/* Subject Icon & Task Details */}
-      <div className={`flex items-start sm:items-center flex-1 min-w-0 ${compact ? 'gap-2.5 sm:gap-3' : 'gap-3.5 sm:gap-4'}`}>
+      <div className="flex items-start sm:items-center gap-3.5 sm:gap-4 flex-1 min-w-0">
         <div
-          className={`${compact ? 'w-9 h-9 rounded-xl' : 'w-11 h-11 sm:w-13 sm:h-13 rounded-2xl'} flex items-center justify-center shrink-0 border ${iconBg} ${iconColor} ${borderColor} shadow-2xs group-hover:scale-105 transition-transform`}
+          className={`w-11 h-11 sm:w-13 sm:h-13 rounded-2xl flex items-center justify-center shrink-0 border ${iconBg} ${iconColor} ${borderColor} shadow-2xs group-hover:scale-105 transition-transform`}
         >
-          <SubjectIcon name={subject?.iconName || 'BookOpen'} className={`${compact ? 'w-4 h-4' : 'w-5 h-5 sm:w-6 sm:h-6'} stroke-[2]`} />
+          <SubjectIcon name={subject?.iconName || 'BookOpen'} className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2]" />
         </div>
 
         <div className="flex-1 min-w-0">
@@ -129,6 +129,16 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             >
               {task.details}
             </p>
+          )}
+
+          {task.notes && (
+            <div className="mt-2 flex items-start gap-1.5 p-2 rounded-xl bg-sky-50/80 border border-sky-200/70 text-xs text-sky-900">
+              <StickyNote className="w-3.5 h-3.5 text-sky-600 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <span className="font-bold ml-1 text-sky-800">ملاحظات الخطة:</span>
+                <span>{task.notes}</span>
+              </div>
+            </div>
           )}
 
           {/* Prominent Clickable Link / Video / Platform Button */}
