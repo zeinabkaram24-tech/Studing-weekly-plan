@@ -44,6 +44,7 @@ import {
   clearAdminLogin,
   fetchGlobalPlanFromServer,
   saveGlobalPlanToServer,
+  clearAllWeeklyPlansData,
   normalizeOfficialTasks,
   getUserRole,
   saveUserRole,
@@ -907,6 +908,32 @@ export default function App() {
     ).catch((err) => console.warn('Notice: Background sync uploaded files deletion error:', err));
   };
 
+  const handleClearAllWeeklyPlans = () => {
+    clearAllWeeklyPlansData();
+    setArchive([]);
+    setActivePlanIdState('');
+    setActiveWeeklyPlanId('');
+    setOfficialTasks([]);
+    saveTasks([], selectedSection);
+    setUploadedFiles([]);
+    setWeekTitle('');
+    saveWeekTitle('');
+    saveGlobalPlanToServer(
+      {
+        activePlanId: '',
+        weekTitle: '',
+        activeBlockNumber: 1,
+        activeWeekNumber: 1,
+        tasksBySection: { '2A': [], '2B': [], '2C': [] },
+        archive: [],
+        uploadedFiles: [],
+        lastUpdated: Date.now(),
+        updatedBy: 'admin',
+      },
+      '1111',
+    ).catch((err) => console.warn('Notice: Failed to clear global weekly plans:', err));
+  };
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col md:flex-row font-sans selection:bg-indigo-100 selection:text-indigo-900">
       {/* Sidebar (Desktop) / Header (Mobile) */}
@@ -1132,6 +1159,7 @@ export default function App() {
         savedUploadedFiles={uploadedFiles}
         onDeleteSavedUploadedFile={(fileId) => handleDeleteUploadedFiles([fileId])}
         onDeleteSavedUploadedFiles={handleDeleteUploadedFiles}
+        onClearAllWeeklyPlans={handleClearAllWeeklyPlans}
         suggestedBlock={activeBlockNumber}
         suggestedWeek={activeWeekNumber + 1}
         visitorStats={visitorStats}
