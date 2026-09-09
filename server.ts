@@ -353,10 +353,16 @@ async function startServer() {
 
       if (existingGuestIndex >= 0) {
         const existing = db.visitors[existingGuestIndex];
-        existing.lastSeenAt = Date.now();
-        existing.visitCount = (existing.visitCount || 1) + 1;
+        const now = Date.now();
         if (!existing.dailyVisits) existing.dailyVisits = {};
-        existing.dailyVisits[todayKey] = (existing.dailyVisits[todayKey] || 0) + 1;
+        // Count a guest once per Cairo calendar day (12:00 AM to 12:00 AM).
+        // Repeated page loads in the same 24-hour window update activity but
+        // do not create duplicate daily visits.
+        if (!existing.dailyVisits[todayKey]) {
+          existing.visitCount = (existing.visitCount || 0) + 1;
+          existing.dailyVisits[todayKey] = 1;
+        }
+        existing.lastSeenAt = now;
         if (cleanSection) existing.section = cleanSection;
         if (device) existing.device = device;
         resultVisitor = existing;
@@ -393,12 +399,16 @@ async function startServer() {
 
       if (existingIndex >= 0) {
         const existing = db.visitors[existingIndex];
+        const now = Date.now();
         existing.name = cleanName;
         existing.loginType = "student";
-        existing.lastSeenAt = Date.now();
-        existing.visitCount = (existing.visitCount || 1) + 1;
         if (!existing.dailyVisits) existing.dailyVisits = {};
-        existing.dailyVisits[todayKey] = (existing.dailyVisits[todayKey] || 0) + 1;
+        // A named student is counted once in each 12:00 AM–12:00 AM window.
+        if (!existing.dailyVisits[todayKey]) {
+          existing.visitCount = (existing.visitCount || 0) + 1;
+          existing.dailyVisits[todayKey] = 1;
+        }
+        existing.lastSeenAt = now;
         if (cleanGrade) existing.studentGrade = cleanGrade;
         if (cleanSection) existing.section = cleanSection;
         if (device) existing.device = device;
@@ -460,12 +470,11 @@ async function startServer() {
       if (!existing.dailyVisits) existing.dailyVisits = {};
       const lastSeenDay = getCairoDateKey(existing.lastSeenAt);
 
-      // Increment visit if last seen on another day or more than 15 mins ago
-      if (lastSeenDay !== todayKey || now - existing.lastSeenAt > 15 * 60 * 1000) {
-        existing.visitCount = (existing.visitCount || 1) + 1;
+      // Ping keeps the record active. Count only the first activity in each
+      // Cairo calendar day, rather than inflating visits every 15 minutes.
+      if (lastSeenDay !== todayKey || !existing.dailyVisits[todayKey]) {
+        existing.visitCount = (existing.visitCount || 0) + (existing.dailyVisits[todayKey] ? 0 : 1);
         existing.dailyVisits[todayKey] = (existing.dailyVisits[todayKey] || 0) + 1;
-      } else if (!existing.dailyVisits[todayKey]) {
-        existing.dailyVisits[todayKey] = 1;
       }
       existing.lastSeenAt = now;
       if (section && !existing.section) existing.section = section;
