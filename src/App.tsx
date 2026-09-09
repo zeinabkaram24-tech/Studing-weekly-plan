@@ -17,7 +17,6 @@ import {
   loadSavedStudent,
   loadSavedSubjects,
   loadSavedTasks,
-  mergeWithDefaultTasks,
   loadSavedTimetable,
   loadSavedUploadedFiles,
   loadWeekTitle,
@@ -45,6 +44,7 @@ import {
   clearAdminLogin,
   fetchGlobalPlanFromServer,
   saveGlobalPlanToServer,
+  normalizeOfficialTasks,
   getUserRole,
   saveUserRole,
   clearUserRole,
@@ -290,21 +290,21 @@ export default function App() {
     fetchGlobalPlanFromServer().then((serverPlan) => {
       if (serverPlan) {
         if (serverPlan.archive && serverPlan.archive.length > 0) {
-          const reconciledArchive = serverPlan.archive.map((plan) => ({
+          const normalizedArchive = serverPlan.archive.map((plan) => ({
             ...plan,
             tasksBySection: {
-              '2A': mergeWithDefaultTasks(plan.tasksBySection?.['2A'] || [], '2A'),
-              '2B': mergeWithDefaultTasks(plan.tasksBySection?.['2B'] || [], '2B'),
-              '2C': mergeWithDefaultTasks(plan.tasksBySection?.['2C'] || [], '2C'),
+              '2A': normalizeOfficialTasks(plan.tasksBySection?.['2A'] || [], '2A'),
+              '2B': normalizeOfficialTasks(plan.tasksBySection?.['2B'] || [], '2B'),
+              '2C': normalizeOfficialTasks(plan.tasksBySection?.['2C'] || [], '2C'),
             },
           }));
-          setArchive(reconciledArchive);
-          saveWeeklyPlansArchive(reconciledArchive);
+          setArchive(normalizedArchive);
+          saveWeeklyPlansArchive(normalizedArchive);
 
           // By default, open on the latest week plan added (current Friday week)
-          const latest = getLatestWeeklyPlan(reconciledArchive);
+          const latest = getLatestWeeklyPlan(normalizedArchive);
           const chosen = serverPlan.activePlanId
-            ? reconciledArchive.find((p) => p.id === serverPlan.activePlanId) || latest
+            ? normalizedArchive.find((p) => p.id === serverPlan.activePlanId) || latest
             : latest;
 
           if (chosen) {
@@ -312,13 +312,7 @@ export default function App() {
             setActiveWeeklyPlanId(chosen.id);
             setWeekTitle(chosen.title);
             saveWeekTitle(chosen.title);
-            // Global Storage may contain an older snapshot. Reconcile it with
-            // the current shipped defaults so new Arabic homework and ICT links
-            // appear on every account/device without deleting custom tasks.
-            const secTasks = mergeWithDefaultTasks(
-              chosen.tasksBySection?.[selectedSection] || [],
-              selectedSection,
-            );
+            const secTasks = normalizeOfficialTasks(chosen.tasksBySection?.[selectedSection] || [], selectedSection);
             setOfficialTasks(secTasks);
             saveTasks(secTasks, selectedSection);
             if (chosen.uploadedFiles && chosen.uploadedFiles.length > 0) {
@@ -340,8 +334,9 @@ export default function App() {
             saveUploadedFiles(serverPlan.uploadedFiles);
           }
           if (serverPlan.tasksBySection && serverPlan.tasksBySection[selectedSection]) {
-            setOfficialTasks(serverPlan.tasksBySection[selectedSection]);
-            saveTasks(serverPlan.tasksBySection[selectedSection], selectedSection);
+            const secTasks = normalizeOfficialTasks(serverPlan.tasksBySection[selectedSection], selectedSection);
+            setOfficialTasks(secTasks);
+            saveTasks(secTasks, selectedSection);
           }
         }
       }
