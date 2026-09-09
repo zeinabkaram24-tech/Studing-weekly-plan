@@ -29,7 +29,6 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const [title, setTitle] = useState<string>('');
   const [details, setDetails] = useState<string>('');
   const [pages, setPages] = useState<string>('');
-  const [notes, setNotes] = useState<string>('');
   const [isDone, setIsDone] = useState<boolean>(false);
 
   useEffect(() => {
@@ -40,7 +39,6 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       setTitle(editingTask.title);
       setDetails(editingTask.details || '');
       setPages(editingTask.pages || '');
-      setNotes(editingTask.notes || '');
       setIsDone(editingTask.isDone);
     } else {
       setDay(defaultDay);
@@ -49,7 +47,6 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       setTitle('');
       setDetails('');
       setPages('');
-      setNotes('');
       setIsDone(false);
     }
   }, [editingTask, defaultDay, defaultSubjectId, subjects, isOpen]);
@@ -68,7 +65,6 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       title: title.trim(),
       details: details.trim() || undefined,
       pages: pages.trim() || undefined,
-      notes: notes.trim() || undefined,
       isDone,
       completedAt: isDone ? (editingTask?.completedAt || Date.now()) : undefined,
     });
@@ -225,19 +221,6 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               value={pages}
               onChange={(e) => setPages(e.target.value)}
               placeholder="مثال: Page 81 / De page 3 à page 7"
-              className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 text-sm font-medium text-slate-900"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              ملاحظات الخطة الرسمية:
-            </label>
-            <textarea
-              rows={2}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="مثال: ملاحظة خاصة بمهمة Social Studies أو تعليمات المعلم..."
               className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 text-sm font-medium text-slate-900"
             />
           </div>

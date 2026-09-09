@@ -57,7 +57,7 @@ export const WeekPlanSelectorBar: React.FC<WeekPlanSelectorBarProps> = ({
 
   const activePlan = archive.find((p) => p.id === activePlanId) || sortedPlans[0];
   const latestPlan = getLatestWeeklyPlan(archive);
-  const isViewingArchive = Boolean(activePlan && latestPlan && activePlan.id !== latestPlan.id);
+  const isViewingArchive = activePlan && activePlan.id !== latestPlan.id;
 
   // Task statistics for the currently active week & section
   const sectionTasks = tasks.filter(
