@@ -115,13 +115,18 @@ export function loadSavedTasks(section: GradeSection = '2A'): PlanTask[] {
 export function normalizeOfficialTasks(tasks: PlanTask[], section: GradeSection): PlanTask[] {
   const cleaned = filterOutArtTasks(tasks || []);
   const defaults = filterOutArtTasks(GRADE_TASKS[section] || DEFAULT_TASKS);
-  const withoutOldIct = cleaned.filter((task) => task.subjectId !== 'ict');
+  const withoutOldIct = cleaned.filter(
+    (task) => task.subjectId !== 'ict' && !(task.subjectId === 'english' && task.type === 'homework')
+  );
   const officialIct = defaults.filter((task) => task.subjectId === 'ict');
+  const officialEnglishHomework = defaults.filter(
+    (task) => task.subjectId === 'english' && task.type === 'homework'
+  );
   const hasArabicHomework = cleaned.some((task) => task.subjectId === 'arabic' && task.type === 'homework');
   const officialArabicHomework = hasArabicHomework
     ? []
     : defaults.filter((task) => task.subjectId === 'arabic' && task.type === 'homework');
-  return [...withoutOldIct, ...officialIct, ...officialArabicHomework];
+  return [...withoutOldIct, ...officialIct, ...officialArabicHomework, ...officialEnglishHomework];
 }
 
 export function saveTasks(tasks: PlanTask[], section: GradeSection = '2A'): void {
