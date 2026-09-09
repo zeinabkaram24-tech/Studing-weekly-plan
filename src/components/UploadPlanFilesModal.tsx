@@ -53,6 +53,19 @@ import { VisitorStatsPanel } from './VisitorStatsPanel';
 import { processTasksAndExtractLinkTasks, extractFirstUrl, parseWeeklyPlanTextWithLinks } from '../utils/urlHelper';
 import { extractWeeklyPlanText } from '../utils/planFileParser';
 
+const formatCairoDateTime = (timestamp?: number): string => {
+  if (!timestamp || !Number.isFinite(timestamp)) return '—';
+  return new Intl.DateTimeFormat('ar-EG', {
+    timeZone: 'Africa/Cairo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).format(new Date(timestamp));
+};
+
 export type AdminUploadTab = 'materials' | 'visitors' | 'weekly_plan' | 'history';
 
 export interface UploadPlanFilesModalProps {
@@ -76,6 +89,7 @@ export interface UploadPlanFilesModalProps {
   savedUploadedFiles: UploadedPlanFile[];
   onDeleteSavedUploadedFile?: (fileId: string) => void;
   onDeleteSavedUploadedFiles?: (fileIds: string[]) => void;
+  onClearAllWeeklyPlans?: () => void;
   suggestedBlock?: number;
   suggestedWeek?: number;
   initialTab?: AdminUploadTab;
@@ -95,6 +109,7 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
   savedUploadedFiles,
   onDeleteSavedUploadedFile,
   onDeleteSavedUploadedFiles,
+  onClearAllWeeklyPlans,
   suggestedBlock = 1,
   suggestedWeek = 2,
   initialTab = 'materials',
@@ -693,6 +708,14 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
     setSelectedHistoryFileIds(new Set());
     setHistorySuccessMsg(`تم حذف (${count}) ملفات محددة من السجل بنجاح.`);
     setTimeout(() => setHistorySuccessMsg(null), 4000);
+  };
+
+  const handleClearAllWeeklyPlans = () => {
+    if (!onClearAllWeeklyPlans) return;
+    const confirmed = window.confirm(
+      'سيتم حذف جميع Weekly Plans والمهام والملفات المرتبطة بها من التطبيق والخادم. لن يتم حذف Materials أو Timetable أو بيانات الطلاب. هل أنت متأكد؟',
+    );
+    if (confirmed) onClearAllWeeklyPlans();
   };
 
   const toggleSelectHistoryFile = (id: string) => {
@@ -1863,6 +1886,16 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
               <h4 className="text-sm font-black text-slate-900">
                 الملفات السابقة التي تم رفعها لحفظ الخطط الأسبوعية ({savedUploadedFiles.length}):
               </h4>
+              {onClearAllWeeklyPlans && (
+                <button
+                  type="button"
+                  onClick={handleClearAllWeeklyPlans}
+                  className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold flex items-center gap-1.5 transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>مسح كل الخطط الأسبوعية</span>
+                </button>
+              )}
             </div>
 
             {/* Multi-select Action Bar for History Files */}
@@ -1942,7 +1975,7 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
                         <div>
                           <span className="text-xs font-bold text-slate-900 block">{f.name}</span>
                           <span className="text-[11px] text-slate-400 font-sans">
-                            {f.weekName || 'خطة الأسبوع'} • {new Date(f.uploadDate).toLocaleDateString('ar-EG')}
+                            {f.weekName || 'خطة الأسبوع'} • {formatCairoDateTime(f.uploadDate)} (القاهرة)
                           </span>
                         </div>
                       </div>
