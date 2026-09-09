@@ -30,6 +30,7 @@ const STORAGE_KEYS = {
   FILES: 'g2_school_uploaded_files_v2',
   SECTION: 'g2_school_grade_section_v2',
   ARCHIVE: 'g2_school_weekly_plans_archive_v1',
+  ARCHIVE_CLEARED: 'g2_school_weekly_plans_archive_cleared_v1',
   ACTIVE_PLAN_ID: 'g2_school_active_plan_id_v1',
   ADMIN_LOGGED_IN: 'g2_school_admin_logged_in',
   USER_ROLE: 'g2_school_user_role_v1',
@@ -330,6 +331,7 @@ export function resetAllDataToDefault(): void {
   localStorage.removeItem(STORAGE_KEYS.FILES);
   localStorage.removeItem(STORAGE_KEYS.SECTION);
   localStorage.removeItem(STORAGE_KEYS.ARCHIVE);
+  localStorage.removeItem(STORAGE_KEYS.ARCHIVE_CLEARED);
   localStorage.removeItem(STORAGE_KEYS.ACTIVE_PLAN_ID);
 }
 
@@ -426,9 +428,9 @@ export function hasStoredUserRole(): boolean {
 
 // --- WEEKLY PLANS MEMORY & ARCHIVE (Block & Week) ---
 
-export function getLatestWeeklyPlan(archive: WeeklyPlanArchiveEntry[]): WeeklyPlanArchiveEntry {
+export function getLatestWeeklyPlan(archive: WeeklyPlanArchiveEntry[]): WeeklyPlanArchiveEntry | undefined {
   if (!archive || archive.length === 0) {
-    return getInitialWeeklyPlansArchive()[0];
+    return undefined;
   }
   // 1. Check if an entry is explicitly marked isCurrent
   const current = archive.find((p) => p.isCurrent);
@@ -473,6 +475,9 @@ export function getInitialWeeklyPlansArchive(): WeeklyPlanArchiveEntry[] {
 
 export function loadWeeklyPlansArchive(): WeeklyPlanArchiveEntry[] {
   try {
+    if (localStorage.getItem(STORAGE_KEYS.ARCHIVE_CLEARED) === '1') {
+      return [];
+    }
     const saved = localStorage.getItem(STORAGE_KEYS.ARCHIVE);
     if (saved) {
       const parsed: WeeklyPlanArchiveEntry[] = JSON.parse(saved);
@@ -517,6 +522,11 @@ export function loadWeeklyPlansArchive(): WeeklyPlanArchiveEntry[] {
 export function saveWeeklyPlansArchive(archive: WeeklyPlanArchiveEntry[]): void {
   try {
     localStorage.setItem(STORAGE_KEYS.ARCHIVE, JSON.stringify(archive));
+    if (archive.length === 0) {
+      localStorage.setItem(STORAGE_KEYS.ARCHIVE_CLEARED, '1');
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.ARCHIVE_CLEARED);
+    }
   } catch (e) {
     console.error('Failed to save weekly plans archive', e);
   }
@@ -530,8 +540,21 @@ export function getActiveWeeklyPlanId(): string {
     // ignore
   }
   const archive = loadWeeklyPlansArchive();
+  if (archive.length === 0) return '';
   const latest = getLatestWeeklyPlan(archive);
   return latest?.id || 'b1-w1';
+}
+
+export function clearAllWeeklyPlansData(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEYS.TASKS);
+    localStorage.removeItem(STORAGE_KEYS.WEEK_TITLE);
+    localStorage.removeItem(STORAGE_KEYS.FILES);
+    localStorage.removeItem(STORAGE_KEYS.ACTIVE_PLAN_ID);
+    saveWeeklyPlansArchive([]);
+  } catch (e) {
+    console.error('Failed to clear all weekly plans data', e);
+  }
 }
 
 export function setActiveWeeklyPlanId(id: string): void {

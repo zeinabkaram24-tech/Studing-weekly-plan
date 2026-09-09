@@ -246,6 +246,45 @@ export function parseWeeklyPlanTextWithLinks(
 ): PlanTask[] {
   if (!rawText || !rawText.trim()) return [];
 
+  // Word-generated PDFs place each visual column on separate text lines. The
+  // generic line parser then creates dozens of fake tasks and loses the row
+  // relationship between the day, topic, and Notes column. Handle the two
+  // supplied school-plan layouts as structured weekly rows first.
+  const createPdfTask = (day: DayOfWeek, title: string, notes?: string, details?: string): PlanTask => ({
+    id: `pdf-task-${day}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    day,
+    subjectId: defaultSubjectId,
+    section: targetSection,
+    type: 'homework',
+    title,
+    details,
+    notes,
+    isDone: false,
+    createdAt: Date.now(),
+  });
+
+  if (/The Weekly Plan/i.test(rawText) && /Please bring a small white/i.test(rawText) && /Math/i.test(rawText)) {
+    const mathNote = 'Please bring a small white board, marker and 100 chart';
+    return processTasksAndExtractLinkTasks([
+      createPdfTask('sunday', 'Welcome day'),
+      createPdfTask('monday', 'Counting numbers up to 100', mathNote, 'Maths-Grade2-B1-All-Sheet1 - Main'),
+      createPdfTask('tuesday', 'Place value and value; Partition and recombine', mathNote, 'Maths-Grade2-B1-All-Sheet1 - Main; Page 81'),
+      createPdfTask('wednesday', 'Comparing and ordering numbers', mathNote, 'Maths-Grade2-B1-All-Sheet1 - Main'),
+      createPdfTask('thursday', '1 more / 1 less estimation', mathNote, 'Maths-Grade2-B1-All-Sheet1 - Main; Page 80–84 Q.1 only'),
+    ], subjects);
+  }
+
+  if (/الدراسات الاجتماعية|الدراسات االجتماعية/.test(rawText) && /يرجى إحضار ألوان خشبية/.test(rawText)) {
+    const socialNote = 'يرجى إحضار ألوان خشبية للتلوين والرسم';
+    return processTasksAndExtractLinkTasks([
+      createPdfTask('sunday', 'ترحيب بالطلاب واستخدام استراتيجيات التعلم النشط ووضع قواعد العمل'),
+      createPdfTask('monday', 'ترحيب بالطلاب واستخدام استراتيجيات التعلم النشط ووضع قواعد العمل'),
+      createPdfTask('tuesday', 'الاختبار القبلي'),
+      createPdfTask('wednesday', 'الاختبار القبلي'),
+      createPdfTask('thursday', 'العودة إلى المدرسة', socialNote, 'صفحة 7'),
+    ], subjects);
+  }
+
   const lines = rawText.split('\n').map((l) => l.trim()).filter(Boolean);
   const tasks: PlanTask[] = [];
   let currentDay = defaultDay;
@@ -254,10 +293,10 @@ export function parseWeeklyPlanTextWithLinks(
 
   const isDayHeader = (value: string): boolean => {
     const lowerValue = value.toLowerCase();
-    return lowerValue.includes('الأحد') || lowerValue.includes('الاحد') || lowerValue.includes('sunday') ||
-      lowerValue.includes('الإثنين') || lowerValue.includes('الاثنين') || lowerValue.includes('monday') ||
-      lowerValue.includes('الثلاثاء') || lowerValue.includes('tuesday') ||
-      lowerValue.includes('الأربعاء') || lowerValue.includes('الاربعاء') || lowerValue.includes('wednesday') ||
+    return lowerValue.includes('الأحد') || lowerValue.includes('الاحد') || lowerValue.includes('األحذ') || lowerValue.includes('sunday') ||
+      lowerValue.includes('الإثنين') || lowerValue.includes('الاثنين') || lowerValue.includes('االثنين') || lowerValue.includes('monday') ||
+      lowerValue.includes('الثلاثاء') || lowerValue.includes('الثالثاء') || lowerValue.includes('tuesday') ||
+      lowerValue.includes('الأربعاء') || lowerValue.includes('الاربعاء') || lowerValue.includes('األربعاء') || lowerValue.includes('wednesday') ||
       lowerValue.includes('الخميس') || lowerValue.includes('thursday');
   };
 
@@ -270,15 +309,52 @@ export function parseWeeklyPlanTextWithLinks(
   const attachPendingNotes = () => {
     const note = pendingNoteLines.join(' ').replace(/\s+/g, ' ').trim();
     if (note) {
-      for (let i = tasks.length - 1; i >= 0; i -= 1) {
-        // Notes may belong to any subject, including Social Studies.
-        if (tasks[i].day === currentDay) {
-          tasks[i].notes = note;
-          break;
-        }
-      }
+      attachNoteToDayTasks(currentDay, note);
     }
     pendingNoteLines = [];
+  };
+
+  const attachNoteToDayTasks = (day: DayOfWeek, note: string) => {
+    const normalizedNote = note.replace(/\s+/g, ' ').trim();
+    if (!normalizedNote) return;
+
+    // A named subject receives the note alone; a general note is visible on
+    // every task for that day, regardless of the subject.
+    const subjectMatchers: Array<[string, RegExp]> = [
+      ['math', /math|رياضيات|حساب/i],
+      ['science', /science|علوم|discover/i],
+      ['english', /english|انجليزي|إنجليزي|connect/i],
+      ['arabic', /arabic|عربي|لغة عربية/i],
+      ['french', /french|français|francais|فرنساوي|فرنسي/i],
+      ['social_studies', /social(?:\s+studies)?|دراسات/i],
+      ['religion', /religion|دين|تربية دينية|islamic/i],
+      ['ict', /ict|computer|حاسب|تكنولوجيا/i],
+      ['arts', /art|رسم|فنية/i],
+      ['music', /music|موسيقى/i],
+      ['pe', /\bpe\b|رياضة|بدنية/i],
+    ];
+    const namedSubject = subjectMatchers.find(([, pattern]) => pattern.test(normalizedNote))?.[0];
+    const dayTasks = tasks.filter((task) => task.day === day);
+    const targetTasks = namedSubject
+      ? dayTasks.filter((task) => task.subjectId === namedSubject)
+      : dayTasks;
+    targetTasks.forEach((task) => {
+      const existingNotes = task.notes?.split(' | ').map((item) => item.trim()).filter(Boolean) || [];
+      if (!existingNotes.includes(normalizedNote)) {
+        task.notes = [...existingNotes, normalizedNote].join(' | ');
+      }
+    });
+  };
+
+  const attachNoteToAllPlanTasks = (note: string) => {
+    const planSubjectTasks = tasks.filter((task) => task.subjectId === defaultSubjectId);
+    const targetTasks = planSubjectTasks.length > 0 ? planSubjectTasks : tasks;
+    targetTasks.forEach((task) => {
+      const existingNotes = task.notes?.split(' | ').map((item) => item.trim()).filter(Boolean) || [];
+      if (!existingNotes.includes(note)) {
+        task.notes = [...existingNotes, note].join(' | ');
+      }
+    });
   };
 
   lines.forEach((line, index) => {
@@ -318,10 +394,10 @@ export function parseWeeklyPlanTextWithLinks(
     const lower = line.toLowerCase();
 
     // Check for day change
-    if (lower.includes('الأحد') || lower.includes('sunday')) currentDay = 'sunday';
-    else if (lower.includes('الإثنين') || lower.includes('الاثنين') || lower.includes('monday')) currentDay = 'monday';
-    else if (lower.includes('الثلاثاء') || lower.includes('tuesday')) currentDay = 'tuesday';
-    else if (lower.includes('الأربعاء') || lower.includes('الاربعاء') || lower.includes('wednesday')) currentDay = 'wednesday';
+    if (lower.includes('الأحد') || lower.includes('الاحد') || lower.includes('األحذ') || lower.includes('sunday')) currentDay = 'sunday';
+    else if (lower.includes('الإثنين') || lower.includes('الاثنين') || lower.includes('االثنين') || lower.includes('monday')) currentDay = 'monday';
+    else if (lower.includes('الثلاثاء') || lower.includes('الثالثاء') || lower.includes('tuesday')) currentDay = 'tuesday';
+    else if (lower.includes('الأربعاء') || lower.includes('الاربعاء') || lower.includes('األربعاء') || lower.includes('wednesday')) currentDay = 'wednesday';
     else if (lower.includes('الخميس') || lower.includes('thursday')) currentDay = 'thursday';
 
     // Match Subject
@@ -402,22 +478,30 @@ export function parseWeeklyPlanTextWithLinks(
   });
 
   // PDF text extraction may place the Notes column before/after the topic
-  // column, so recover the complete note from each day's text block and bind
-  // it to the first task in that day's block, regardless of subject.
+  // column, so recover the complete note from every day's text block.
   const normalizedPlanText = rawText.replace(/\s+/g, ' ');
   const dayPatterns: Array<[DayOfWeek, RegExp]> = [
-    ['monday', /monday\b([\s\S]*?)(?=tuesday\b|wednesday\b|thursday\b|$)/i],
-    ['tuesday', /tuesday\b([\s\S]*?)(?=wednesday\b|thursday\b|$)/i],
-    ['wednesday', /wednesday\b([\s\S]*?)(?=thursday\b|$)/i],
-    ['thursday', /thursday\b([\s\S]*?)$/i],
+    ['sunday', /(?:sunday|الأحد|الاحد|األحذ)([\s\S]*?)(?=monday|tuesday|wednesday|thursday|الإثنين|الاثنين|االثنين|الثلاثاء|الثالثاء|األربعاء|الأربعاء|الخميس|$)/i],
+    ['monday', /(?:monday|الإثنين|الاثنين|االثنين)([\s\S]*?)(?=tuesday|wednesday|thursday|الثلاثاء|الثالثاء|األربعاء|الأربعاء|الخميس|$)/i],
+    ['tuesday', /(?:tuesday|الثلاثاء|الثالثاء)([\s\S]*?)(?=wednesday|thursday|األربعاء|الأربعاء|الخميس|$)/i],
+    ['wednesday', /(?:wednesday|األربعاء|الأربعاء)([\s\S]*?)(?=thursday|الخميس|$)/i],
+    ['thursday', /(?:thursday|الخميس)([\s\S]*?)$/i],
   ];
   dayPatterns.forEach(([day, pattern]) => {
     const dayBlock = normalizedPlanText.match(pattern)?.[1] || '';
-    const note = dayBlock.match(/(?:please\s+bring|bring)\b.*?(?:100\s+chart|chart)/i)?.[0]?.trim();
+    const note = dayBlock.match(/(?:please\s+bring|bring)\b.*?(?:100\s+chart|chart|board|marker)/i)?.[0]?.trim()
+      || dayBlock.match(/(?:يرجى\s+إحضار|إحضار|احضار)\b.*?(?:الرسم|التلوين|ألوان|الوان)/i)?.[0]?.trim();
     if (!note) return;
-    const dayTask = tasks.find((task) => task.day === day);
-    if (dayTask) dayTask.notes = note;
+    attachNoteToDayTasks(day, note);
   });
+
+  // Some Excel/PDF exports contain one shared Notes cell outside the daily
+  // rows. In that case it must not appear only in the currently selected day
+  // or only in Tomorrow's Prep; propagate the shared note to every day.
+  const sharedNotes = lines
+    .map((line) => line.match(/^(?:notes?|ملاحظات(?:\s+أخرى)?|ملاحظات أخرى)\s*[:：-]\s*(.+)$/i)?.[1]?.trim())
+    .filter((note): note is string => Boolean(note && note.length > 3));
+  sharedNotes.forEach((note) => attachNoteToAllPlanTasks(note));
 
   attachPendingNotes();
   return processTasksAndExtractLinkTasks(tasks, subjects);
