@@ -270,15 +270,38 @@ export function parseWeeklyPlanTextWithLinks(
   const attachPendingNotes = () => {
     const note = pendingNoteLines.join(' ').replace(/\s+/g, ' ').trim();
     if (note) {
-      for (let i = tasks.length - 1; i >= 0; i -= 1) {
-        // Notes may belong to any subject, including Social Studies.
-        if (tasks[i].day === currentDay) {
-          tasks[i].notes = note;
-          break;
-        }
-      }
+      attachNoteToDayTasks(currentDay, note);
     }
     pendingNoteLines = [];
+  };
+
+  const attachNoteToDayTasks = (day: DayOfWeek, note: string) => {
+    const normalizedNote = note.replace(/\s+/g, ' ').trim();
+    if (!normalizedNote) return;
+
+    // A named subject receives the note alone; a general note is visible on
+    // every task for that day, regardless of the subject.
+    const subjectMatchers: Array<[string, RegExp]> = [
+      ['math', /math|رياضيات|حساب/i],
+      ['science', /science|علوم|discover/i],
+      ['english', /english|انجليزي|إنجليزي|connect/i],
+      ['arabic', /arabic|عربي|لغة عربية/i],
+      ['french', /french|français|francais|فرنساوي|فرنسي/i],
+      ['social_studies', /social(?:\s+studies)?|دراسات/i],
+      ['religion', /religion|دين|تربية دينية|islamic/i],
+      ['ict', /ict|computer|حاسب|تكنولوجيا/i],
+      ['arts', /art|رسم|فنية/i],
+      ['music', /music|موسيقى/i],
+      ['pe', /\bpe\b|رياضة|بدنية/i],
+    ];
+    const namedSubject = subjectMatchers.find(([, pattern]) => pattern.test(normalizedNote))?.[0];
+    const dayTasks = tasks.filter((task) => task.day === day);
+    const targetTasks = namedSubject
+      ? dayTasks.filter((task) => task.subjectId === namedSubject)
+      : dayTasks;
+    targetTasks.forEach((task) => {
+      task.notes = task.notes ? `${task.notes} ${normalizedNote}`.trim() : normalizedNote;
+    });
   };
 
   lines.forEach((line, index) => {
@@ -402,10 +425,10 @@ export function parseWeeklyPlanTextWithLinks(
   });
 
   // PDF text extraction may place the Notes column before/after the topic
-  // column, so recover the complete note from each day's text block and bind
-  // it to the first task in that day's block, regardless of subject.
+  // column, so recover the complete note from every day's text block.
   const normalizedPlanText = rawText.replace(/\s+/g, ' ');
   const dayPatterns: Array<[DayOfWeek, RegExp]> = [
+    ['sunday', /sunday\b([\s\S]*?)(?=monday\b|tuesday\b|wednesday\b|thursday\b|$)/i],
     ['monday', /monday\b([\s\S]*?)(?=tuesday\b|wednesday\b|thursday\b|$)/i],
     ['tuesday', /tuesday\b([\s\S]*?)(?=wednesday\b|thursday\b|$)/i],
     ['wednesday', /wednesday\b([\s\S]*?)(?=thursday\b|$)/i],
@@ -415,8 +438,7 @@ export function parseWeeklyPlanTextWithLinks(
     const dayBlock = normalizedPlanText.match(pattern)?.[1] || '';
     const note = dayBlock.match(/(?:please\s+bring|bring)\b.*?(?:100\s+chart|chart)/i)?.[0]?.trim();
     if (!note) return;
-    const dayTask = tasks.find((task) => task.day === day);
-    if (dayTask) dayTask.notes = note;
+    attachNoteToDayTasks(day, note);
   });
 
   attachPendingNotes();
