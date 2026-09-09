@@ -44,6 +44,7 @@ import {
   clearAdminLogin,
   fetchGlobalPlanFromServer,
   saveGlobalPlanToServer,
+  clearAllWeeklyPlansData,
   normalizeOfficialTasks,
   getUserRole,
   saveUserRole,
@@ -85,6 +86,23 @@ import {
   registerGuestVisitor,
   getStoredVisitorName,
 } from './utils/visitorTracker';
+
+function collectUploadedFiles(
+  archive: WeeklyPlanArchiveEntry[],
+  fallback: UploadedPlanFile[] = [],
+): UploadedPlanFile[] {
+  const files = [
+    ...fallback,
+    ...archive.flatMap((plan) => plan.uploadedFiles || []),
+  ];
+  const seen = new Set<string>();
+  return files.filter((file) => {
+    const key = file.id || `${file.name}-${file.uploadDate}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 
 export default function App() {
   const [selectedSection, setSelectedSection] = useState<GradeSection>(() => {
@@ -140,7 +158,7 @@ export default function App() {
     const initialArchive = loadWeeklyPlansArchive();
     const activeId = getActiveWeeklyPlanId();
     const current = initialArchive.find((p) => p.id === activeId) || initialArchive[0];
-    if (current?.tasksBySection?.[savedSec] && current.tasksBySection[savedSec].length > 0) {
+    if (current?.tasksBySection?.[savedSec]) {
       return current.tasksBySection[savedSec];
     }
     return loadSavedTasks(savedSec);
@@ -175,12 +193,7 @@ export default function App() {
   });
   const [uploadedFiles, setUploadedFiles] = useState<UploadedPlanFile[]>(() => {
     const initialArchive = loadWeeklyPlansArchive();
-    const activeId = getActiveWeeklyPlanId();
-    const current = initialArchive.find((p) => p.id === activeId) || initialArchive[0];
-    if (current?.uploadedFiles && current.uploadedFiles.length > 0) {
-      return current.uploadedFiles;
-    }
-    return loadSavedUploadedFiles();
+    return collectUploadedFiles(initialArchive, loadSavedUploadedFiles());
   });
 
   // Keep browser document title updated with current active block and week
@@ -293,13 +306,16 @@ export default function App() {
           const normalizedArchive = serverPlan.archive.map((plan) => ({
             ...plan,
             tasksBySection: {
-              '2A': normalizeOfficialTasks(plan.tasksBySection?.['2A'] || [], '2A'),
-              '2B': normalizeOfficialTasks(plan.tasksBySection?.['2B'] || [], '2B'),
-              '2C': normalizeOfficialTasks(plan.tasksBySection?.['2C'] || [], '2C'),
+              '2A': plan.tasksBySection?.['2A'] || [],
+              '2B': plan.tasksBySection?.['2B'] || [],
+              '2C': plan.tasksBySection?.['2C'] || [],
             },
           }));
           setArchive(normalizedArchive);
           saveWeeklyPlansArchive(normalizedArchive);
+          const allServerFiles = collectUploadedFiles(normalizedArchive, serverPlan.uploadedFiles || []);
+          setUploadedFiles(allServerFiles);
+          saveUploadedFiles(allServerFiles);
 
           // By default, open on the latest week plan added (current Friday week)
           const latest = getLatestWeeklyPlan(normalizedArchive);
@@ -312,13 +328,9 @@ export default function App() {
             setActiveWeeklyPlanId(chosen.id);
             setWeekTitle(chosen.title);
             saveWeekTitle(chosen.title);
-            const secTasks = normalizeOfficialTasks(chosen.tasksBySection?.[selectedSection] || [], selectedSection);
+            const secTasks = chosen.tasksBySection?.[selectedSection] || [];
             setOfficialTasks(secTasks);
             saveTasks(secTasks, selectedSection);
-            if (chosen.uploadedFiles && chosen.uploadedFiles.length > 0) {
-              setUploadedFiles(chosen.uploadedFiles);
-              saveUploadedFiles(chosen.uploadedFiles);
-            }
           }
         } else {
           if (serverPlan.activePlanId) {
@@ -329,12 +341,11 @@ export default function App() {
             setWeekTitle(serverPlan.weekTitle);
             saveWeekTitle(serverPlan.weekTitle);
           }
-          if (serverPlan.uploadedFiles && serverPlan.uploadedFiles.length > 0) {
-            setUploadedFiles(serverPlan.uploadedFiles);
-            saveUploadedFiles(serverPlan.uploadedFiles);
-          }
+          const allServerFiles = collectUploadedFiles([], serverPlan.uploadedFiles || []);
+          setUploadedFiles(allServerFiles);
+          saveUploadedFiles(allServerFiles);
           if (serverPlan.tasksBySection && serverPlan.tasksBySection[selectedSection]) {
-            const secTasks = normalizeOfficialTasks(serverPlan.tasksBySection[selectedSection], selectedSection);
+            const secTasks = serverPlan.tasksBySection[selectedSection] || [];
             setOfficialTasks(secTasks);
             saveTasks(secTasks, selectedSection);
           }
@@ -447,9 +458,9 @@ export default function App() {
     const secTasks = selected.tasksBySection?.[selectedSection] || [];
     setOfficialTasks(secTasks);
     saveTasks(secTasks, selectedSection);
-    if (selected.uploadedFiles && selected.uploadedFiles.length > 0) {
-      setUploadedFiles(selected.uploadedFiles);
-    }
+    const allArchiveFiles = collectUploadedFiles(archive);
+    setUploadedFiles(allArchiveFiles);
+    saveUploadedFiles(allArchiveFiles);
   };
 
   const handleSetPlanAsCurrent = (planId: string) => {
@@ -512,7 +523,7 @@ export default function App() {
 
     // Retrieve tasks for new section from active plan if present
     const currActive = archive.find((p) => p.id === activePlanId) || archive[0];
-    if (currActive?.tasksBySection?.[newSection] && currActive.tasksBySection[newSection].length > 0) {
+    if (currActive?.tasksBySection?.[newSection]) {
       setOfficialTasks(currActive.tasksBySection[newSection]);
       saveTasks(currActive.tasksBySection[newSection], newSection);
     } else {
@@ -592,6 +603,7 @@ export default function App() {
                       title: taskData.title,
                       details: taskData.details,
                       pages: taskData.pages,
+                      notes: taskData.notes,
                     }
                   : t
               );
@@ -614,6 +626,7 @@ export default function App() {
         title: taskData.title,
         details: taskData.details,
         pages: taskData.pages,
+        notes: taskData.notes,
         isDone: Boolean(taskData.isDone),
         personalNotes: taskData.personalNotes,
         isPersonalTask: true,
@@ -638,6 +651,7 @@ export default function App() {
                 title: taskData.title,
                 details: taskData.details,
                 pages: taskData.pages,
+                notes: taskData.notes,
               }
             : t
         );
@@ -655,6 +669,7 @@ export default function App() {
         title: taskData.title,
         details: taskData.details,
         pages: taskData.pages,
+        notes: taskData.notes,
         isDone: false,
         createdAt: Date.now(),
       };
@@ -745,8 +760,12 @@ export default function App() {
     targetSection: 'all' | GradeSection,
     setAsCurrent: boolean
   ) => {
+    const existingPlan = archive.find(
+      (plan) => plan.blockNumber === blockNumber && plan.weekNumber === weekNumber,
+    );
+    const isNewWeek = !existingPlan;
     let finalSectionTasks: PlanTask[] = [];
-    if (mode === 'keep_pending_and_add') {
+    if (!isNewWeek && mode === 'keep_pending_and_add') {
       const carriedOverPendingTasks: PlanTask[] = officialTasks
         .filter((t) => {
           const userItem = userProgressMap[t.id];
@@ -758,13 +777,21 @@ export default function App() {
           previousWeekNote: 'مهمة متبقية من الأسبوع الماضي لم تُنجز',
         }));
       finalSectionTasks = [...carriedOverPendingTasks, ...newTasks];
-    } else if (mode === 'replace') {
+    } else if (isNewWeek || mode === 'replace') {
       finalSectionTasks = newTasks;
     } else {
       finalSectionTasks = [...officialTasks, ...newTasks];
     }
 
-    const newPlanId = `plan-b${blockNumber}-w${weekNumber}-${Date.now()}`;
+    // A stable id makes repeated uploads for the same Block/Week update that
+    // week rather than creating another mixed copy in the archive.
+    const newPlanId = existingPlan?.id || `b${blockNumber}-w${weekNumber}`;
+    const emptySections: Record<GradeSection, PlanTask[]> = {
+      '2A': [],
+      '2B': [],
+      '2C': [],
+    };
+    const previousTasks = existingPlan?.tasksBySection || emptySections;
     const newEntry: WeeklyPlanArchiveEntry = {
       id: newPlanId,
       blockNumber,
@@ -774,14 +801,17 @@ export default function App() {
       isCurrent: setAsCurrent,
       uploadedFiles: newFiles,
       tasksBySection: {
-        '2A': targetSection === 'all' || targetSection === '2A' ? finalSectionTasks : (activePlan?.tasksBySection?.['2A'] || []),
-        '2B': targetSection === 'all' || targetSection === '2B' ? finalSectionTasks : (activePlan?.tasksBySection?.['2B'] || []),
-        '2C': targetSection === 'all' || targetSection === '2C' ? finalSectionTasks : (activePlan?.tasksBySection?.['2C'] || []),
+        '2A': targetSection === 'all' || targetSection === '2A' ? finalSectionTasks : previousTasks['2A'],
+        '2B': targetSection === 'all' || targetSection === '2B' ? finalSectionTasks : previousTasks['2B'],
+        '2C': targetSection === 'all' || targetSection === '2C' ? finalSectionTasks : previousTasks['2C'],
       },
     };
 
     const updatedArchive = addOrUpdateWeeklyPlanInArchive(newEntry);
     setArchive(updatedArchive);
+    const allUploadedFiles = collectUploadedFiles(updatedArchive, newFiles);
+    setUploadedFiles(allUploadedFiles);
+    saveUploadedFiles(allUploadedFiles);
 
     if (setAsCurrent) {
       setActiveWeeklyPlanId(newPlanId);
@@ -789,10 +819,6 @@ export default function App() {
       setWeekTitle(newWeekTitle);
       setOfficialTasks(finalSectionTasks);
       saveTasks(finalSectionTasks, selectedSection);
-    }
-
-    if (newFiles.length > 0) {
-      setUploadedFiles((prev) => [...newFiles, ...prev]);
     }
 
     // Save to Global Storage on Server (Admin Role - Password 1111)
@@ -804,7 +830,7 @@ export default function App() {
         activeWeekNumber: weekNumber,
         tasksBySection: newEntry.tasksBySection,
         archive: updatedArchive,
-        uploadedFiles: newFiles,
+        uploadedFiles: allUploadedFiles,
         lastUpdated: Date.now(),
         updatedBy: 'admin',
       },
@@ -866,6 +892,59 @@ export default function App() {
   const todayTasks = tasks.filter((t) => t.day === selectedDay && (!t.section || t.section === selectedSection));
   const todayPendingCount = todayTasks.filter((t) => !t.isDone).length;
   const todayCompletedCount = todayTasks.filter((t) => t.isDone).length;
+
+  const handleDeleteUploadedFiles = (fileIds: string[]) => {
+    const idSet = new Set(fileIds);
+    const updatedArchive = archive.map((plan) => ({
+      ...plan,
+      uploadedFiles: (plan.uploadedFiles || []).filter((file) => !idSet.has(file.id)),
+    }));
+    const updatedFiles = collectUploadedFiles(updatedArchive).filter((file) => !idSet.has(file.id));
+    setArchive(updatedArchive);
+    saveWeeklyPlansArchive(updatedArchive);
+    setUploadedFiles(updatedFiles);
+    saveUploadedFiles(updatedFiles);
+    saveGlobalPlanToServer(
+      {
+        activePlanId,
+        weekTitle,
+        activeBlockNumber,
+        activeWeekNumber,
+        tasksBySection: activePlan?.tasksBySection || { '2A': [], '2B': [], '2C': [] },
+        archive: updatedArchive,
+        uploadedFiles: updatedFiles,
+        lastUpdated: Date.now(),
+        updatedBy: 'admin',
+      },
+      '1111',
+    ).catch((err) => console.warn('Notice: Background sync uploaded files deletion error:', err));
+  };
+
+  const handleClearAllWeeklyPlans = () => {
+    clearAllWeeklyPlansData();
+    setArchive([]);
+    setActivePlanIdState('');
+    setActiveWeeklyPlanId('');
+    setOfficialTasks([]);
+    saveTasks([], selectedSection);
+    setUploadedFiles([]);
+    setWeekTitle('');
+    saveWeekTitle('');
+    saveGlobalPlanToServer(
+      {
+        activePlanId: '',
+        weekTitle: '',
+        activeBlockNumber: 1,
+        activeWeekNumber: 1,
+        tasksBySection: { '2A': [], '2B': [], '2C': [] },
+        archive: [],
+        uploadedFiles: [],
+        lastUpdated: Date.now(),
+        updatedBy: 'admin',
+      },
+      '1111',
+    ).catch((err) => console.warn('Notice: Failed to clear global weekly plans:', err));
+  };
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col md:flex-row font-sans selection:bg-indigo-100 selection:text-indigo-900">
@@ -1090,33 +1169,9 @@ export default function App() {
         }}
         onApplyNewWeeklyPlan={handleApplyNewWeeklyPlan}
         savedUploadedFiles={uploadedFiles}
-        onDeleteSavedUploadedFile={(fileId) => {
-          setUploadedFiles((prev) => {
-            const updated = prev.filter((f) => f.id !== fileId);
-            saveUploadedFiles(updated);
-            return updated;
-          });
-          setArchive((prev) =>
-            prev.map((plan) => ({
-              ...plan,
-              uploadedFiles: (plan.uploadedFiles || []).filter((f) => f.id !== fileId),
-            }))
-          );
-        }}
-        onDeleteSavedUploadedFiles={(fileIds) => {
-          const idSet = new Set(fileIds);
-          setUploadedFiles((prev) => {
-            const updated = prev.filter((f) => !idSet.has(f.id));
-            saveUploadedFiles(updated);
-            return updated;
-          });
-          setArchive((prev) =>
-            prev.map((plan) => ({
-              ...plan,
-              uploadedFiles: (plan.uploadedFiles || []).filter((f) => !idSet.has(f.id)),
-            }))
-          );
-        }}
+        onDeleteSavedUploadedFile={(fileId) => handleDeleteUploadedFiles([fileId])}
+        onDeleteSavedUploadedFiles={handleDeleteUploadedFiles}
+        onClearAllWeeklyPlans={handleClearAllWeeklyPlans}
         suggestedBlock={activeBlockNumber}
         suggestedWeek={activeWeekNumber + 1}
         visitorStats={visitorStats}
