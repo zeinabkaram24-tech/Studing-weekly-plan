@@ -249,6 +249,8 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
         guessedSubjectId = 'arabic';
       } else if (fileNameLower.includes('fren') || fileNameLower.includes('fr') || fileNameLower.includes('فرنساوي')) {
         guessedSubjectId = 'french';
+      } else if (fileNameLower.includes('social') || fileNameLower.includes('studies') || fileNameLower.includes('دراسات')) {
+        guessedSubjectId = 'social_studies';
       } else if (fileNameLower.includes('comp') || fileNameLower.includes('ict') || fileNameLower.includes('حاسب')) {
         guessedSubjectId = 'computer';
       }
@@ -268,7 +270,8 @@ export const UploadPlanFilesModal: React.FC<UploadPlanFilesModalProps> = ({
           extractedText,
           'sunday',
           subjects,
-          targetSection === 'all' ? undefined : targetSection
+          targetSection === 'all' ? undefined : targetSection,
+          guessedSubjectId
         );
         if (parsedTasks.length > 0) {
           parsedTasks.forEach(({ id, createdAt, ...task }) => {

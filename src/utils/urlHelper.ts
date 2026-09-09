@@ -241,7 +241,8 @@ export function parseWeeklyPlanTextWithLinks(
   rawText: string,
   defaultDay: DayOfWeek,
   subjects: Subject[],
-  targetSection?: GradeSection
+  targetSection?: GradeSection,
+  defaultSubjectId: string = 'math'
 ): PlanTask[] {
   if (!rawText || !rawText.trim()) return [];
 
@@ -270,7 +271,8 @@ export function parseWeeklyPlanTextWithLinks(
     const note = pendingNoteLines.join(' ').replace(/\s+/g, ' ').trim();
     if (note) {
       for (let i = tasks.length - 1; i >= 0; i -= 1) {
-        if (tasks[i].day === currentDay && tasks[i].subjectId === 'math') {
+        // Notes may belong to any subject, including Social Studies.
+        if (tasks[i].day === currentDay) {
           tasks[i].notes = note;
           break;
         }
@@ -323,7 +325,7 @@ export function parseWeeklyPlanTextWithLinks(
     else if (lower.includes('الخميس') || lower.includes('thursday')) currentDay = 'thursday';
 
     // Match Subject
-    let matchedSubject = subjects.find((s) => s.id === 'math');
+    let matchedSubject = subjects.find((s) => s.id === defaultSubjectId) || subjects.find((s) => s.id === 'math');
     if (lower.includes('math') || lower.includes('رياضيات') || lower.includes('حساب')) {
       matchedSubject = subjects.find((s) => s.id === 'math');
     } else if (lower.includes('english') || lower.includes('انجليزي') || lower.includes('إنجليزي') || lower.includes('connect')) {
@@ -401,7 +403,7 @@ export function parseWeeklyPlanTextWithLinks(
 
   // PDF text extraction may place the Notes column before/after the topic
   // column, so recover the complete note from each day's text block and bind
-  // it to that day's Math task explicitly.
+  // it to the first task in that day's block, regardless of subject.
   const normalizedPlanText = rawText.replace(/\s+/g, ' ');
   const dayPatterns: Array<[DayOfWeek, RegExp]> = [
     ['monday', /monday\b([\s\S]*?)(?=tuesday\b|wednesday\b|thursday\b|$)/i],
@@ -413,8 +415,8 @@ export function parseWeeklyPlanTextWithLinks(
     const dayBlock = normalizedPlanText.match(pattern)?.[1] || '';
     const note = dayBlock.match(/(?:please\s+bring|bring)\b.*?(?:100\s+chart|chart)/i)?.[0]?.trim();
     if (!note) return;
-    const mathTask = tasks.find((task) => task.day === day && task.subjectId === 'math');
-    if (mathTask) mathTask.notes = note;
+    const dayTask = tasks.find((task) => task.day === day);
+    if (dayTask) dayTask.notes = note;
   });
 
   attachPendingNotes();
