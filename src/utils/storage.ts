@@ -503,10 +503,12 @@ export function loadWeeklyPlansArchive(): WeeklyPlanArchiveEntry[] {
             entry.id === 'b1-w1' && (!entry.title || entry.title.includes('الأسبوع الأول') || entry.title.includes('Week 1 Plan'))
               ? 'Block 1 - Week 1'
               : entry.title,
+          // Each archive entry is the source of truth for its own week.
+          // Keep a new week empty until its files/tasks are uploaded.
           tasksBySection: {
-            '2A': normalizeOfficialTasks(entry.tasksBySection?.['2A'] || [], '2A'),
-            '2B': normalizeOfficialTasks(entry.tasksBySection?.['2B'] || [], '2B'),
-            '2C': normalizeOfficialTasks(entry.tasksBySection?.['2C'] || [], '2C'),
+            '2A': filterOutArtTasks(entry.tasksBySection?.['2A'] || []),
+            '2B': filterOutArtTasks(entry.tasksBySection?.['2B'] || []),
+            '2C': filterOutArtTasks(entry.tasksBySection?.['2C'] || []),
           },
         }));
       }
