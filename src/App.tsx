@@ -81,6 +81,10 @@ import { MaterialsModal } from './components/MaterialsModal';
 import { WeekPlanSelectorBar } from './components/WeekPlanSelectorBar';
 import { triggerAllDoneCelebration } from './utils/celebration';
 import {
+  mapWeeklyPlanTasksToSections,
+  removeDuplicateSectionTasks,
+} from './utils/weeklyPlanSectionMapper';
+import {
   fetchVisitorStats,
   pingVisitorSession,
   registerGuestVisitor,
@@ -158,7 +162,7 @@ export default function App() {
     const initialArchive = loadWeeklyPlansArchive();
     const activeId = getActiveWeeklyPlanId();
     const current = initialArchive.find((p) => p.id === activeId) || initialArchive[0];
-    if (current?.tasksBySection?.[savedSec] && current.tasksBySection[savedSec].length > 0) {
+    if (current?.tasksBySection?.[savedSec]) {
       return current.tasksBySection[savedSec];
     }
     return loadSavedTasks(savedSec);
@@ -306,9 +310,9 @@ export default function App() {
           const normalizedArchive = serverPlan.archive.map((plan) => ({
             ...plan,
             tasksBySection: {
-              '2A': normalizeOfficialTasks(plan.tasksBySection?.['2A'] || [], '2A'),
-              '2B': normalizeOfficialTasks(plan.tasksBySection?.['2B'] || [], '2B'),
-              '2C': normalizeOfficialTasks(plan.tasksBySection?.['2C'] || [], '2C'),
+              '2A': plan.tasksBySection?.['2A'] || [],
+              '2B': plan.tasksBySection?.['2B'] || [],
+              '2C': plan.tasksBySection?.['2C'] || [],
             },
           }));
           setArchive(normalizedArchive);
@@ -328,7 +332,7 @@ export default function App() {
             setActiveWeeklyPlanId(chosen.id);
             setWeekTitle(chosen.title);
             saveWeekTitle(chosen.title);
-            const secTasks = normalizeOfficialTasks(chosen.tasksBySection?.[selectedSection] || [], selectedSection);
+            const secTasks = chosen.tasksBySection?.[selectedSection] || [];
             setOfficialTasks(secTasks);
             saveTasks(secTasks, selectedSection);
           }
@@ -345,7 +349,7 @@ export default function App() {
           setUploadedFiles(allServerFiles);
           saveUploadedFiles(allServerFiles);
           if (serverPlan.tasksBySection && serverPlan.tasksBySection[selectedSection]) {
-            const secTasks = normalizeOfficialTasks(serverPlan.tasksBySection[selectedSection], selectedSection);
+            const secTasks = serverPlan.tasksBySection[selectedSection] || [];
             setOfficialTasks(secTasks);
             saveTasks(secTasks, selectedSection);
           }
@@ -523,7 +527,7 @@ export default function App() {
 
     // Retrieve tasks for new section from active plan if present
     const currActive = archive.find((p) => p.id === activePlanId) || archive[0];
-    if (currActive?.tasksBySection?.[newSection] && currActive.tasksBySection[newSection].length > 0) {
+    if (currActive?.tasksBySection?.[newSection]) {
       setOfficialTasks(currActive.tasksBySection[newSection]);
       saveTasks(currActive.tasksBySection[newSection], newSection);
     } else {
@@ -760,8 +764,13 @@ export default function App() {
     targetSection: 'all' | GradeSection,
     setAsCurrent: boolean
   ) => {
-    let finalSectionTasks: PlanTask[] = [];
-    if (mode === 'keep_pending_and_add') {
+    const existingPlan = archive.find(
+      (plan) => plan.blockNumber === blockNumber && plan.weekNumber === weekNumber,
+    );
+    const isNewWeek = !existingPlan;
+    const mappedTasksBySection = mapWeeklyPlanTasksToSections(newTasks, targetSection);
+    const finalTasksBySection: Record<GradeSection, PlanTask[]> = { '2A': [], '2B': [], '2C': [] };
+    if (!isNewWeek && mode === 'keep_pending_and_add') {
       const carriedOverPendingTasks: PlanTask[] = officialTasks
         .filter((t) => {
           const userItem = userProgressMap[t.id];
@@ -772,14 +781,32 @@ export default function App() {
           isCarriedOver: true,
           previousWeekNote: 'مهمة متبقية من الأسبوع الماضي لم تُنجز',
         }));
-      finalSectionTasks = [...carriedOverPendingTasks, ...newTasks];
-    } else if (mode === 'replace') {
-      finalSectionTasks = newTasks;
+      const targetSections = targetSection === 'all' ? ['2A', '2B', '2C'] as GradeSection[] : [targetSection];
+      targetSections.forEach((section) => {
+        finalTasksBySection[section] = removeDuplicateSectionTasks([
+          ...carriedOverPendingTasks.map((task) => ({ ...task, section })),
+          ...mappedTasksBySection[section],
+        ]);
+      });
     } else {
-      finalSectionTasks = [...officialTasks, ...newTasks];
+      (['2A', '2B', '2C'] as GradeSection[]).forEach((section) => {
+        const oldTasks = existingPlan?.tasksBySection?.[section] || [];
+        const incomingTasks = mappedTasksBySection[section];
+        finalTasksBySection[section] = removeDuplicateSectionTasks(
+          isNewWeek || mode === 'replace' ? incomingTasks : [...oldTasks, ...incomingTasks],
+        );
+      });
     }
 
-    const newPlanId = `plan-b${blockNumber}-w${weekNumber}-${Date.now()}`;
+    // A stable id makes repeated uploads for the same Block/Week update that
+    // week rather than creating another mixed copy in the archive.
+    const newPlanId = existingPlan?.id || `b${blockNumber}-w${weekNumber}`;
+    const emptySections: Record<GradeSection, PlanTask[]> = {
+      '2A': [],
+      '2B': [],
+      '2C': [],
+    };
+    const previousTasks = existingPlan?.tasksBySection || emptySections;
     const newEntry: WeeklyPlanArchiveEntry = {
       id: newPlanId,
       blockNumber,
@@ -789,9 +816,9 @@ export default function App() {
       isCurrent: setAsCurrent,
       uploadedFiles: newFiles,
       tasksBySection: {
-        '2A': targetSection === 'all' || targetSection === '2A' ? finalSectionTasks : (activePlan?.tasksBySection?.['2A'] || []),
-        '2B': targetSection === 'all' || targetSection === '2B' ? finalSectionTasks : (activePlan?.tasksBySection?.['2B'] || []),
-        '2C': targetSection === 'all' || targetSection === '2C' ? finalSectionTasks : (activePlan?.tasksBySection?.['2C'] || []),
+        '2A': targetSection === 'all' || targetSection === '2A' ? finalTasksBySection['2A'] : previousTasks['2A'],
+        '2B': targetSection === 'all' || targetSection === '2B' ? finalTasksBySection['2B'] : previousTasks['2B'],
+        '2C': targetSection === 'all' || targetSection === '2C' ? finalTasksBySection['2C'] : previousTasks['2C'],
       },
     };
 
@@ -805,8 +832,9 @@ export default function App() {
       setActiveWeeklyPlanId(newPlanId);
       setActivePlanIdState(newPlanId);
       setWeekTitle(newWeekTitle);
-      setOfficialTasks(finalSectionTasks);
-      saveTasks(finalSectionTasks, selectedSection);
+      const activeSectionTasks = newEntry.tasksBySection[selectedSection];
+      setOfficialTasks(activeSectionTasks);
+      saveTasks(activeSectionTasks, selectedSection);
     }
 
     // Save to Global Storage on Server (Admin Role - Password 1111)
