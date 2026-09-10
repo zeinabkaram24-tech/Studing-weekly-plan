@@ -207,13 +207,20 @@ export const DailyFollowUpView: React.FC<DailyFollowUpViewProps> = ({
     return keys.map((key) => plan.dayContent?.[key]).find(Boolean);
   };
 
-  const getIctSession = (day: string): number | undefined => {
-    const sessions: Record<SchoolClass, Record<string, number>> = {
-      '2A': { 'الأحد': 1, 'الإثنين': 2, 'الأربعاء': 3 },
-      '2B': { 'الأحد': 1, 'الثلاثاء': 2, 'الخميس': 3 },
-      '2C': { 'الأحد': 1, 'الثلاثاء': 2, 'الخميس': 3 }
+  const getClassSession = (subjectId: string, day: string): number | undefined => {
+    const sessions: Record<string, Record<SchoolClass, Record<string, number>>> = {
+      ict: {
+        '2A': { 'الأحد': 1, 'الإثنين': 2, 'الأربعاء': 3 },
+        '2B': { 'الأحد': 1, 'الثلاثاء': 2, 'الخميس': 3 },
+        '2C': { 'الأحد': 1, 'الثلاثاء': 2, 'الخميس': 3 }
+      },
+      french: {
+        '2A': { 'الثلاثاء': 1, 'الأربعاء': 2, 'الخميس': 3 },
+        '2B': { 'الأحد': 1, 'الثلاثاء': 2, 'الأربعاء': 3 },
+        '2C': { 'الأحد': 1, 'الإثنين': 2, 'الأربعاء': 3 }
+      }
     };
-    return sessions[selectedClass][day];
+    return sessions[subjectId]?.[selectedClass]?.[day];
   };
 
   const tomorrowPeriods = scheduledTomorrowPeriods.filter((period) => {
@@ -236,14 +243,17 @@ export const DailyFollowUpView: React.FC<DailyFollowUpViewProps> = ({
     const planned = weekPlans
       .filter((wp) => {
         const dayPlan = getDayPlanContent(wp, selectedFollowUpDay, wp.subjectId);
-        if (wp.subjectId === 'ict' && getIctSession(selectedFollowUpDay) !== 3) return false;
+        const session = getClassSession(wp.subjectId, selectedFollowUpDay);
+        if ((wp.subjectId === 'ict' || wp.subjectId === 'french') && session !== 3) return false;
         return hasActualHomework(dayPlan?.homeworkNote || wp.homeworkNote) || wp.dictationFileName;
       })
       .map((wp) => {
         const sub = getSubjectInfo(wp.subjectId);
         const dayPlan = getDayPlanContent(wp, selectedFollowUpDay, wp.subjectId);
-        const ictSession = wp.subjectId === 'ict' ? getIctSession(selectedFollowUpDay) : undefined;
-        const rawHomework = wp.subjectId === 'ict' && ictSession === 3 ? wp.homeworkNote : (dayPlan?.homeworkNote || wp.homeworkNote);
+        const session = getClassSession(wp.subjectId, selectedFollowUpDay);
+        const rawHomework = (wp.subjectId === 'ict' || wp.subjectId === 'french')
+          ? (session === 3 ? wp.homeworkNote : dayPlan?.homeworkNote)
+          : (dayPlan?.homeworkNote || wp.homeworkNote);
         const dayHomework = hasActualHomework(rawHomework) ? rawHomework : undefined;
         const parts = [
           (dayHomework || wp.homeworkNote)?.trim(),
@@ -312,9 +322,9 @@ export const DailyFollowUpView: React.FC<DailyFollowUpViewProps> = ({
     }).map((period) => {
       const sub = getSubjectInfo(period.subjectId);
       const wp = weekPlans.find((p) => p.subjectId === period.subjectId);
-      const ictSession = period.subjectId === 'ict' ? getIctSession(selectedFollowUpDay) : undefined;
-      const dayPlan = period.subjectId === 'ict' && ictSession
-        ? wp?.dayContent?.[`Session ${ictSession}`]
+      const session = getClassSession(period.subjectId, selectedFollowUpDay);
+      const dayPlan = (period.subjectId === 'ict' || period.subjectId === 'french') && session
+        ? wp?.dayContent?.[`Session ${session}`]
         : getDayPlanContent(wp, selectedFollowUpDay, period.subjectId);
       const existingCw = currentRecord.classwork?.find((c) => c.subjectId === period.subjectId);
       const lessonTopic = dayPlan?.classworkNote || wp?.classworkNote || existingCw?.lessonTitle || '';
@@ -323,7 +333,7 @@ export const DailyFollowUpView: React.FC<DailyFollowUpViewProps> = ({
         periodNum: period.periodNum,
         subjectId: period.subjectId,
         subjectName: sub.nameEn,
-        lessonTopic: lessonTopic || (period.subjectId === 'ict' ? `ICT Session ${ictSession || ''}` : ''),
+        lessonTopic: lessonTopic || ((period.subjectId === 'ict' || period.subjectId === 'french') ? `${period.subjectId.toUpperCase()} Session ${session || ''}` : ''),
         links: wp?.links || [],
         existingCw
       };

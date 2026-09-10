@@ -144,246 +144,199 @@ export const PERIOD_TIMES = [
 ];
 
 export const INITIAL_TIMETABLES: ClassTimetable[] = [
-  {
-    classId: '2A',
-    days: [
-      {
-        dayNameAr: 'الأحد',
-        dayNameEn: 'Sunday',
-        periods: [
-          { id: 'p-2a-sun-1', periodNum: 1, time: '07:45 - 08:35', subjectId: 'pe' },
-          { id: 'p-2a-sun-2', periodNum: 2, time: '08:35 - 09:25', subjectId: 'social' },
-          { id: 'p-2a-sun-3', periodNum: 3, time: '09:45 - 10:35', subjectId: 'ict' },
-          { id: 'p-2a-sun-4', periodNum: 4, time: '10:35 - 11:25', subjectId: 'art' },
-          { id: 'p-2a-sun-5', periodNum: 5, time: '11:25 - 12:15', subjectId: 'english' },
-          { id: 'p-2a-sun-6', periodNum: 6, time: '12:15 - 13:05', subjectId: 'english' },
-          { id: 'p-2a-sun-7', periodNum: 7, time: '13:25 - 14:15', subjectId: 'arabic' },
-          { id: 'p-2a-sun-8', periodNum: 8, time: '14:15 - 15:05', subjectId: 'math' }
-
-        ]
-      },
-      {
-        dayNameAr: 'الإثنين',
-        dayNameEn: 'Monday',
-        periods: [
-          { id: 'p-2a-mon-1', periodNum: 1, time: '07:45 - 08:35', subjectId: 'music' },
-          { id: 'p-2a-mon-2', periodNum: 2, time: '08:35 - 09:25', subjectId: 'math' },
-          { id: 'p-2a-mon-3', periodNum: 3, time: '09:45 - 10:35', subjectId: 'pe' },
-          { id: 'p-2a-mon-4', periodNum: 4, time: '10:35 - 11:25', subjectId: 'science' },
-          { id: 'p-2a-mon-5', periodNum: 5, time: '11:25 - 12:15', subjectId: 'arabic' },
-          { id: 'p-2a-mon-6', periodNum: 6, time: '12:15 - 13:05', subjectId: 'arabic' },
-          { id: 'p-2a-mon-7', periodNum: 7, time: '13:25 - 14:15', subjectId: 'ict' },
-          { id: 'p-2a-mon-8', periodNum: 8, time: '14:15 - 15:05', subjectId: 'english' }
-
-        ]
-      },
-      {
-        dayNameAr: 'الثلاثاء',
-        dayNameEn: 'Tuesday',
-        periods: [
-          { id: 'p-2a-tue-1', periodNum: 1, time: '07:45 - 08:35', subjectId: 'english' },
-          { id: 'p-2a-tue-2', periodNum: 2, time: '08:35 - 09:25', subjectId: 'english' },
-          { id: 'p-2a-tue-3', periodNum: 3, time: '09:45 - 10:35', subjectId: 'math' },
-          { id: 'p-2a-tue-4', periodNum: 4, time: '10:35 - 11:25', subjectId: 'math' },
-          { id: 'p-2a-tue-5', periodNum: 5, time: '11:25 - 12:15', subjectId: 'ethics' },
-          { id: 'p-2a-tue-6', periodNum: 6, time: '12:15 - 13:05', subjectId: 'french' },
-          { id: 'p-2a-tue-7', periodNum: 7, time: '13:25 - 14:15', subjectId: 'art' },
-          { id: 'p-2a-tue-8', periodNum: 8, time: '14:15 - 15:05', subjectId: 'arabic' }
-
-        ]
-      },
-      {
-        dayNameAr: 'الأربعاء',
-        dayNameEn: 'Wednesday',
-        periods: [
-          { id: 'p-2a-wed-1', periodNum: 1, time: '07:45 - 08:35', subjectId: 'math' },
-          { id: 'p-2a-wed-2', periodNum: 2, time: '08:35 - 09:25', subjectId: 'science' },
-          { id: 'p-2a-wed-3', periodNum: 3, time: '09:45 - 10:35', subjectId: 'ict' },
-          { id: 'p-2a-wed-4', periodNum: 4, time: '10:35 - 11:25', subjectId: 'social' },
-          { id: 'p-2a-wed-5', periodNum: 5, time: '11:25 - 12:15', subjectId: 'french' },
-          { id: 'p-2a-wed-6', periodNum: 6, time: '12:15 - 13:05', subjectId: 'arabic' },
-          { id: 'p-2a-wed-7', periodNum: 7, time: '13:25 - 14:15', subjectId: 'english' },
-          { id: 'p-2a-wed-8', periodNum: 8, time: '14:15 - 15:05', subjectId: 'english' }
-
-        ]
-      },
-      {
-        dayNameAr: 'الخميس',
-        dayNameEn: 'Thursday',
-        periods: [
-          { id: 'p-2a-thu-1', periodNum: 1, time: '07:45 - 08:35', subjectId: 'english' },
-          { id: 'p-2a-thu-2', periodNum: 2, time: '08:35 - 09:25', subjectId: 'music' },
-          { id: 'p-2a-thu-3', periodNum: 3, time: '09:45 - 10:35', subjectId: 'ethics' },
-          { id: 'p-2a-thu-4', periodNum: 4, time: '10:35 - 11:25', subjectId: 'arabic' },
-          { id: 'p-2a-thu-5', periodNum: 5, time: '11:25 - 12:15', subjectId: 'french' },
-          { id: 'p-2a-thu-6', periodNum: 6, time: '12:15 - 13:05', subjectId: 'math' },
-          { id: 'p-2a-thu-7', periodNum: 7, time: '13:25 - 14:15', subjectId: 'social' },
-          { id: 'p-2a-thu-8', periodNum: 8, time: '14:15 - 15:05', subjectId: 'science' }
-
-        ]
-      }
-
-    ]
-  },
-  {
-    classId: '2B',
-    days: [
-      {
-        dayNameAr: 'الأحد',
-        dayNameEn: 'Sunday',
-        periods: [
-          { id: 'p-2b-sun-1', periodNum: 1, time: '07:45 - 08:35', subjectId: 'french' },
-          { id: 'p-2b-sun-2', periodNum: 2, time: '08:35 - 09:25', subjectId: 'math' },
-          { id: 'p-2b-sun-3', periodNum: 3, time: '09:45 - 10:35', subjectId: 'arabic' },
-          { id: 'p-2b-sun-4', periodNum: 4, time: '10:35 - 11:25', subjectId: 'science' },
-          { id: 'p-2b-sun-5', periodNum: 5, time: '11:25 - 12:15', subjectId: 'english' },
-          { id: 'p-2b-sun-6', periodNum: 6, time: '12:15 - 13:05', subjectId: 'english' },
-          { id: 'p-2b-sun-7', periodNum: 7, time: '13:25 - 14:15', subjectId: 'ict' },
-          { id: 'p-2b-sun-8', periodNum: 8, time: '14:15 - 15:05', subjectId: 'music' }
-        ]
-      },
-      {
-        dayNameAr: 'الإثنين',
-        dayNameEn: 'Monday',
-        periods: [
-          { id: 'p-2b-mon-1', periodNum: 1, time: '07:45 - 08:35', subjectId: 'social' },
-          { id: 'p-2b-mon-2', periodNum: 2, time: '08:35 - 09:25', subjectId: 'pe' },
-          { id: 'p-2b-mon-3', periodNum: 3, time: '09:45 - 10:35', subjectId: 'english' },
-          { id: 'p-2b-mon-4', periodNum: 4, time: '10:35 - 11:25', subjectId: 'english' },
-          { id: 'p-2b-mon-5', periodNum: 5, time: '11:25 - 12:15', subjectId: 'math' },
-          { id: 'p-2b-mon-6', periodNum: 6, time: '12:15 - 13:05', subjectId: 'math' },
-          { id: 'p-2b-mon-7', periodNum: 7, time: '13:25 - 14:15', subjectId: 'arabic' },
-          { id: 'p-2b-mon-8', periodNum: 8, time: '14:15 - 15:05', subjectId: 'arabic' }
-        ]
-      },
-      {
-        dayNameAr: 'الثلاثاء',
-        dayNameEn: 'Tuesday',
-        periods: [
-          { id: 'p-2b-tue-1', periodNum: 1, time: '07:45 - 08:35', subjectId: 'math' },
-          { id: 'p-2b-tue-2', periodNum: 2, time: '08:35 - 09:25', subjectId: 'ict' },
-          { id: 'p-2b-tue-3', periodNum: 3, time: '09:45 - 10:35', subjectId: 'art' },
-          { id: 'p-2b-tue-4', periodNum: 4, time: '10:35 - 11:25', subjectId: 'french' },
-          { id: 'p-2b-tue-5', periodNum: 5, time: '11:25 - 12:15', subjectId: 'ethics' },
-          { id: 'p-2b-tue-6', periodNum: 6, time: '12:15 - 13:05', subjectId: 'english' },
-          { id: 'p-2b-tue-7', periodNum: 7, time: '13:25 - 14:15', subjectId: 'music' },
-          { id: 'p-2b-tue-8', periodNum: 8, time: '14:15 - 15:05', subjectId: 'arabic' }
-        ]
-      },
-      {
-        dayNameAr: 'الأربعاء',
-        dayNameEn: 'Wednesday',
-        periods: [
-          { id: 'p-2b-wed-1', periodNum: 1, time: '07:45 - 08:35', subjectId: 'english' },
-          { id: 'p-2b-wed-2', periodNum: 2, time: '08:35 - 09:25', subjectId: 'social' },
-          { id: 'p-2b-wed-3', periodNum: 3, time: '09:45 - 10:35', subjectId: 'pe' },
-          { id: 'p-2b-wed-4', periodNum: 4, time: '10:35 - 11:25', subjectId: 'arabic' },
-          { id: 'p-2b-wed-5', periodNum: 5, time: '11:25 - 12:15', subjectId: 'math' },
-          { id: 'p-2b-wed-6', periodNum: 6, time: '12:15 - 13:05', subjectId: 'french' },
-          { id: 'p-2b-wed-7', periodNum: 7, time: '13:25 - 14:15', subjectId: 'science' },
-          { id: 'p-2b-wed-8', periodNum: 8, time: '14:15 - 15:05', subjectId: 'art' }
-        ]
-      },
-      {
-        dayNameAr: 'الخميس',
-        dayNameEn: 'Thursday',
-        periods: [
-          { id: 'p-2b-thu-1', periodNum: 1, time: '07:45 - 08:35', subjectId: 'arabic' },
-          { id: 'p-2b-thu-2', periodNum: 2, time: '08:35 - 09:25', subjectId: 'social' },
-          { id: 'p-2b-thu-3', periodNum: 3, time: '09:45 - 10:35', subjectId: 'ethics' },
-          { id: 'p-2b-thu-4', periodNum: 4, time: '10:35 - 11:25', subjectId: 'math' },
-          { id: 'p-2b-thu-5', periodNum: 5, time: '11:25 - 12:15', subjectId: 'english' },
-          { id: 'p-2b-thu-6', periodNum: 6, time: '12:15 - 13:05', subjectId: 'english' },
-          { id: 'p-2b-thu-7', periodNum: 7, time: '13:25 - 14:15', subjectId: 'science' },
-          { id: 'p-2b-thu-8', periodNum: 8, time: '14:15 - 15:05', subjectId: 'ict' }
-        ]
-      }
-    ]
-  },
-  {
-    classId: '2C',
-    days: [
-      {
-        dayNameAr: 'الأحد',
-        dayNameEn: 'Sunday',
-        periods: [
-          { id: 'p-2c-sun-1', periodNum: 1, time: '07:45 - 08:35', subjectId: 'math' },
-          { id: 'p-2c-sun-2', periodNum: 2, time: '08:35 - 09:25', subjectId: 'math' },
-          { id: 'p-2c-sun-3', periodNum: 3, time: '09:45 - 10:35', subjectId: 'french' },
-          { id: 'p-2c-sun-4', periodNum: 4, time: '10:35 - 11:25', subjectId: 'english' },
-          { id: 'p-2c-sun-5', periodNum: 5, time: '11:25 - 12:15', subjectId: 'ict' },
-          { id: 'p-2c-sun-6', periodNum: 6, time: '12:15 - 13:05', subjectId: 'arabic' },
-          { id: 'p-2c-sun-7', periodNum: 7, time: '13:25 - 14:15', subjectId: 'social' },
-          { id: 'p-2c-sun-8', periodNum: 8, time: '14:15 - 15:05', subjectId: 'pe' }
-
-        ]
-      },
-      {
-        dayNameAr: 'الإثنين',
-        dayNameEn: 'Monday',
-        periods: [
-          { id: 'p-2c-mon-1', periodNum: 1, time: '07:45 - 08:35', subjectId: 'arabic' },
-          { id: 'p-2c-mon-2', periodNum: 2, time: '08:35 - 09:25', subjectId: 'arabic' },
-          { id: 'p-2c-mon-3', periodNum: 3, time: '09:45 - 10:35', subjectId: 'social' },
-          { id: 'p-2c-mon-4', periodNum: 4, time: '10:35 - 11:25', subjectId: 'english' },
-          { id: 'p-2c-mon-5', periodNum: 5, time: '11:25 - 12:15', subjectId: 'science' },
-          { id: 'p-2c-mon-6', periodNum: 6, time: '12:15 - 13:05', subjectId: 'art' },
-          { id: 'p-2c-mon-7', periodNum: 7, time: '13:25 - 14:15', subjectId: 'french' },
-          { id: 'p-2c-mon-8', periodNum: 8, time: '14:15 - 15:05', subjectId: 'math' }
-
-        ]
-      },
-      {
-        dayNameAr: 'الثلاثاء',
-        dayNameEn: 'Tuesday',
-        periods: [
-          { id: 'p-2c-tue-1', periodNum: 1, time: '07:45 - 08:35', subjectId: 'pe' },
-          { id: 'p-2c-tue-2', periodNum: 2, time: '08:35 - 09:25', subjectId: 'arabic' },
-          { id: 'p-2c-tue-3', periodNum: 3, time: '09:45 - 10:35', subjectId: 'science' },
-          { id: 'p-2c-tue-4', periodNum: 4, time: '10:35 - 11:25', subjectId: 'math' },
-          { id: 'p-2c-tue-5', periodNum: 5, time: '11:25 - 12:15', subjectId: 'ethics' },
-          { id: 'p-2c-tue-6', periodNum: 6, time: '12:15 - 13:05', subjectId: 'ict' },
-          { id: 'p-2c-tue-7', periodNum: 7, time: '13:25 - 14:15', subjectId: 'english' },
-          { id: 'p-2c-tue-8', periodNum: 8, time: '14:15 - 15:05', subjectId: 'english' }
-
-        ]
-      },
-      {
-        dayNameAr: 'الأربعاء',
-        dayNameEn: 'Wednesday',
-        periods: [
-          { id: 'p-2c-wed-1', periodNum: 1, time: '07:45 - 08:35', subjectId: 'english' },
-          { id: 'p-2c-wed-2', periodNum: 2, time: '08:35 - 09:25', subjectId: 'english' },
-          { id: 'p-2c-wed-3', periodNum: 3, time: '09:45 - 10:35', subjectId: 'french' },
-          { id: 'p-2c-wed-4', periodNum: 4, time: '10:35 - 11:25', subjectId: 'social' },
-          { id: 'p-2c-wed-5', periodNum: 5, time: '11:25 - 12:15', subjectId: 'music' },
-          { id: 'p-2c-wed-6', periodNum: 6, time: '12:15 - 13:05', subjectId: 'arabic' },
-          { id: 'p-2c-wed-7', periodNum: 7, time: '13:25 - 14:15', subjectId: 'math' },
-          { id: 'p-2c-wed-8', periodNum: 8, time: '14:15 - 15:05', subjectId: 'music' }
-
-        ]
-      },
-      {
-        dayNameAr: 'الخميس',
-        dayNameEn: 'Thursday',
-        periods: [
-          { id: 'p-2c-thu-1', periodNum: 1, time: '07:45 - 08:35', subjectId: 'ict' },
-          { id: 'p-2c-thu-2', periodNum: 2, time: '08:35 - 09:25', subjectId: 'science' },
-          { id: 'p-2c-thu-3', periodNum: 3, time: '09:45 - 10:35', subjectId: 'ethics' },
-          { id: 'p-2c-thu-4', periodNum: 4, time: '10:35 - 11:25', subjectId: 'english' },
-          { id: 'p-2c-thu-5', periodNum: 5, time: '11:25 - 12:15', subjectId: 'english' },
-          { id: 'p-2c-thu-6', periodNum: 6, time: '12:15 - 13:05', subjectId: 'math' },
-          { id: 'p-2c-thu-7', periodNum: 7, time: '13:25 - 14:15', subjectId: 'arabic' },
-          { id: 'p-2c-thu-8', periodNum: 8, time: '14:15 - 15:05', subjectId: 'art' }
-
-        ]
-      }
-
-    ]
-  }
+  { classId: '2A', days: [
+    { dayNameAr: 'الأحد', dayNameEn: 'Sunday', periods: [
+      { id: 'p-2a-sun-1', periodNum: 1, time: '07:45 - 08:35', subjectId: 'pe', teacher: 'Kareem Mostafa' },
+      { id: 'p-2a-sun-2', periodNum: 2, time: '08:35 - 09:25', subjectId: 'social', teacher: 'Walaa Fayz' },
+      { id: 'p-2a-sun-3', periodNum: 3, time: '09:45 - 10:35', subjectId: 'ict', teacher: 'Rana' },
+      { id: 'p-2a-sun-4', periodNum: 4, time: '10:35 - 11:25', subjectId: 'art', teacher: 'Walid Ahmed Fouad' },
+      { id: 'p-2a-sun-5', periodNum: 5, time: '11:25 - 12:15', subjectId: 'science', teacher: 'Salma Ahmed' },
+      { id: 'p-2a-sun-6', periodNum: 6, time: '12:15 - 13:05', subjectId: 'english', teacher: 'Toqa' },
+      { id: 'p-2a-sun-7', periodNum: 7, time: '13:25 - 14:15', subjectId: 'arabic', teacher: 'Eman' },
+      { id: 'p-2a-sun-8', periodNum: 8, time: '14:15 - 15:05', subjectId: 'math', teacher: 'Maryem Sameer' }
+    ] },
+    { dayNameAr: 'الإثنين', dayNameEn: 'Monday', periods: [
+      { id: 'p-2a-mon-1', periodNum: 1, time: '07:45 - 08:35', subjectId: 'music', teacher: 'Afronia' },
+      { id: 'p-2a-mon-2', periodNum: 2, time: '08:35 - 09:25', subjectId: 'math', teacher: 'Maryem Sameer' },
+      { id: 'p-2a-mon-3', periodNum: 3, time: '09:45 - 10:35', subjectId: 'english', teacher: 'Toqa' },
+      { id: 'p-2a-mon-4', periodNum: 4, time: '10:35 - 11:25', subjectId: 'english', teacher: 'Toqa' },
+      { id: 'p-2a-mon-5', periodNum: 5, time: '11:25 - 12:15', subjectId: 'arabic', teacher: 'Eman' },
+      { id: 'p-2a-mon-6', periodNum: 6, time: '12:15 - 13:05', subjectId: 'arabic', teacher: 'Eman' },
+      { id: 'p-2a-mon-7', periodNum: 7, time: '13:25 - 14:15', subjectId: 'ict', teacher: 'Rana' },
+      { id: 'p-2a-mon-8', periodNum: 8, time: '14:15 - 15:05', subjectId: 'pe', teacher: 'Kareem Mostafa' }
+    ] },
+    { dayNameAr: 'الثلاثاء', dayNameEn: 'Tuesday', periods: [
+      { id: 'p-2a-tue-1', periodNum: 1, time: '07:45 - 08:35', subjectId: 'english', teacher: 'Toqa' },
+      { id: 'p-2a-tue-2', periodNum: 2, time: '08:35 - 09:25', subjectId: 'english', teacher: 'Toqa' },
+      { id: 'p-2a-tue-3', periodNum: 3, time: '09:45 - 10:35', subjectId: 'math', teacher: 'Maryem Sameer' },
+      { id: 'p-2a-tue-4', periodNum: 4, time: '10:35 - 11:25', subjectId: 'math', teacher: 'Maryem Sameer' },
+      { id: 'p-2a-tue-5', periodNum: 5, time: '11:25 - 12:15', subjectId: 'ethics', teacher: 'Eman' },
+      { id: 'p-2a-tue-6', periodNum: 6, time: '12:15 - 13:05', subjectId: 'french', teacher: 'Doaa Fekry' },
+      { id: 'p-2a-tue-7', periodNum: 7, time: '13:25 - 14:15', subjectId: 'art', teacher: 'Walid Ahmed Fouad' },
+      { id: 'p-2a-tue-8', periodNum: 8, time: '14:15 - 15:05', subjectId: 'arabic', teacher: 'Eman' }
+    ] },
+    { dayNameAr: 'الأربعاء', dayNameEn: 'Wednesday', periods: [
+      { id: 'p-2a-wed-1', periodNum: 1, time: '07:45 - 08:35', subjectId: 'math', teacher: 'Maryem Sameer' },
+      { id: 'p-2a-wed-2', periodNum: 2, time: '08:35 - 09:25', subjectId: 'science', teacher: 'Salma Ahmed' },
+      { id: 'p-2a-wed-3', periodNum: 3, time: '09:45 - 10:35', subjectId: 'ict', teacher: 'Rana' },
+      { id: 'p-2a-wed-4', periodNum: 4, time: '10:35 - 11:25', subjectId: 'social', teacher: 'Walaa Fayz' },
+      { id: 'p-2a-wed-5', periodNum: 5, time: '11:25 - 12:15', subjectId: 'french', teacher: 'Doaa Fekry' },
+      { id: 'p-2a-wed-6', periodNum: 6, time: '12:15 - 13:05', subjectId: 'arabic', teacher: 'Eman' },
+      { id: 'p-2a-wed-7', periodNum: 7, time: '13:25 - 14:15', subjectId: 'english', teacher: 'Toqa' },
+      { id: 'p-2a-wed-8', periodNum: 8, time: '14:15 - 15:05', subjectId: 'english', teacher: 'Toqa' }
+    ] },
+    { dayNameAr: 'الخميس', dayNameEn: 'Thursday', periods: [
+      { id: 'p-2a-thu-1', periodNum: 1, time: '07:45 - 08:35', subjectId: 'ethics', teacher: 'Eman' },
+      { id: 'p-2a-thu-2', periodNum: 2, time: '08:35 - 09:25', subjectId: 'arabic', teacher: 'Eman' },
+      { id: 'p-2a-thu-3', periodNum: 3, time: '09:45 - 10:35', subjectId: 'math', teacher: 'Maryem Sameer' },
+      { id: 'p-2a-thu-4', periodNum: 4, time: '10:35 - 11:25', subjectId: 'music', teacher: 'Afronia' },
+      { id: 'p-2a-thu-5', periodNum: 5, time: '11:25 - 12:15', subjectId: 'social', teacher: 'Walaa Fayz' },
+      { id: 'p-2a-thu-6', periodNum: 6, time: '12:15 - 13:05', subjectId: 'science', teacher: 'Salma Ahmed' },
+      { id: 'p-2a-thu-7', periodNum: 7, time: '13:25 - 14:15', subjectId: 'english', teacher: 'Toqa' },
+      { id: 'p-2a-thu-8', periodNum: 8, time: '14:15 - 15:05', subjectId: 'science', teacher: 'Salma Ahmed' }
+    ] }
+  ] },
+  { classId: '2B', days: [
+    { dayNameAr: 'الأحد', dayNameEn: 'Sunday', periods: [
+      { id: 'p-2b-sun-1', periodNum: 1, time: '07:45 - 08:35', subjectId: 'french', teacher: 'Doaa Fekry' },
+      { id: 'p-2b-sun-2', periodNum: 2, time: '08:35 - 09:25', subjectId: 'math', teacher: 'Maryem Sameer' },
+      { id: 'p-2b-sun-3', periodNum: 3, time: '09:45 - 10:35', subjectId: 'arabic', teacher: 'Marwa Mamdouh' },
+      { id: 'p-2b-sun-4', periodNum: 4, time: '10:35 - 11:25', subjectId: 'science', teacher: 'Salma Ahmed' },
+      { id: 'p-2b-sun-5', periodNum: 5, time: '11:25 - 12:15', subjectId: 'english', teacher: 'Ala\'a' },
+      { id: 'p-2b-sun-6', periodNum: 6, time: '12:15 - 13:05', subjectId: 'english', teacher: 'Ala\'a' },
+      { id: 'p-2b-sun-7', periodNum: 7, time: '13:25 - 14:15', subjectId: 'ict', teacher: 'Mariem' },
+      { id: 'p-2b-sun-8', periodNum: 8, time: '14:15 - 15:05', subjectId: 'music', teacher: 'Afronia' }
+    ] },
+    { dayNameAr: 'الإثنين', dayNameEn: 'Monday', periods: [
+      { id: 'p-2b-mon-1', periodNum: 1, time: '07:45 - 08:35', subjectId: 'social', teacher: 'Manar Hassan' },
+      { id: 'p-2b-mon-2', periodNum: 2, time: '08:35 - 09:25', subjectId: 'pe', teacher: 'Rana' },
+      { id: 'p-2b-mon-3', periodNum: 3, time: '09:45 - 10:35', subjectId: 'english', teacher: 'Ala\'a' },
+      { id: 'p-2b-mon-4', periodNum: 4, time: '10:35 - 11:25', subjectId: 'english', teacher: 'Ala\'a' },
+      { id: 'p-2b-mon-5', periodNum: 5, time: '11:25 - 12:15', subjectId: 'math', teacher: 'Maryem Sameer' },
+      { id: 'p-2b-mon-6', periodNum: 6, time: '12:15 - 13:05', subjectId: 'math', teacher: 'Maryem Sameer' },
+      { id: 'p-2b-mon-7', periodNum: 7, time: '13:25 - 14:15', subjectId: 'french', teacher: 'Doaa Fekry' },
+      { id: 'p-2b-mon-8', periodNum: 8, time: '14:15 - 15:05', subjectId: 'arabic', teacher: 'Marwa Mamdouh' }
+    ] },
+    { dayNameAr: 'الثلاثاء', dayNameEn: 'Tuesday', periods: [
+      { id: 'p-2b-tue-1', periodNum: 1, time: '07:45 - 08:35', subjectId: 'math', teacher: 'Maryem Sameer' },
+      { id: 'p-2b-tue-2', periodNum: 2, time: '08:35 - 09:25', subjectId: 'ict', teacher: 'Mariem' },
+      { id: 'p-2b-tue-3', periodNum: 3, time: '09:45 - 10:35', subjectId: 'art', teacher: 'Walid Ahmed Fouad' },
+      { id: 'p-2b-tue-4', periodNum: 4, time: '10:35 - 11:25', subjectId: 'french', teacher: 'Doaa Fekry' },
+      { id: 'p-2b-tue-5', periodNum: 5, time: '11:25 - 12:15', subjectId: 'ethics', teacher: 'Marwa Mamdouh' },
+      { id: 'p-2b-tue-6', periodNum: 6, time: '12:15 - 13:05', subjectId: 'arabic', teacher: 'Marwa Mamdouh' },
+      { id: 'p-2b-tue-7', periodNum: 7, time: '13:25 - 14:15', subjectId: 'music', teacher: 'Afronia' },
+      { id: 'p-2b-tue-8', periodNum: 8, time: '14:15 - 15:05', subjectId: 'english', teacher: 'Ala\'a' }
+    ] },
+    { dayNameAr: 'الأربعاء', dayNameEn: 'Wednesday', periods: [
+      { id: 'p-2b-wed-1', periodNum: 1, time: '07:45 - 08:35', subjectId: 'english', teacher: 'Ala\'a' },
+      { id: 'p-2b-wed-2', periodNum: 2, time: '08:35 - 09:25', subjectId: 'social', teacher: 'Manar Hassan' },
+      { id: 'p-2b-wed-3', periodNum: 3, time: '09:45 - 10:35', subjectId: 'pe', teacher: 'Rana' },
+      { id: 'p-2b-wed-4', periodNum: 4, time: '10:35 - 11:25', subjectId: 'arabic', teacher: 'Marwa Mamdouh' },
+      { id: 'p-2b-wed-5', periodNum: 5, time: '11:25 - 12:15', subjectId: 'math', teacher: 'Maryem Sameer' },
+      { id: 'p-2b-wed-6', periodNum: 6, time: '12:15 - 13:05', subjectId: 'french', teacher: 'Doaa Fekry' },
+      { id: 'p-2b-wed-7', periodNum: 7, time: '13:25 - 14:15', subjectId: 'science', teacher: 'Salma Ahmed' },
+      { id: 'p-2b-wed-8', periodNum: 8, time: '14:15 - 15:05', subjectId: 'art', teacher: 'Walid Ahmed Fouad' }
+    ] },
+    { dayNameAr: 'الخميس', dayNameEn: 'Thursday', periods: [
+      { id: 'p-2b-thu-1', periodNum: 1, time: '07:45 - 08:35', subjectId: 'arabic', teacher: 'Marwa Mamdouh' },
+      { id: 'p-2b-thu-2', periodNum: 2, time: '08:35 - 09:25', subjectId: 'social', teacher: 'Manar Hassan' },
+      { id: 'p-2b-thu-3', periodNum: 3, time: '09:45 - 10:35', subjectId: 'ethics', teacher: 'Marwa Mamdouh' },
+      { id: 'p-2b-thu-4', periodNum: 4, time: '10:35 - 11:25', subjectId: 'math', teacher: 'Maryem Sameer' },
+      { id: 'p-2b-thu-5', periodNum: 5, time: '11:25 - 12:15', subjectId: 'english', teacher: 'Ala\'a' },
+      { id: 'p-2b-thu-6', periodNum: 6, time: '12:15 - 13:05', subjectId: 'english', teacher: 'Ala\'a' },
+      { id: 'p-2b-thu-7', periodNum: 7, time: '13:25 - 14:15', subjectId: 'science', teacher: 'Salma Ahmed' },
+      { id: 'p-2b-thu-8', periodNum: 8, time: '14:15 - 15:05', subjectId: 'ict', teacher: 'Mariem' }
+    ] }
+  ] },
+  { classId: '2C', days: [
+    { dayNameAr: 'الأحد', dayNameEn: 'Sunday', periods: [
+      { id: 'p-2c-sun-1', periodNum: 1, time: '07:45 - 08:35', subjectId: 'english', teacher: 'Mostafa Mohamed' },
+      { id: 'p-2c-sun-2', periodNum: 2, time: '08:35 - 09:25', subjectId: 'french', teacher: 'Lamiaa' },
+      { id: 'p-2c-sun-3', periodNum: 3, time: '09:45 - 10:35', subjectId: 'math', teacher: 'Sandy' },
+      { id: 'p-2c-sun-4', periodNum: 4, time: '10:35 - 11:25', subjectId: 'math', teacher: 'Sandy' },
+      { id: 'p-2c-sun-5', periodNum: 5, time: '11:25 - 12:15', subjectId: 'ict', teacher: 'Rana' },
+      { id: 'p-2c-sun-6', periodNum: 6, time: '12:15 - 13:05', subjectId: 'arabic', teacher: 'Marwa Mamdouh' },
+      { id: 'p-2c-sun-7', periodNum: 7, time: '13:25 - 14:15', subjectId: 'social', teacher: 'Manar Hassan' },
+      { id: 'p-2c-sun-8', periodNum: 8, time: '14:15 - 15:05', subjectId: 'pe', teacher: 'Ahmed Hasanin' }
+    ] },
+    { dayNameAr: 'الإثنين', dayNameEn: 'Monday', periods: [
+      { id: 'p-2c-mon-1', periodNum: 1, time: '07:45 - 08:35', subjectId: 'arabic', teacher: 'Marwa Mamdouh' },
+      { id: 'p-2c-mon-2', periodNum: 2, time: '08:35 - 09:25', subjectId: 'arabic', teacher: 'Marwa Mamdouh' },
+      { id: 'p-2c-mon-3', periodNum: 3, time: '09:45 - 10:35', subjectId: 'french', teacher: 'Lamiaa' },
+      { id: 'p-2c-mon-4', periodNum: 4, time: '10:35 - 11:25', subjectId: 'english', teacher: 'Mostafa Mohamed' },
+      { id: 'p-2c-mon-5', periodNum: 5, time: '11:25 - 12:15', subjectId: 'science', teacher: 'Salma Ahmed' },
+      { id: 'p-2c-mon-6', periodNum: 6, time: '12:15 - 13:05', subjectId: 'social', teacher: 'Manar Hassan' },
+      { id: 'p-2c-mon-7', periodNum: 7, time: '13:25 - 14:15', subjectId: 'music', teacher: 'Afronia' },
+      { id: 'p-2c-mon-8', periodNum: 8, time: '14:15 - 15:05', subjectId: 'math', teacher: 'Sandy' }
+    ] },
+    { dayNameAr: 'الثلاثاء', dayNameEn: 'Tuesday', periods: [
+      { id: 'p-2c-tue-1', periodNum: 1, time: '07:45 - 08:35', subjectId: 'pe', teacher: 'Ahmed Hasanin' },
+      { id: 'p-2c-tue-2', periodNum: 2, time: '08:35 - 09:25', subjectId: 'arabic', teacher: 'Marwa Mamdouh' },
+      { id: 'p-2c-tue-3', periodNum: 3, time: '09:45 - 10:35', subjectId: 'science', teacher: 'Salma Ahmed' },
+      { id: 'p-2c-tue-4', periodNum: 4, time: '10:35 - 11:25', subjectId: 'math', teacher: 'Sandy' },
+      { id: 'p-2c-tue-5', periodNum: 5, time: '11:25 - 12:15', subjectId: 'ethics', teacher: 'Fatema' },
+      { id: 'p-2c-tue-6', periodNum: 6, time: '12:15 - 13:05', subjectId: 'ict', teacher: 'Rana' },
+      { id: 'p-2c-tue-7', periodNum: 7, time: '13:25 - 14:15', subjectId: 'english', teacher: 'Mostafa Mohamed' },
+      { id: 'p-2c-tue-8', periodNum: 8, time: '14:15 - 15:05', subjectId: 'english', teacher: 'Mostafa Mohamed' }
+    ] },
+    { dayNameAr: 'الأربعاء', dayNameEn: 'Wednesday', periods: [
+      { id: 'p-2c-wed-1', periodNum: 1, time: '07:45 - 08:35', subjectId: 'social', teacher: 'Manar Hassan' },
+      { id: 'p-2c-wed-2', periodNum: 2, time: '08:35 - 09:25', subjectId: 'french', teacher: 'Lamiaa' },
+      { id: 'p-2c-wed-3', periodNum: 3, time: '09:45 - 10:35', subjectId: 'english', teacher: 'Mostafa Mohamed' },
+      { id: 'p-2c-wed-4', periodNum: 4, time: '10:35 - 11:25', subjectId: 'english', teacher: 'Mostafa Mohamed' },
+      { id: 'p-2c-wed-5', periodNum: 5, time: '11:25 - 12:15', subjectId: 'art', teacher: 'Walid Ahmed Fouad' },
+      { id: 'p-2c-wed-6', periodNum: 6, time: '12:15 - 13:05', subjectId: 'arabic', teacher: 'Marwa Mamdouh' },
+      { id: 'p-2c-wed-7', periodNum: 7, time: '13:25 - 14:15', subjectId: 'math', teacher: 'Sandy' },
+      { id: 'p-2c-wed-8', periodNum: 8, time: '14:15 - 15:05', subjectId: 'music', teacher: 'Afronia' }
+    ] },
+    { dayNameAr: 'الخميس', dayNameEn: 'Thursday', periods: [
+      { id: 'p-2c-thu-1', periodNum: 1, time: '07:45 - 08:35', subjectId: 'ict', teacher: 'Rana' },
+      { id: 'p-2c-thu-2', periodNum: 2, time: '08:35 - 09:25', subjectId: 'science', teacher: 'Salma Ahmed' },
+      { id: 'p-2c-thu-3', periodNum: 3, time: '09:45 - 10:35', subjectId: 'ethics', teacher: 'Fatema' },
+      { id: 'p-2c-thu-4', periodNum: 4, time: '10:35 - 11:25', subjectId: 'english', teacher: 'Mostafa Mohamed' },
+      { id: 'p-2c-thu-5', periodNum: 5, time: '11:25 - 12:15', subjectId: 'english', teacher: 'Mostafa Mohamed' },
+      { id: 'p-2c-thu-6', periodNum: 6, time: '12:15 - 13:05', subjectId: 'math', teacher: 'Sandy' },
+      { id: 'p-2c-thu-7', periodNum: 7, time: '13:25 - 14:15', subjectId: 'arabic', teacher: 'Marwa Mamdouh' },
+      { id: 'p-2c-thu-8', periodNum: 8, time: '14:15 - 15:05', subjectId: 'art', teacher: 'Walid Ahmed Fouad' }
+    ] }
+  ] }
 ];
 
 export const INITIAL_WEEKLY_PLANS: WeeklyPlanItem[] = [
+  // Uploaded source plans: Block 1 - Week 2 (French and Arabic)
+  {
+    id: 'wp-b1-w2-french-uploaded', blockId: 'block1', weekId: 'week2', classId: 'all', subjectId: 'french',
+    weekNumber: 2, day: 'Session 1', subject: 'French',
+    unitOrTheme: 'Revision', learningObjectives: ['Revise colours', 'Revise numbers and days of the week', 'Revise tastes and activities'],
+    resourcesNote: 'French Weekly Plan - Block 1 Week 2 - Minya',
+    classwork: 'Session 1: Revision — Les couleurs. Session 2: Revision — Les nombres et les jours de la semaine. Session 3: Revision — Les goûts et les activités.',
+    homework: 'Session 3: Page 23.', homeworkNote: 'Session 3: Page 23.',
+    tomorrowNote: 'Session 1: Bring coloured pencils; they will be used during the lesson.',
+    dayContent: {
+      'Session 1': { classworkNote: 'Revision — Les couleurs.', homeworkNote: 'No homework recorded.', tomorrowNote: 'Bring your coloured pencils; they will be used during the lesson.' },
+      'Session 2': { classworkNote: 'Revision — Les nombres et les jours de la semaine.', homeworkNote: 'No homework recorded.' },
+      'Session 3': { classworkNote: 'Revision — Les goûts et les activités.', homeworkNote: 'Page 23.' }
+    },
+    fileName: 'WeeklyPlanFrench-B1-W2-(Minia).pdf', fileType: 'pdf', fileSize: 'Uploaded source plan'
+  },
+  {
+    id: 'wp-b1-w2-arabic-uploaded', blockId: 'block1', weekId: 'week2', classId: 'all', subjectId: 'arabic',
+    weekNumber: 2, day: 'Sunday', subject: 'Arabic',
+    unitOrTheme: 'الوحدة الأولى: العودة إلى المدرسة', learningObjectives: ['قراءة درس يوم جديد ومناقشة الفهم القرائي', 'المناقشة اللغوية ومراجعة حروف الجر', 'قراءة نص منفذ', 'الإملاء', 'نشاط تطبيقي'],
+    resourcesNote: 'كراسة نشاط الوحدة الأولى، كراسة الواجب المنزلي، فيديو، أوراق العمل',
+    classwork: 'قراءة درس (يوم جديد) ومناقشة الفهم القرائي؛ المناقشة اللغوية ومراجعة حروف الجر المتصلة والمنفصلة؛ قراءة نص منفذ؛ إملاء؛ نشاط تطبيقي.',
+    homework: 'Sunday: كتابة الفقرة الأولى من درس يوم جديد من أول (مع إشراقة شمس يوم جديد إلى .......... صفوفًا منتظمة) بخط جميل. Tuesday: كراسة الواجب المنزلي صفحة 46.',
+    homeworkNote: 'Sunday: كتابة الفقرة الأولى من درس يوم جديد من أول (مع إشراقة شمس يوم جديد إلى .......... صفوفًا منتظمة) بخط جميل. Tuesday: كراسة الواجب المنزلي صفحة 46.',
+    tomorrowNote: 'لا توجد ملاحظات إضافية في الخطة.',
+    fileName: 'WeeklyPlanArabic-B1-W2-(Minia).docx', fileType: 'doc', fileSize: 'Uploaded source plan',
+    dayContent: {
+      Sunday: { classworkNote: 'قراءة درس (يوم جديد) ومناقشة الفهم القرائي. كراسة نشاط الوحدة الأولى ص 9-10.', homeworkNote: 'كتابة الفقرة الأولى من درس يوم جديد من أول (مع إشراقة شمس يوم جديد إلى .......... صفوفًا منتظمة) بخط جميل.' },
+      Monday: { classworkNote: 'المناقشة اللغوية + مراجعة حروف الجر المتصلة والمنفصلة. كراسة نشاط الوحدة الأولى ص 11-12.', homeworkNote: 'لا يوجد.' },
+      Tuesday: { classworkNote: 'قراءة نص منفذ (مدرستي بيتي الثاني). فيديو + كراسة نشاط الوحدة الأولى ص 12.', homeworkNote: 'كراسة الواجب المنزلي صفحة 46.' },
+      Wednesday: { classworkNote: 'إملاء. كراسة الطالب.', homeworkNote: 'لا يوجد.' },
+      Thursday: { classworkNote: 'نشاط تطبيقي. أوراق العمل.', homeworkNote: 'لا يوجد.' }
+    }
+  },
   // Uploaded source plans: Block 1 - Week 1 (6/9/2026 - 10/9/2026)
   {
     id: 'wp-b1-w1-english-uploaded',

@@ -15,7 +15,7 @@ import {
 } from '../data/initialData';
 
 const STORAGE_KEYS = {
-  TIMETABLES: 'nile_minya_timetables_v3',
+  TIMETABLES: 'nile_minya_timetables_v4',
   WEEKLY_PLANS: 'nile_minya_weekly_plans_v1',
   DAILY_FOLLOW_UPS: 'nile_minya_daily_follow_ups_v1',
   STUDENT_TASKS: 'nile_minya_student_tasks_v1',
@@ -25,7 +25,8 @@ const STORAGE_KEYS = {
   CURRENT_WEEK: 'nile_minya_cur_week',
   SELECTED_CLASS: 'nile_minya_cur_class',
   CURRENT_STUDENT: 'nile_minya_cur_student',
-  UPLOADED_B1_W1: 'nile_minya_uploaded_b1_w1_v1'
+  UPLOADED_B1_W1: 'nile_minya_uploaded_b1_w1_v1',
+  UPLOADED_B1_W2: 'nile_minya_uploaded_b1_w2_v1'
 };
 
 const FILE_DB_NAME = 'nile_minya_file_store';
@@ -110,7 +111,13 @@ export const getStoredWeeklyPlans = (): WeeklyPlanItem[] => {
         const existingIds = new Set(stored.map((plan) => plan.id));
         const merged = [...stored, ...uploaded.filter((plan) => !existingIds.has(plan.id))];
         localStorage.setItem(STORAGE_KEYS.UPLOADED_B1_W1, '1');
-        return merged;
+        stored.splice(0, stored.length, ...merged);
+      }
+      if (!localStorage.getItem(STORAGE_KEYS.UPLOADED_B1_W2)) {
+        const uploaded = INITIAL_WEEKLY_PLANS.filter((plan) => plan.id.includes('-w2-uploaded'));
+        const existingIds = new Set(stored.map((plan) => plan.id));
+        stored.push(...uploaded.filter((plan) => !existingIds.has(plan.id)));
+        localStorage.setItem(STORAGE_KEYS.UPLOADED_B1_W2, '1');
       }
       return stored;
     }
@@ -241,6 +248,7 @@ export const resetAllDataToDefault = (): void => {
   localStorage.removeItem(STORAGE_KEYS.TIMETABLES);
   localStorage.removeItem(STORAGE_KEYS.WEEKLY_PLANS);
   localStorage.removeItem(STORAGE_KEYS.UPLOADED_B1_W1);
+  localStorage.removeItem(STORAGE_KEYS.UPLOADED_B1_W2);
   localStorage.removeItem(STORAGE_KEYS.DAILY_FOLLOW_UPS);
   localStorage.removeItem(STORAGE_KEYS.STUDENT_TASKS);
   localStorage.removeItem(STORAGE_KEYS.COMPLETED_HW);

@@ -292,6 +292,7 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
 
         ctx.fillStyle = '#334155';
         ctx.font = '11px sans-serif';
+        if (slot.teacher) ctx.fillText(slot.teacher, x + 12, y + 47);
       });
     });
 
@@ -372,6 +373,7 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
                     return `
                     <td class="period-cell">
                       <div class="sub-en">${s.nameEn}</div>
+                      ${p.teacher ? `<div style="font-size: 10px; color: #475569; margin-top: 3px;">${p.teacher}</div>` : ''}
                     </td>
                   `;
                   })
@@ -817,6 +819,7 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
                                 <RenderSubjectIcon iconName={sub.iconName} className={`w-4 h-4 ${sub.textColor}`} />
                               </div>
                               <span className={`text-xs font-bold ${sub.textColor} truncate block font-sans`}>{sub.nameEn}</span>
+                              {slot.teacher && <span className="text-[10px] font-semibold text-slate-600 truncate block font-sans mt-0.5">{slot.teacher}</span>}
                             </div>
                           ) : (
                             <div className="w-full p-2.5 rounded-2xl border border-dashed border-slate-100 text-slate-300 text-xs font-medium flex items-center justify-center">
@@ -900,6 +903,7 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
                         <div className="font-black text-sm text-slate-900">
                           {sub.nameEn}
                         </div>
+                        {slot.teacher && <div className="text-xs text-slate-600 font-semibold mt-0.5">{slot.teacher}</div>}
                       </div>
                     </div>
 
