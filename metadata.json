@@ -1,7 +1,6 @@
 {
-  "name": "Studying Weekly Plan",
-  "description": "Weekly plan and timetable tracker for Grade 2 (2A, 2B, 2C) - Nile Egyptian International Schools",
+  "name": "مدرسة النيل - فرع المنيا (جريد 2)",
+  "description": "نظام المتابعة المدرسية لجريد 2 - فصول 2A و 2B و 2C: جداول الحصص، الخطط الأسبوعية، ما تم تدريسه، الواجبات، وتجهيزات الغد مع واجهات الأدمن والزائر والطالب.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
-

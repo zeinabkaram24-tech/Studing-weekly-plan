@@ -1,1378 +1,425 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import React, { useState, useEffect } from 'react';
 import {
-  DayOfWeek,
-  GradeSection,
-  PlanTask,
-  StudentProfile,
-  Subject,
-  Timetable,
-  UploadedPlanFile,
+  SchoolClass,
   UserRole,
-  VisitorStatsSummary,
+  StudentProfile,
+  StudentPersonalTask,
+  DailyFollowUp,
+  WeeklyPlanItem,
+  ClassTimetable,
+  SchoolMaterialFile
 } from './types';
-import { Eye, GraduationCap, X } from 'lucide-react';
 import {
-  getTodayDayOfWeek,
-  loadSavedGradeSection,
-  loadSavedStudent,
-  loadSavedSubjects,
-  loadSavedTasks,
-  loadSavedTimetable,
-  loadSavedUploadedFiles,
-  loadWeekTitle,
-  resetAllDataToDefault,
-  saveGradeSection,
-  saveStudent,
-  saveTasks,
-  saveTimetable,
-  saveUploadedFiles,
-  saveWeekTitle,
-  isStudentRemembered,
-  getSavedStudentName,
-  isUserLoggedIn,
-  clearStudentLogin,
-  WeeklyPlanArchiveEntry,
-  loadWeeklyPlansArchive,
-  saveWeeklyPlansArchive,
-  getActiveWeeklyPlanId,
-  setActiveWeeklyPlanId,
-  getLatestWeeklyPlan,
-  addOrUpdateWeeklyPlanInArchive,
-  deleteWeeklyPlanFromArchive,
-  isAdminLoggedIn,
-  setAdminLoggedIn,
-  clearAdminLogin,
-  fetchGlobalPlanFromServer,
-  saveGlobalPlanToServer,
-  clearAllWeeklyPlansData,
-  normalizeOfficialTasks,
-  getUserRole,
-  saveUserRole,
-  clearUserRole,
-  hasStoredUserRole,
-} from './utils/storage';
-import {
-  resolveCurrentUserId,
-  getUserProgress,
-  setUserTaskDone,
-  setUserTaskPersonalNote,
-  getUserPersonalTasks,
-  saveUserPersonalTask,
-  deleteUserPersonalTask,
-  mergePlanWithUserProgress,
-} from './utils/userProgressStorage';
-import { DEFAULT_TIMETABLE, GRADE_TIMETABLES } from './data/defaultData';
-import { Navbar } from './components/Navbar';
-import { TodayView } from './components/TodayView';
+  getStoredTimetables,
+  saveStoredTimetables,
+  getStoredWeeklyPlans,
+  saveStoredWeeklyPlans,
+  getStoredDailyFollowUps,
+  saveStoredDailyFollowUps,
+  getStoredStudentTasks,
+  saveStoredStudentTasks,
+  getStoredCompletedHw,
+  saveStoredCompletedHw,
+  getStoredMaterials,
+  saveStoredMaterials,
+  hydrateStoredFiles,
+  resetAllDataToDefault
+} from './lib/storage';
+import { Header } from './components/Header';
+import { DailyFollowUpView } from './components/DailyFollowUpView';
 import { WeeklyPlanView } from './components/WeeklyPlanView';
 import { TimetableView } from './components/TimetableView';
-import { TaskModal } from './components/TaskModal';
-import { SmartPasteModal } from './components/SmartPasteModal';
-import { EditProfileModal } from './components/EditProfileModal';
-import { QuickTimetableModal } from './components/QuickTimetableModal';
-import { WeekDaysPickerModal } from './components/WeekDaysPickerModal';
-import { UploadPlanFilesModal } from './components/UploadPlanFilesModal';
-import { WeeklyPlanArchiveModal } from './components/WeeklyPlanArchiveModal';
-import { AdminAuthModal } from './components/AdminAuthModal';
-import { AppEntryPortalModal } from './components/AppEntryPortalModal';
-import { VisitorStatsModal } from './components/VisitorStatsModal';
-import { ClassSelectorModal } from './components/ClassSelectorModal';
-import { MaterialsModal } from './components/MaterialsModal';
-import { WeekPlanSelectorBar } from './components/WeekPlanSelectorBar';
-import { triggerAllDoneCelebration } from './utils/celebration';
+import { MaterialsView } from './components/MaterialsView';
+import { StudentSpace } from './components/StudentSpace';
+import { AdminPanel } from './components/AdminPanel';
+import { PrintModal } from './components/PrintModal';
+import { extractWeeklyPlanText, parseWeeklyPlanText, WEEKLY_PLAN_PARSER_VERSION } from './lib/weeklyPlanParser';
+import { WeeklyPlanExtraction } from './lib/geminiWeeklyPlan';
+import { SUBJECTS } from './data/initialData';
 import {
-  mapWeeklyPlanTasksToSections,
-  removeDuplicateSectionTasks,
-} from './utils/weeklyPlanSectionMapper';
-import {
-  fetchVisitorStats,
-  pingVisitorSession,
-  registerGuestVisitor,
-  getStoredVisitorName,
-} from './utils/visitorTracker';
-
-function collectUploadedFiles(
-  archive: WeeklyPlanArchiveEntry[],
-  fallback: UploadedPlanFile[] = [],
-): UploadedPlanFile[] {
-  const files = [
-    ...fallback,
-    ...archive.flatMap((plan) => plan.uploadedFiles || []),
-  ];
-  const seen = new Set<string>();
-  return files.filter((file) => {
-    const key = file.id || `${file.name}-${file.uploadDate}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
+  GraduationCap,
+  ShieldCheck,
+  Eye,
+  User,
+  Heart,
+  Sparkles
+} from 'lucide-react';
 
 export default function App() {
-  const [selectedSection, setSelectedSection] = useState<GradeSection>(() => {
-    const saved = loadSavedGradeSection();
-    if (saved) return saved;
-    const studentSec = loadSavedStudent().section;
-    if (studentSec === '2A' || studentSec === '2B' || studentSec === '2C') return studentSec;
-    return '2A';
-  });
-
-  // Admin & Security State
-  const [isAdmin, setIsAdmin] = useState<boolean>(() => isAdminLoggedIn());
-  const [isAdminAuthModalOpen, setIsAdminAuthModalOpen] = useState(false);
-  const [adminReason, setAdminReason] = useState<{ title: string; message: string } | undefined>();
-
-  // User Role State: 'admin' | 'student' | 'visitor'
-  const [userRole, setUserRole] = useState<UserRole>(() => {
-    if (isAdminLoggedIn()) return 'admin';
-    return getUserRole();
-  });
-  const [isEntryPortalOpen, setIsEntryPortalOpen] = useState<boolean>(() => !hasStoredUserRole());
-  const [visitorNoticeModal, setVisitorNoticeModal] = useState<{ isOpen: boolean; message: string }>({
-    isOpen: false,
-    message: '',
-  });
-
-  // Weekly Plan Archive & Memory State
-  const [archive, setArchive] = useState<WeeklyPlanArchiveEntry[]>(() => loadWeeklyPlansArchive());
-  const [activePlanId, setActivePlanIdState] = useState<string>(() => {
-    const loaded = loadWeeklyPlansArchive();
-    const latest = getLatestWeeklyPlan(loaded);
-    return latest?.id || getActiveWeeklyPlanId();
-  });
-  const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
-
-  // Active Plan Metadata
-  const activePlan = archive.find((p) => p.id === activePlanId) || archive[0];
-  const activeBlockNumber = activePlan?.blockNumber || 1;
-  const activeWeekNumber = activePlan?.weekNumber || 1;
-
-  const [student, setStudent] = useState<StudentProfile>(() => {
-    const s = loadSavedStudent();
-    const savedSec = loadSavedGradeSection();
-    if (savedSec) {
-      return { ...s, section: savedSec, grade: `Grade ${savedSec}` };
+  // State Initialization
+  const [currentRole, setCurrentRole] = useState<UserRole>('visitor');
+  const [selectedClass, setSelectedClass] = useState<SchoolClass>('2A');
+  const [selectedBlock, setSelectedBlock] = useState<string>('block1');
+  const [selectedWeek, setSelectedWeek] = useState<string>('week2');
+  const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(() => {
+    try {
+      const saved = localStorage.getItem('nile_minya_cur_student');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
     }
-    return s;
   });
 
-  // Official School Weekly Plan Tasks (Global Storage)
-  const [officialTasks, setOfficialTasks] = useState<PlanTask[]>(() => {
-    const savedSec = loadSavedGradeSection() || '2A';
-    const initialArchive = loadWeeklyPlansArchive();
-    const activeId = getActiveWeeklyPlanId();
-    const current = initialArchive.find((p) => p.id === activeId) || initialArchive[0];
-    if (current?.tasksBySection?.[savedSec]) {
-      return current.tasksBySection[savedSec];
-    }
-    return loadSavedTasks(savedSec);
-  });
+  const [activeTab, setActiveTab] = useState<'daily' | 'weekly' | 'timetable' | 'materials' | 'student' | 'admin' | 'tasks'>('daily');
 
-  // User Role Storage: Current user ID, completion progress, and personal notes
-  const currentUserId = resolveCurrentUserId(student.name);
-  const [userProgressMap, setUserProgressMap] = useState(() => getUserProgress(currentUserId));
-  const [personalTasks, setPersonalTasks] = useState(() => getUserPersonalTasks(currentUserId));
+  const [timetables, setTimetables] = useState<ClassTimetable[]>(getStoredTimetables);
+  const [weeklyPlans, setWeeklyPlans] = useState<WeeklyPlanItem[]>(getStoredWeeklyPlans);
+  const [dailyFollowUps, setDailyFollowUps] = useState<DailyFollowUp[]>(getStoredDailyFollowUps);
+  const [studentTasks, setStudentTasks] = useState<StudentPersonalTask[]>(getStoredStudentTasks);
+  const [completedHwMap, setCompletedHwMap] = useState<Record<string, boolean>>(getStoredCompletedHw);
+  const [materials, setMaterials] = useState<SchoolMaterialFile[]>(getStoredMaterials);
 
-  // Whenever student changes/logs in, re-sync their personal state from localStorage
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+
+  // Binary attachments live in IndexedDB so refreshing the app cannot lose
+  // files when localStorage reaches its small quota.
   useEffect(() => {
-    setUserProgressMap(getUserProgress(currentUserId));
-    setPersonalTasks(getUserPersonalTasks(currentUserId));
-  }, [currentUserId]);
-
-  // Derived tasks for display: Official school tasks overlayed with user's personal progress & notes
-  const tasks = React.useMemo(() => {
-    return mergePlanWithUserProgress(officialTasks, currentUserId);
-  }, [officialTasks, currentUserId, userProgressMap, personalTasks]);
-
-  const [timetable, setTimetable] = useState<Timetable>(() => {
-    const savedSec = loadSavedGradeSection();
-    return loadSavedTimetable(savedSec || '2A');
-  });
-  const [subjects] = useState<Subject[]>(() => loadSavedSubjects());
-  const [weekTitle, setWeekTitle] = useState<string>(() => {
-    const initialArchive = loadWeeklyPlansArchive();
-    const activeId = getActiveWeeklyPlanId();
-    const current = initialArchive.find((p) => p.id === activeId) || initialArchive[0];
-    return current?.title || loadWeekTitle();
-  });
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedPlanFile[]>(() => {
-    const initialArchive = loadWeeklyPlansArchive();
-    return collectUploadedFiles(initialArchive, loadSavedUploadedFiles());
-  });
-
-  // Keep browser document title updated with current active block and week
-  useEffect(() => {
-    const title = activePlan?.title || `Block ${activeBlockNumber} - Week ${activeWeekNumber}`;
-    document.title = `${title} | Studying Weekly Plan`;
-  }, [activePlan, activeBlockNumber, activeWeekNumber]);
-
-  // Class Selection Modal (Initial first-entry prompt or triggered from button)
-  const [isClassSelectorOpen, setIsClassSelectorOpen] = useState(false);
-  const [showInitialClassPrompt, setShowInitialClassPrompt] = useState(() => {
-    return loadSavedGradeSection() === null;
-  });
-
-  // Navigation tabs
-  const [currentTab, setCurrentTab] = useState<'today' | 'weekly' | 'timetable'>('today');
-
-  // Today Day & Selected Day in TodayView
-  const todayDay = getTodayDayOfWeek();
-  const [selectedDay, setSelectedDay] = useState<DayOfWeek>(() => {
-    // School week in Egypt begins Sunday. If today is Friday/Saturday, default to Sunday
-    if (todayDay === 'friday' || todayDay === 'saturday') return 'sunday';
-    return todayDay;
-  });
-
-  // Modal States
-  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
-  const [editingTask, setEditingTask] = useState<PlanTask | null>(null);
-  const [modalDefaultDay, setModalDefaultDay] = useState<DayOfWeek>(selectedDay);
-  const [modalDefaultSubjectId, setModalDefaultSubjectId] = useState<string | undefined>();
-  const [isSmartPasteOpen, setIsSmartPasteOpen] = useState(false);
-  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
-  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [isMaterialsModalOpen, setIsMaterialsModalOpen] = useState(false);
-
-  // Requested dedicated popups
-  const [isTimetableModalOpen, setIsTimetableModalOpen] = useState(false);
-  const [isWeekDaysModalOpen, setIsWeekDaysModalOpen] = useState(false);
-
-  // Visitor & Email Tracking States
-  const [isVisitorStatsOpen, setIsVisitorStatsOpen] = useState(false);
-  const [visitorStats, setVisitorStats] = useState<VisitorStatsSummary | null>(null);
-
-  // Authentication & Visitor Mode State
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => isUserLoggedIn());
-
-  const handleLogin = () => {
-    setIsEntryPortalOpen(true);
-  };
-
-  const handleLogout = () => {
-    clearStudentLogin();
-    clearAdminLogin();
-    clearUserRole();
-    saveUserRole('visitor');
-    setUserRole('visitor');
-    setIsAdmin(false);
-    setIsLoggedIn(false);
-    setStudent((prev) => ({
-      ...prev,
-      name: 'زائر',
-    }));
-  };
-
-  // Sync visitor stats & session tracking
-  useEffect(() => {
-    const refreshStats = () => {
-      fetchVisitorStats().then((data) => {
-        if (data) setVisitorStats(data);
-      });
-    };
-    refreshStats();
-
-    // Check if student login is remembered or user role is stored
-    const isRemembered = isStudentRemembered();
-    const savedStudentName = getSavedStudentName();
-    const storedName = getStoredVisitorName();
-    const activeStudentName = savedStudentName || storedName;
-
-    if (hasStoredUserRole()) {
-      const storedRole = getUserRole();
-      setUserRole(storedRole);
-      if (storedRole === 'admin') {
-        setIsAdmin(true);
-        setAdminLoggedIn(true);
-      } else if (storedRole === 'student' && activeStudentName) {
-        pingVisitorSession(activeStudentName, selectedSection);
-        setStudent((prev) => ({
-          ...prev,
-          name: activeStudentName,
-        }));
-        setIsLoggedIn(true);
-      } else {
-        // Visitor role
-        setIsLoggedIn(false);
-        registerGuestVisitor(selectedSection);
-      }
-    } else {
-      setIsLoggedIn(false);
-      registerGuestVisitor(selectedSection);
-      setIsEntryPortalOpen(true);
-    }
-  }, [selectedSection]);
-
-  // Load Global Plan from server (Global Storage) on mount
-  useEffect(() => {
-    fetchGlobalPlanFromServer().then((serverPlan) => {
-      if (serverPlan) {
-        if (serverPlan.archive && serverPlan.archive.length > 0) {
-          const normalizedArchive = serverPlan.archive.map((plan) => ({
-            ...plan,
-            tasksBySection: {
-              '2A': plan.tasksBySection?.['2A'] || [],
-              '2B': plan.tasksBySection?.['2B'] || [],
-              '2C': plan.tasksBySection?.['2C'] || [],
-            },
-          }));
-          setArchive(normalizedArchive);
-          saveWeeklyPlansArchive(normalizedArchive);
-          const allServerFiles = collectUploadedFiles(normalizedArchive, serverPlan.uploadedFiles || []);
-          setUploadedFiles(allServerFiles);
-          saveUploadedFiles(allServerFiles);
-
-          // By default, open on the latest week plan added (current Friday week)
-          const latest = getLatestWeeklyPlan(normalizedArchive);
-          const chosen = serverPlan.activePlanId
-            ? normalizedArchive.find((p) => p.id === serverPlan.activePlanId) || latest
-            : latest;
-
-          if (chosen) {
-            setActivePlanIdState(chosen.id);
-            setActiveWeeklyPlanId(chosen.id);
-            setWeekTitle(chosen.title);
-            saveWeekTitle(chosen.title);
-            const secTasks = chosen.tasksBySection?.[selectedSection] || [];
-            setOfficialTasks(secTasks);
-            saveTasks(secTasks, selectedSection);
-          }
-        } else {
-          if (serverPlan.activePlanId) {
-            setActivePlanIdState(serverPlan.activePlanId);
-            setActiveWeeklyPlanId(serverPlan.activePlanId);
-          }
-          if (serverPlan.weekTitle) {
-            setWeekTitle(serverPlan.weekTitle);
-            saveWeekTitle(serverPlan.weekTitle);
-          }
-          const allServerFiles = collectUploadedFiles([], serverPlan.uploadedFiles || []);
-          setUploadedFiles(allServerFiles);
-          saveUploadedFiles(allServerFiles);
-          if (serverPlan.tasksBySection && serverPlan.tasksBySection[selectedSection]) {
-            const secTasks = serverPlan.tasksBySection[selectedSection] || [];
-            setOfficialTasks(secTasks);
-            saveTasks(secTasks, selectedSection);
-          }
-        }
-      }
+    void Promise.all([
+      hydrateStoredFiles(timetables),
+      hydrateStoredFiles(weeklyPlans),
+      hydrateStoredFiles(materials)
+    ]).then(([storedTimetables, storedWeeklyPlans, storedMaterials]) => {
+      setTimetables(storedTimetables);
+      setWeeklyPlans(storedWeeklyPlans);
+      setMaterials(storedMaterials);
     });
+    // Hydrate only the initial snapshot; subsequent edits are already in state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Sync official tasks to localStorage
   useEffect(() => {
-    saveTasks(officialTasks, selectedSection);
-  }, [officialTasks, selectedSection]);
-
-  useEffect(() => {
-    saveTimetable(timetable, selectedSection);
-  }, [timetable, selectedSection]);
-
-  useEffect(() => {
-    saveStudent(student);
-  }, [student]);
-
-  useEffect(() => {
-    saveWeekTitle(weekTitle);
-  }, [weekTitle]);
-
-  useEffect(() => {
-    saveUploadedFiles(uploadedFiles);
-  }, [uploadedFiles]);
-
-  const [pendingAdminAction, setPendingAdminAction] = useState<(() => void) | null>(null);
-
-  // Admin actions
-  const handleAdminSuccess = () => {
-    setIsAdmin(true);
-    setAdminLoggedIn(true);
-    saveUserRole('admin');
-    setUserRole('admin');
-    setIsAdminAuthModalOpen(false);
-    if (pendingAdminAction) {
-      pendingAdminAction();
-      setPendingAdminAction(null);
-    }
-  };
-
-  const handleAdminLogout = () => {
-    setIsAdmin(false);
-    clearAdminLogin();
-    saveUserRole('visitor');
-    setUserRole('visitor');
-  };
-
-  const handleOpenAdminLogin = (title?: string, message?: string, onAuthenticated?: () => void) => {
-    setAdminReason(title ? { title, message: message || '' } : undefined);
-    setPendingAdminAction(() => onAuthenticated || null);
-    setIsAdminAuthModalOpen(true);
-  };
-
-  // Sync official tasks to active plan in archive and server Global Storage
-  const syncTasksWithActivePlan = (
-    updatedOfficialTasks: PlanTask[],
-    targetSec: GradeSection = selectedSection
-  ) => {
-    setArchive((prevArchive) => {
-      const next = prevArchive.map((plan) => {
-        if (plan.id === activePlanId) {
-          return {
-            ...plan,
-            tasksBySection: {
-              ...plan.tasksBySection,
-              [targetSec]: updatedOfficialTasks,
-            },
-          };
-        }
-        return plan;
-      });
-      saveWeeklyPlansArchive(next);
-
-      // If Admin, sync to Global Storage on server immediately (reflects for all users)
-      if (isAdmin) {
-        const currentActive = next.find((p) => p.id === activePlanId) || next[0];
-        if (currentActive) {
-          saveGlobalPlanToServer(
-            {
-              activePlanId: currentActive.id,
-              weekTitle: currentActive.title,
-              activeBlockNumber: currentActive.blockNumber,
-              activeWeekNumber: currentActive.weekNumber,
-              tasksBySection: currentActive.tasksBySection,
-              archive: next,
-              uploadedFiles: currentActive.uploadedFiles || [],
-              lastUpdated: Date.now(),
-              updatedBy: 'admin',
-            },
-            '1111'
-          ).catch((e) => console.warn('Notice: Background sync global plan to server:', e));
-        }
-      }
-
-      return next;
-    });
-  };
-
-  // Switching & Navigating Archives
-  const handleSelectPlan = (planId: string) => {
-    const selected = archive.find((p) => p.id === planId);
-    if (!selected) return;
-    setActivePlanIdState(planId);
-    setActiveWeeklyPlanId(planId);
-    setWeekTitle(selected.title);
-    const secTasks = selected.tasksBySection?.[selectedSection] || [];
-    setOfficialTasks(secTasks);
-    saveTasks(secTasks, selectedSection);
-    const allArchiveFiles = collectUploadedFiles(archive);
-    setUploadedFiles(allArchiveFiles);
-    saveUploadedFiles(allArchiveFiles);
-  };
-
-  const handleSetPlanAsCurrent = (planId: string) => {
-    const updated = archive.map((p) => ({
-      ...p,
-      isCurrent: p.id === planId,
-    }));
-    saveWeeklyPlansArchive(updated);
-    setArchive(updated);
-    handleSelectPlan(planId);
-
-    // If Admin, sync active plan to Global Storage
-    if (isAdmin) {
-      const target = updated.find((p) => p.id === planId);
-      if (target) {
-        saveGlobalPlanToServer(
-          {
-            activePlanId: target.id,
-            weekTitle: target.title,
-            activeBlockNumber: target.blockNumber,
-            activeWeekNumber: target.weekNumber,
-            tasksBySection: target.tasksBySection,
-            archive: updated,
-            uploadedFiles: target.uploadedFiles || [],
-            lastUpdated: Date.now(),
-            updatedBy: 'admin',
-          },
-          '1111'
-        ).catch((e) => console.warn('Sync server global plan error:', e));
-      }
-    }
-  };
-
-  const handleDeletePlan = (planId: string) => {
-    const updated = deleteWeeklyPlanFromArchive(planId);
-    setArchive(updated);
-    if (activePlanId === planId) {
-      const fallback = updated[0];
-      if (fallback) {
-        handleSelectPlan(fallback.id);
-      }
-    }
-  };
-
-  // Section switcher handler
-  const handleSelectSection = (newSection: GradeSection) => {
-    // Save current section official tasks first
-    saveTasks(officialTasks, selectedSection);
-    syncTasksWithActivePlan(officialTasks, selectedSection);
-
-    setSelectedSection(newSection);
-    saveGradeSection(newSection);
-    setStudent((prev) => ({
-      ...prev,
-      section: newSection,
-      grade: `Grade ${newSection}`,
-    }));
-    const loadedTimetable = loadSavedTimetable(newSection);
-    setTimetable(loadedTimetable);
-
-    // Retrieve tasks for new section from active plan if present
-    const currActive = archive.find((p) => p.id === activePlanId) || archive[0];
-    if (currActive?.tasksBySection?.[newSection]) {
-      setOfficialTasks(currActive.tasksBySection[newSection]);
-      saveTasks(currActive.tasksBySection[newSection], newSection);
-    } else {
-      const loadedTasks = loadSavedTasks(newSection);
-      setOfficialTasks(loadedTasks);
-    }
-    setShowInitialClassPrompt(false);
-    setIsClassSelectorOpen(false);
-  };
-
-  // Handler: User Role - Toggle Task Done / Not Done (Strictly saved in localStorage under user_id)
-  const handleToggleDone = (taskId: string) => {
-    if (userRole === 'visitor') {
-      setVisitorNoticeModal({
-        isOpen: true,
-        message: 'حساب الزائر مخصص للتصفح والعرض فقط دون إمكانية التعديل 👁️. للدخول كطالب وتحديد المهام المنجزة وحفظ تقدمك على جهازك، يرجى تسجيل الدخول كطالب.',
-      });
-      return;
-    }
-
-    const currentTask = tasks.find((t) => t.id === taskId);
-    const nextDone = !(currentTask?.isDone);
-    const updatedMap = setUserTaskDone(currentUserId, taskId, nextDone);
-    setUserProgressMap(updatedMap);
-
-    if (nextDone) {
-      // Check if all tasks of the selected day are now completed
-      const dayTasks = tasks
-        .map((t) => (t.id === taskId ? { ...t, isDone: true } : t))
-        .filter((t) => t.day === selectedDay && (!t.section || t.section === selectedSection));
-      if (dayTasks.length > 0 && dayTasks.every((t) => t.isDone)) {
-        setTimeout(() => triggerAllDoneCelebration(), 250);
-      }
-    }
-  };
-
-  // Handler: User Role - Save Personal Student Note (Strictly in localStorage under user_id)
-  const handleSavePersonalNote = (taskId: string, note: string) => {
-    if (userRole === 'visitor') {
-      setVisitorNoticeModal({
-        isOpen: true,
-        message: 'حساب الزائر مخصص للتصفح والعرض فقط دون إمكانية التعديل 👁️. لإضافة ملاحظاتك الخاصة على المهام وحفظها على جهازك، يرجى تسجيل الدخول كطالب.',
-      });
-      return;
-    }
-
-    const updatedMap = setUserTaskPersonalNote(currentUserId, taskId, note);
-    setUserProgressMap(updatedMap);
-  };
-
-  // Handler: Save or Update Task (Admin: Global Storage | User: Personal localStorage)
-  const handleSaveTask = (taskData: Omit<PlanTask, 'id' | 'createdAt'> & { id?: string }) => {
-    if (userRole === 'visitor') {
-      setVisitorNoticeModal({
-        isOpen: true,
-        message: 'حساب الزائر مخصص للتصفح والعرض فقط دون إمكانية التعديل 👁️. لإضافة أو تعديل مهام خاصة بك، يرجى تسجيل الدخول كطالب أو كأدمن.',
-      });
-      return;
-    }
-
-    if (!isAdmin) {
-      // Check if editing an existing official school task
-      const isOfficial = officialTasks.some((t) => t.id === taskData.id);
-      if (isOfficial) {
-        handleOpenAdminLogin(
-          'تعديل خطة المدرسة الرسمية',
-          'تعديل مهام الخطة الأسبوعية الرسمية لجميع الطلاب مقتصر على المشرف العام (الأدمن). يمكنك كتابة ملاحظاتك الخاصة على المهمة في جهازك بدون رمز مرور.',
-          () => {
-            setOfficialTasks((prev) => {
-              const updated = prev.map((t) =>
-                t.id === taskData.id
-                  ? {
-                      ...t,
-                      day: taskData.day,
-                      subjectId: taskData.subjectId,
-                      type: taskData.type,
-                      title: taskData.title,
-                      details: taskData.details,
-                      pages: taskData.pages,
-                      notes: taskData.notes,
-                    }
-                  : t
-              );
-              syncTasksWithActivePlan(updated);
-              return updated;
-            });
-          }
-        );
-        return;
-      }
-
-      // User Role: Add or edit custom personal task in student's localStorage
-      const pTask: PlanTask = {
-        id: taskData.id || `ptask-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-        day: taskData.day,
-        subjectId: taskData.subjectId,
-        section: taskData.section || selectedSection,
-        period: taskData.period,
-        type: taskData.type,
-        title: taskData.title,
-        details: taskData.details,
-        pages: taskData.pages,
-        notes: taskData.notes,
-        isDone: Boolean(taskData.isDone),
-        personalNotes: taskData.personalNotes,
-        isPersonalTask: true,
-        createdAt: Date.now(),
-        completedAt: taskData.isDone ? Date.now() : undefined,
-      };
-      saveUserPersonalTask(currentUserId, pTask);
-      setPersonalTasks(getUserPersonalTasks(currentUserId));
-      return;
-    }
-
-    // Admin Role: Modifies official school tasks and syncs to Global Storage
-    if (taskData.id) {
-      setOfficialTasks((prev) => {
-        const updated = prev.map((t) =>
-          t.id === taskData.id
-            ? {
-                ...t,
-                day: taskData.day,
-                subjectId: taskData.subjectId,
-                type: taskData.type,
-                title: taskData.title,
-                details: taskData.details,
-                pages: taskData.pages,
-                notes: taskData.notes,
-              }
-            : t
-        );
-        syncTasksWithActivePlan(updated);
-        return updated;
-      });
-    } else {
-      const newTask: PlanTask = {
-        id: `task-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-        day: taskData.day,
-        subjectId: taskData.subjectId,
-        section: taskData.section || selectedSection,
-        period: taskData.period,
-        type: taskData.type,
-        title: taskData.title,
-        details: taskData.details,
-        pages: taskData.pages,
-        notes: taskData.notes,
-        isDone: false,
-        createdAt: Date.now(),
-      };
-      setOfficialTasks((prev) => {
-        const updated = [newTask, ...prev];
-        syncTasksWithActivePlan(updated);
-        return updated;
-      });
-    }
-  };
-
-  // Handler: Delete Task (Admin: Official Plan | User: Personal tasks only)
-  const handleDeleteTask = (taskId: string) => {
-    if (userRole === 'visitor') {
-      setVisitorNoticeModal({
-        isOpen: true,
-        message: 'حساب الزائر مخصص للتصفح والعرض فقط دون إمكانية التعديل 👁️. حذف المهام متاح للأدمن (للخطة العامة) أو الطالب (لمهامه الخاصة).',
-      });
-      return;
-    }
-
-    const isPersonal = personalTasks.some((t) => t.id === taskId);
-    if (isPersonal) {
-      deleteUserPersonalTask(currentUserId, taskId);
-      setPersonalTasks(getUserPersonalTasks(currentUserId));
-      return;
-    }
-
-    if (!isAdmin) {
-      handleOpenAdminLogin(
-        'حذف مهمة من الخطة الرسمية',
-        'حذف مهام الخطة الأسبوعية الرسمية مقتصر على المشرف العام (الأدمن)',
-        () => {
-          setOfficialTasks((prev) => {
-            const updated = prev.filter((t) => t.id !== taskId);
-            syncTasksWithActivePlan(updated);
-            return updated;
-          });
-        }
-      );
-      return;
-    }
-
-    setOfficialTasks((prev) => {
-      const updated = prev.filter((t) => t.id !== taskId);
-      syncTasksWithActivePlan(updated);
-      return updated;
-    });
-  };
-
-  // Handler: Import Parsed Tasks from Smart Paste (Admin: Global | User: Personal)
-  const handleImportTasks = (newTasksList: Omit<PlanTask, 'id' | 'createdAt'>[]) => {
-    if (userRole === 'visitor') {
-      setVisitorNoticeModal({
-        isOpen: true,
-        message: 'حساب الزائر مخصص للتصفح والعرض فقط دون إمكانية التعديل 👁️. لإضافة مهام إلى خطتك، يرجى تسجيل الدخول كطالب أو كأدمن.',
-      });
-      return;
-    }
-
-    const formatted: PlanTask[] = newTasksList.map((item, index) => ({
-      ...item,
-      section: item.section || selectedSection,
-      id: `task-imported-${Date.now()}-${index}`,
-      createdAt: Date.now(),
-    }));
-
-    if (isAdmin) {
-      setOfficialTasks((prev) => {
-        const updated = [...formatted, ...prev];
-        syncTasksWithActivePlan(updated);
-        return updated;
-      });
-    } else {
-      formatted.forEach((t) => saveUserPersonalTask(currentUserId, t));
-      setPersonalTasks(getUserPersonalTasks(currentUserId));
-    }
-  };
-
-  // Handler: Apply New Weekly Plan (Admin Role -> Global Storage reflects for all users)
-  const handleApplyNewWeeklyPlan = (
-    newTasks: PlanTask[],
-    newWeekTitle: string,
-    mode: 'keep_pending_and_add' | 'replace' | 'append',
-    newFiles: UploadedPlanFile[],
-    blockNumber: number,
-    weekNumber: number,
-    targetSection: 'all' | GradeSection,
-    setAsCurrent: boolean
-  ) => {
-    const existingPlan = archive.find(
-      (plan) => plan.blockNumber === blockNumber && plan.weekNumber === weekNumber,
+    const pending = weeklyPlans.filter((plan) =>
+      (plan.fileType === 'pdf' || plan.fileType === 'word' || plan.fileType === 'doc' || plan.fileType === 'image') &&
+      plan.fileDataUrl && plan.extractionVersion !== WEEKLY_PLAN_PARSER_VERSION
     );
-    const isNewWeek = !existingPlan;
-    const mappedTasksBySection = mapWeeklyPlanTasksToSections(newTasks, targetSection);
-    const finalTasksBySection: Record<GradeSection, PlanTask[]> = { '2A': [], '2B': [], '2C': [] };
-    if (!isNewWeek && mode === 'keep_pending_and_add') {
-      const carriedOverPendingTasks: PlanTask[] = officialTasks
-        .filter((t) => {
-          const userItem = userProgressMap[t.id];
-          return !userItem?.isDone;
-        })
-        .map((t) => ({
-          ...t,
-          isCarriedOver: true,
-          previousWeekNote: 'مهمة متبقية من الأسبوع الماضي لم تُنجز',
-        }));
-      const targetSections = targetSection === 'all' ? ['2A', '2B', '2C'] as GradeSection[] : [targetSection];
-      targetSections.forEach((section) => {
-        finalTasksBySection[section] = removeDuplicateSectionTasks([
-          ...carriedOverPendingTasks.map((task) => ({ ...task, section })),
-          ...mappedTasksBySection[section],
-        ]);
-      });
+    if (!pending.length) return;
+    let cancelled = false;
+    void Promise.all(pending.map(async (plan) => {
+      try {
+        const extracted = parseWeeklyPlanText(await extractWeeklyPlanText(plan.fileDataUrl!, plan.fileType));
+        return { ...plan, extractedText: extracted.extractedText, extractionVersion: WEEKLY_PLAN_PARSER_VERSION, classworkNote: extracted.classworkNote, homeworkNote: extracted.homeworkNote, tomorrowNote: extracted.tomorrowNote, dayContent: extracted.dayContent };
+      } catch {
+        return { ...plan, extractionVersion: WEEKLY_PLAN_PARSER_VERSION };
+      }
+    })).then((processed) => {
+      if (cancelled) return;
+      const byId = new Map(processed.map((plan) => [plan.id, plan]));
+      setWeeklyPlans((current) => current.map((plan) => byId.get(plan.id) || plan));
+    });
+    return () => { cancelled = true; };
+  }, [weeklyPlans]);
+
+  // Sync to Storage
+  useEffect(() => {
+    saveStoredTimetables(timetables);
+  }, [timetables]);
+
+  useEffect(() => {
+    saveStoredWeeklyPlans(weeklyPlans);
+  }, [weeklyPlans]);
+
+  useEffect(() => {
+    saveStoredDailyFollowUps(dailyFollowUps);
+  }, [dailyFollowUps]);
+
+  useEffect(() => {
+    saveStoredStudentTasks(studentTasks);
+  }, [studentTasks]);
+
+  useEffect(() => {
+    saveStoredCompletedHw(completedHwMap);
+  }, [completedHwMap]);
+
+  useEffect(() => {
+    saveStoredMaterials(materials);
+  }, [materials]);
+
+  // Instant multi-tab and cross-window sync listener
+  useEffect(() => {
+    const handleStorageEvent = (e: StorageEvent) => {
+      try {
+        if ((e.key === 'nile_minya_timetables_v3' || e.key === 'nile_minya_timetables_v2') && e.newValue) {
+          setTimetables(JSON.parse(e.newValue));
+        } else if (e.key === 'nile_minya_weekly_plans_v1' && e.newValue) {
+          setWeeklyPlans(JSON.parse(e.newValue));
+        } else if (e.key === 'nile_minya_daily_follow_ups_v1' && e.newValue) {
+          setDailyFollowUps(JSON.parse(e.newValue));
+        } else if ((e.key === 'nile_minya_materials_v4' || e.key === 'nile_minya_materials_v3' || e.key === 'nile_minya_materials_v2' || e.key === 'nile_minya_materials_v1') && e.newValue) {
+          setMaterials(JSON.parse(e.newValue));
+        } else if (e.key === 'nile_minya_student_tasks_v1' && e.newValue) {
+          setStudentTasks(JSON.parse(e.newValue));
+        } else if (e.key === 'nile_minya_completed_hw_v1' && e.newValue) {
+          setCompletedHwMap(JSON.parse(e.newValue));
+        }
+      } catch (err) {
+        console.error('Storage sync error', err);
+      }
+    };
+    window.addEventListener('storage', handleStorageEvent);
+    return () => window.removeEventListener('storage', handleStorageEvent);
+  }, []);
+
+  useEffect(() => {
+    if (studentProfile) {
+      localStorage.setItem('nile_minya_cur_student', JSON.stringify(studentProfile));
     } else {
-      (['2A', '2B', '2C'] as GradeSection[]).forEach((section) => {
-        const oldTasks = existingPlan?.tasksBySection?.[section] || [];
-        const incomingTasks = mappedTasksBySection[section];
-        finalTasksBySection[section] = removeDuplicateSectionTasks(
-          isNewWeek || mode === 'replace' ? incomingTasks : [...oldTasks, ...incomingTasks],
-        );
-      });
+      localStorage.removeItem('nile_minya_cur_student');
     }
+  }, [studentProfile]);
 
-    // A stable id makes repeated uploads for the same Block/Week update that
-    // week rather than creating another mixed copy in the archive.
-    const newPlanId = existingPlan?.id || `b${blockNumber}-w${weekNumber}`;
-    const emptySections: Record<GradeSection, PlanTask[]> = {
-      '2A': [],
-      '2B': [],
-      '2C': [],
+  // Handlers for Student Tasks
+  const handleAddStudentTask = (task: Omit<StudentPersonalTask, 'id' | 'createdAt'>) => {
+    const newTask: StudentPersonalTask = {
+      ...task,
+      id: `task-${Date.now()}`,
+      createdAt: new Date().toISOString()
     };
-    const previousTasks = existingPlan?.tasksBySection || emptySections;
-    const newEntry: WeeklyPlanArchiveEntry = {
-      id: newPlanId,
-      blockNumber,
-      weekNumber,
-      title: newWeekTitle,
-      createdAt: Date.now(),
-      isCurrent: setAsCurrent,
-      uploadedFiles: newFiles,
-      tasksBySection: {
-        '2A': targetSection === 'all' || targetSection === '2A' ? finalTasksBySection['2A'] : previousTasks['2A'],
-        '2B': targetSection === 'all' || targetSection === '2B' ? finalTasksBySection['2B'] : previousTasks['2B'],
-        '2C': targetSection === 'all' || targetSection === '2C' ? finalTasksBySection['2C'] : previousTasks['2C'],
-      },
-    };
-
-    const updatedArchive = addOrUpdateWeeklyPlanInArchive(newEntry);
-    setArchive(updatedArchive);
-    const allUploadedFiles = collectUploadedFiles(updatedArchive, newFiles);
-    setUploadedFiles(allUploadedFiles);
-    saveUploadedFiles(allUploadedFiles);
-
-    if (setAsCurrent) {
-      setActiveWeeklyPlanId(newPlanId);
-      setActivePlanIdState(newPlanId);
-      setWeekTitle(newWeekTitle);
-      const activeSectionTasks = newEntry.tasksBySection[selectedSection];
-      setOfficialTasks(activeSectionTasks);
-      saveTasks(activeSectionTasks, selectedSection);
-    }
-
-    // Save to Global Storage on Server (Admin Role - Password 1111)
-    saveGlobalPlanToServer(
-      {
-        activePlanId: newPlanId,
-        weekTitle: newWeekTitle,
-        activeBlockNumber: blockNumber,
-        activeWeekNumber: weekNumber,
-        tasksBySection: newEntry.tasksBySection,
-        archive: updatedArchive,
-        uploadedFiles: allUploadedFiles,
-        lastUpdated: Date.now(),
-        updatedBy: 'admin',
-      },
-      '1111'
-    ).catch((err) => console.warn('Notice: Background sync global plan error:', err));
-
-    setTimeout(() => triggerAllDoneCelebration(), 200);
+    setStudentTasks((prev) => [newTask, ...prev]);
   };
 
-  // Open Task Modal for a specific day and optional subject
-  const handleOpenAddTask = (day?: DayOfWeek, subjectId?: string) => {
-    if (userRole === 'visitor') {
-      setVisitorNoticeModal({
-        isOpen: true,
-        message: 'حساب الزائر مخصص للتصفح والعرض فقط دون إمكانية التعديل 👁️. لإضافة مهام خاصة بك (كطالب) أو تعديل الخطة الرسمية (كأدمن)، يرجى تسجيل الدخول.',
-      });
-      return;
-    }
-    setEditingTask(null);
-    setModalDefaultDay(day || selectedDay);
-    setModalDefaultSubjectId(subjectId);
-    setIsTaskModalOpen(true);
+  const handleToggleStudentTask = (taskId: string) => {
+    setStudentTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, completed: !t.completed } : t))
+    );
   };
 
-  const handleOpenEditTask = (task: PlanTask) => {
-    if (userRole === 'visitor') {
-      setVisitorNoticeModal({
-        isOpen: true,
-        message: 'حساب الزائر مخصص للتصفح والعرض فقط دون إمكانية التعديل 👁️. لتعديل مهامك الخاصة أو كتابة الملاحظات، يرجى تسجيل الدخول كطالب.',
-      });
-      return;
-    }
-    setEditingTask(task);
-    setModalDefaultDay(task.day);
-    setModalDefaultSubjectId(task.subjectId);
-    setIsTaskModalOpen(true);
+  const handleDeleteStudentTask = (taskId: string) => {
+    setStudentTasks((prev) => prev.filter((t) => t.id !== taskId));
   };
 
-  // Reset to original defaults for current section
-  const handleResetData = () => {
-    if (
-      window.confirm(
-        `هل تريد بالتأكيد استعادة بيانات فصل ${selectedSection} الأصلية وخطط المواد المسجلة؟`
-      )
-    ) {
-      resetAllDataToDefault();
-      window.location.reload();
-    }
-  };
-
-  const handleResetTimetable = () => {
-    if (window.confirm(`هل تريد استعادة جدول الحصص الأسبوعي الرسمي لفصل ${selectedSection}؟`)) {
-      const original = GRADE_TIMETABLES[selectedSection] || DEFAULT_TIMETABLE;
-      setTimetable(original);
-    }
-  };
-
-  // Counts for today badge
-  const todayTasks = tasks.filter((t) => t.day === selectedDay && (!t.section || t.section === selectedSection));
-  const todayPendingCount = todayTasks.filter((t) => !t.isDone).length;
-  const todayCompletedCount = todayTasks.filter((t) => t.isDone).length;
-
-  const handleDeleteUploadedFiles = (fileIds: string[]) => {
-    const idSet = new Set(fileIds);
-    const updatedArchive = archive.map((plan) => ({
-      ...plan,
-      uploadedFiles: (plan.uploadedFiles || []).filter((file) => !idSet.has(file.id)),
+  // Toggle Completed Homework
+  const handleToggleHwCompletion = (hwId: string) => {
+    setCompletedHwMap((prev) => ({
+      ...prev,
+      [hwId]: !prev[hwId]
     }));
-    const updatedFiles = collectUploadedFiles(updatedArchive).filter((file) => !idSet.has(file.id));
-    setArchive(updatedArchive);
-    saveWeeklyPlansArchive(updatedArchive);
-    setUploadedFiles(updatedFiles);
-    saveUploadedFiles(updatedFiles);
-    saveGlobalPlanToServer(
-      {
-        activePlanId,
-        weekTitle,
-        activeBlockNumber,
-        activeWeekNumber,
-        tasksBySection: activePlan?.tasksBySection || { '2A': [], '2B': [], '2C': [] },
-        archive: updatedArchive,
-        uploadedFiles: updatedFiles,
-        lastUpdated: Date.now(),
-        updatedBy: 'admin',
-      },
-      '1111',
-    ).catch((err) => console.warn('Notice: Background sync uploaded files deletion error:', err));
   };
 
-  const handleClearAllWeeklyPlans = () => {
-    clearAllWeeklyPlansData();
-    setArchive([]);
-    setActivePlanIdState('');
-    setActiveWeeklyPlanId('');
-    setOfficialTasks([]);
-    saveTasks([], selectedSection);
-    setUploadedFiles([]);
-    setWeekTitle('');
-    saveWeekTitle('');
-    saveGlobalPlanToServer(
-      {
-        activePlanId: '',
-        weekTitle: '',
-        activeBlockNumber: 1,
-        activeWeekNumber: 1,
-        tasksBySection: { '2A': [], '2B': [], '2C': [] },
-        archive: [],
-        uploadedFiles: [],
-        lastUpdated: Date.now(),
-        updatedBy: 'admin',
-      },
-      '1111',
-    ).catch((err) => console.warn('Notice: Failed to clear global weekly plans:', err));
+  const handleWeeklyPlanPdfParsed = (parsed: WeeklyPlanExtraction) => {
+    const weekNumber = Number(selectedWeek.replace(/\D/g, '')) || 1;
+    const normalize = (value: string) => value.toLowerCase().replace(/[\s_-]+/g, '').trim();
+    const dayAliases: Record<string, string> = {
+      sunday: 'Sunday', sun: 'Sunday', 'الأحد': 'Sunday', الاحد: 'Sunday',
+      monday: 'Monday', mon: 'Monday', 'الإثنين': 'Monday', الاثنين: 'Monday',
+      tuesday: 'Tuesday', tue: 'Tuesday', 'الثلاثاء': 'Tuesday',
+      wednesday: 'Wednesday', wed: 'Wednesday', 'الأربعاء': 'Wednesday', الاربعاء: 'Wednesday',
+      thursday: 'Thursday', thu: 'Thursday', 'الخميس': 'Thursday'
+    };
+    const resolveSubject = (value: string) => SUBJECTS.find((subject) =>
+      [subject.id, subject.nameAr, subject.nameEn].some((name) => normalize(name) === normalize(value))
+    ) || SUBJECTS[0];
+    const nextPlans = [...weeklyPlans];
+    parsed.items.forEach((item, index) => {
+      const subjectInfo = resolveSubject(item.subject);
+      const day = dayAliases[normalize(item.day)] || item.day || 'Sunday';
+      const existingIndex = nextPlans.findIndex((plan) =>
+        plan.weekId === selectedWeek && plan.day === day && plan.subjectId === subjectInfo.id &&
+        (plan.classId === 'all' || plan.classId === selectedClass)
+      );
+      const previous = existingIndex >= 0 ? nextPlans[existingIndex] : undefined;
+      const updatedPlan: WeeklyPlanItem = {
+        ...(previous || {
+          id: `wp-gemini-${Date.now()}-${index}`,
+          blockId: selectedBlock,
+          weekId: selectedWeek,
+          classId: 'all',
+          subjectId: subjectInfo.id,
+          unitOrTheme: 'Gemini Weekly Plan Import',
+          learningObjectives: ['تم استخراج محتوى الخطة الأسبوعية بواسطة Gemini']
+        }),
+        weekNumber,
+        day,
+        subject: item.subject || subjectInfo.nameEn,
+        classwork: item.classWork,
+        homework: item.homeWork,
+        classworkNote: item.classWork || undefined,
+        homeworkNote: item.homeWork || undefined,
+        tomorrowNote: item.notes || undefined,
+        extractedText: [item.classWork, item.homeWork, item.notes].filter(Boolean).join('\n'),
+        extractionVersion: WEEKLY_PLAN_PARSER_VERSION
+      };
+      if (existingIndex >= 0) nextPlans[existingIndex] = updatedPlan;
+      else nextPlans.unshift(updatedPlan);
+    });
+    setWeeklyPlans(nextPlans);
+    alert(`تمت قراءة الملف بواسطة Gemini وتوزيع ${parsed.items.length} سجلًا على Classwork وHomework وTomorrow.`);
+  };
+
+  // Reset to default
+  const handleResetData = () => {
+    resetAllDataToDefault();
+    setTimetables(getStoredTimetables());
+    setWeeklyPlans(getStoredWeeklyPlans());
+    setDailyFollowUps(getStoredDailyFollowUps());
+    setStudentTasks(getStoredStudentTasks());
+    setMaterials(getStoredMaterials());
+    setCompletedHwMap({});
+    alert('تمت استعادة البيانات الافتراضية بنجاح.');
+  };
+
+  // Import JSON backup
+  const handleImportData = (json: any) => {
+    if (json.timetables) setTimetables(json.timetables);
+    if (json.weeklyPlans) setWeeklyPlans(json.weeklyPlans);
+    if (json.dailyFollowUps) setDailyFollowUps(json.dailyFollowUps);
+    if (json.studentTasks) setStudentTasks(json.studentTasks);
+    if (json.materials) setMaterials(json.materials);
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col md:flex-row font-sans selection:bg-indigo-100 selection:text-indigo-900">
-      {/* Sidebar (Desktop) / Header (Mobile) */}
-      <Navbar
-        currentTab={currentTab}
-        onSelectTab={setCurrentTab}
-        student={student}
-        selectedSection={selectedSection}
-        onSelectSection={handleSelectSection}
-        onOpenClassSelector={() => setIsClassSelectorOpen(true)}
-        onOpenEditProfile={() => setIsEditProfileOpen(true)}
-        onOpenAddTask={() => handleOpenAddTask(selectedDay)}
-        onOpenSmartPaste={() => setIsSmartPasteOpen(true)}
-        onOpenTimetableModal={() => setIsTimetableModalOpen(true)}
-        onOpenWeekDaysModal={() => setIsWeekDaysModalOpen(true)}
-        onOpenUploadModal={() => setIsUploadModalOpen(true)}
-        onOpenArchiveModal={() => setIsArchiveModalOpen(true)}
-        userRole={userRole}
-        onOpenRoleSwitch={() => setIsEntryPortalOpen(true)}
-        isAdmin={isAdmin}
-        onOpenAdminLogin={() =>
-          handleOpenAdminLogin(
-            'لوحة تحكم الأدمن',
-            'رفع وتحميل وإدارة ملفات الخطط والشيتات مقتصر على المشرف العام (الأدمن)',
-            () => setIsUploadModalOpen(true)
-          )
-        }
-        activeBlockNumber={activeBlockNumber}
-        activeWeekNumber={activeWeekNumber}
-        onOpenVisitorStats={() => setIsVisitorStatsOpen(true)}
-        visitorStats={visitorStats}
-        onResetData={handleResetData}
-        todayPendingCount={todayPendingCount}
-        todayCompletedCount={todayCompletedCount}
-        isLoggedIn={isLoggedIn}
-        onLogin={handleLogin}
-        onLogout={handleLogout}
+    <div className="min-h-screen bg-slate-100 flex flex-col font-sans selection:bg-sky-500 selection:text-white">
+      {/* App Header & Navigation */}
+      <Header
+        currentRole={currentRole}
+        onChangeRole={setCurrentRole}
+        selectedClass={selectedClass}
+        onSelectClass={setSelectedClass}
+        selectedBlock={selectedBlock}
+        onSelectBlock={setSelectedBlock}
+        selectedWeek={selectedWeek}
+        onSelectWeek={setSelectedWeek}
+        studentProfile={studentProfile}
+        onUpdateStudentProfile={setStudentProfile}
+        activeTab={activeTab}
+        onChangeTab={setActiveTab}
+        onOpenPrint={() => setIsPrintModalOpen(true)}
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col p-4 sm:p-6 lg:p-10 relative overflow-y-auto w-full max-w-7xl mx-auto space-y-4">
-        {/* Weekly Plan & Archive Selector Bar with Dropdown Select */}
-        <WeekPlanSelectorBar
-          archive={archive}
-          activePlanId={activePlanId}
-          onSelectPlan={handleSelectPlan}
-          onOpenArchiveModal={() => setIsArchiveModalOpen(true)}
-          onOpenUploadNewPlan={() => setIsUploadModalOpen(true)}
-          onOpenMaterialsModal={() => setIsMaterialsModalOpen(true)}
-          isAdmin={isAdmin}
-          currentSection={selectedSection}
-          tasks={tasks}
-          userRole={userRole}
-          onOpenAdminLogin={() =>
-            handleOpenAdminLogin(
-              'لوحة تحكم الأدمن',
-              'إضافة وتحديث الخطط الأسبوعية مقتصر على المشرف العام (الأدمن)',
-              () => setIsUploadModalOpen(true)
-            )
-          }
-        />
-
-        {currentTab === 'today' && (
-          <TodayView
-            selectedDay={selectedDay}
-            onSelectDay={setSelectedDay}
-            todayDay={todayDay}
-            tasks={tasks}
-            subjects={subjects}
-            timetable={timetable}
-            student={student}
-            selectedSection={selectedSection}
-            onToggleDone={handleToggleDone}
-            onSavePersonalNote={handleSavePersonalNote}
-            onEditTask={handleOpenEditTask}
-            onDeleteTask={handleDeleteTask}
-            onAddTaskForDay={handleOpenAddTask}
-            onOpenTimetableModal={() => setIsTimetableModalOpen(true)}
-            onOpenWeekDaysModal={() => setIsWeekDaysModalOpen(true)}
-            onOpenArchiveModal={() => setIsArchiveModalOpen(true)}
-            activeBlockNumber={activeBlockNumber}
-            activeWeekNumber={activeWeekNumber}
-            activePlanTitle={activePlan?.title || weekTitle}
-            isVisitor={userRole === 'visitor'}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6">
+        {/* Tab 1: Daily Follow-up */}
+        {(activeTab === 'daily' || activeTab === 'tasks') && (
+          <DailyFollowUpView
+            currentRole={currentRole}
+            selectedClass={selectedClass}
+            selectedBlock={selectedBlock}
+            selectedWeek={selectedWeek}
+            dailyFollowUps={dailyFollowUps}
+            onUpdateDailyFollowUps={setDailyFollowUps}
+            completedHwMap={completedHwMap}
+            onToggleHwCompletion={handleToggleHwCompletion}
+            studentName={studentProfile?.name}
+            onOpenPrint={() => setIsPrintModalOpen(true)}
+            timetables={timetables}
+            weeklyPlans={weeklyPlans}
+            onUpdateWeeklyPlans={setWeeklyPlans}
+            materials={materials}
           />
         )}
 
-        {currentTab === 'weekly' && (
+        {/* Tab 2: Weekly Plan */}
+        {activeTab === 'weekly' && (
           <WeeklyPlanView
-            tasks={tasks}
-            subjects={subjects}
-            weekTitle={weekTitle}
-            currentSection={selectedSection}
-            isAdmin={isAdmin}
-            onChangeWeekTitle={(val) => {
-              setWeekTitle(val);
-              saveWeekTitle(val);
-              if (isAdmin) {
-                syncTasksWithActivePlan(officialTasks);
-              }
-            }}
-            onToggleDone={handleToggleDone}
-            onSavePersonalNote={handleSavePersonalNote}
-            onEditTask={handleOpenEditTask}
-            onDeleteTask={handleDeleteTask}
-            onAddTaskForDay={handleOpenAddTask}
-            onOpenSmartPaste={() => setIsSmartPasteOpen(true)}
-            onOpenTimetableModal={() => setIsTimetableModalOpen(true)}
-            onOpenArchiveModal={() => setIsArchiveModalOpen(true)}
-            activeBlockNumber={activeBlockNumber}
-            activeWeekNumber={activeWeekNumber}
-            isVisitor={userRole === 'visitor'}
+            currentRole={currentRole}
+            selectedClass={selectedClass}
+            selectedBlock={selectedBlock}
+            onSelectBlock={setSelectedBlock}
+            selectedWeek={selectedWeek}
+            onSelectWeek={setSelectedWeek}
+            weeklyPlans={weeklyPlans}
+            onUpdateWeeklyPlans={setWeeklyPlans}
+            onOpenPrint={() => setIsPrintModalOpen(true)}
+            onPlanParsed={handleWeeklyPlanPdfParsed}
           />
         )}
 
-        {currentTab === 'timetable' && (
+        {/* Tab 3: Timetable */}
+        {activeTab === 'timetable' && (
           <TimetableView
-            timetable={timetable}
-            subjects={subjects}
-            currentSection={selectedSection}
-            onSelectSection={handleSelectSection}
-            onUpdateTimetable={setTimetable}
-            onResetTimetable={handleResetTimetable}
-            isAdmin={isAdmin}
-            isVisitor={userRole === 'visitor'}
-            onOpenAdminLogin={() =>
-              handleOpenAdminLogin(
-                'تعديل الجدول الدراسي',
-                'تعديل وتخصيص حصص الجدول الدراسي مقتصر على الأدمن فقط'
-              )
-            }
+            currentRole={currentRole}
+            selectedClass={selectedClass}
+            onSelectClass={setSelectedClass}
+            timetables={timetables}
+            onUpdateTimetables={setTimetables}
+            onOpenPrint={() => setIsPrintModalOpen(true)}
+          />
+        )}
+
+        {/* Tab 4: Materials & Books Library (الماتيريال والمذكرات المدرسية) */}
+        {activeTab === 'materials' && (
+          <MaterialsView
+            currentRole={currentRole}
+            selectedClass={selectedClass}
+            selectedBlock={selectedBlock}
+            selectedWeek={selectedWeek}
+            materials={materials}
+            onUpdateMaterials={setMaterials}
+          />
+        )}
+
+        {/* Tab 5: Student Space */}
+        {activeTab === 'student' && (
+          <StudentSpace
+            studentProfile={studentProfile}
+            onUpdateStudentProfile={setStudentProfile}
+            tasks={studentTasks}
+            onAddTask={handleAddStudentTask}
+            onToggleTask={handleToggleStudentTask}
+            onDeleteTask={handleDeleteStudentTask}
+            dailyFollowUps={dailyFollowUps}
+            completedHwMap={completedHwMap}
+            onToggleHwCompletion={handleToggleHwCompletion}
+          />
+        )}
+
+        {/* Tab 5: Admin Panel (Only if admin role) */}
+        {activeTab === 'admin' && currentRole === 'admin' && (
+          <AdminPanel
+            selectedClass={selectedClass}
+            onSelectClass={setSelectedClass}
+            selectedBlock={selectedBlock}
+            selectedWeek={selectedWeek}
+            onNavigateToTab={setActiveTab}
+            onResetData={handleResetData}
+            onImportData={handleImportData}
+            dailyFollowUps={dailyFollowUps}
+            weeklyPlans={weeklyPlans}
+            onUpdateWeeklyPlans={setWeeklyPlans}
+            timetables={timetables}
+            onUpdateTimetables={setTimetables}
+            materials={materials}
+            onUpdateMaterials={setMaterials}
           />
         )}
       </main>
 
-      {/* Class Selector Modal */}
-      <ClassSelectorModal
-        isOpen={isClassSelectorOpen || showInitialClassPrompt}
-        currentSection={selectedSection}
-        onSelectSection={handleSelectSection}
-        onClose={() => {
-          setIsClassSelectorOpen(false);
-          setShowInitialClassPrompt(false);
-        }}
-        isInitialSelection={showInitialClassPrompt}
-      />
-
-      {/* Modals & Popups */}
-      <TaskModal
-        isOpen={isTaskModalOpen}
-        onClose={() => setIsTaskModalOpen(false)}
-        onSave={handleSaveTask}
-        editingTask={editingTask}
-        defaultDay={modalDefaultDay}
-        defaultSubjectId={modalDefaultSubjectId}
-        subjects={subjects}
-      />
-
-      <SmartPasteModal
-        isOpen={isSmartPasteOpen}
-        onClose={() => setIsSmartPasteOpen(false)}
-        onImportTasks={handleImportTasks}
-        subjects={subjects}
-        defaultDay={selectedDay}
-      />
-
-      <EditProfileModal
-        isOpen={isEditProfileOpen}
-        onClose={() => setIsEditProfileOpen(false)}
-        student={student}
-        onSave={(updated) => {
-          setStudent(updated);
-          if (updated.section && updated.section !== selectedSection) {
-            handleSelectSection(updated.section);
-          }
-        }}
-      />
-
-      {/* Requested Modal 1: Quick Timetable Modal */}
-      <QuickTimetableModal
-        isOpen={isTimetableModalOpen}
-        onClose={() => setIsTimetableModalOpen(false)}
-        timetable={timetable}
-        subjects={subjects}
-        currentSection={selectedSection}
-        onSelectSection={handleSelectSection}
-        onOpenFullTimetable={() => setCurrentTab('timetable')}
-      />
-
-      {/* Requested Modal 2: All Week Days & Planner Picker Modal */}
-      <WeekDaysPickerModal
-        isOpen={isWeekDaysModalOpen}
-        onClose={() => setIsWeekDaysModalOpen(false)}
-        selectedDay={selectedDay}
-        onSelectDay={(day) => {
-          setSelectedDay(day);
-          setCurrentTab('today');
-          setIsWeekDaysModalOpen(false);
-        }}
-        tasks={tasks}
-        subjects={subjects}
-        onToggleDone={handleToggleDone}
-        onEditTask={handleOpenEditTask}
-        onDeleteTask={handleDeleteTask}
-        onAddTaskForDay={handleOpenAddTask}
-        onOpenFullWeeklyView={() => setCurrentTab('weekly')}
-        isVisitor={userRole === 'visitor'}
-      />
-
-      {/* Requested Modal 3: Weekly Plan Files Uploader Modal (Admin Protected) */}
-      <UploadPlanFilesModal
-        isOpen={isUploadModalOpen}
-        onClose={() => setIsUploadModalOpen(false)}
-        subjects={subjects}
-        currentWeekTitle={weekTitle}
-        currentTasks={tasks}
-        isAdmin={isAdmin}
-        onAdminUnlock={() => {
-          setIsAdmin(true);
-          setAdminLoggedIn(true);
-        }}
-        onApplyNewWeeklyPlan={handleApplyNewWeeklyPlan}
-        savedUploadedFiles={uploadedFiles}
-        onDeleteSavedUploadedFile={(fileId) => handleDeleteUploadedFiles([fileId])}
-        onDeleteSavedUploadedFiles={handleDeleteUploadedFiles}
-        onClearAllWeeklyPlans={handleClearAllWeeklyPlans}
-        suggestedBlock={activeBlockNumber}
-        suggestedWeek={activeWeekNumber + 1}
-        visitorStats={visitorStats}
-        onRefreshStats={() => {
-          fetchVisitorStats().then((data) => {
-            if (data) setVisitorStats(data);
-          });
-        }}
-        initialTab="materials"
-      />
-
-      {/* User Requested: Memory & Archive Modal for Blocks and Weeks */}
-      <WeeklyPlanArchiveModal
-        isOpen={isArchiveModalOpen}
-        onClose={() => setIsArchiveModalOpen(false)}
-        archive={archive}
-        activePlanId={activePlanId}
-        currentSection={selectedSection}
-        isAdmin={isAdmin}
-        userRole={userRole}
-        onSelectPlan={(planId) => {
-          handleSelectPlan(planId);
-          setIsArchiveModalOpen(false);
-        }}
-        onSetAsCurrent={(planId) => {
-          handleSetPlanAsCurrent(planId);
-        }}
-        onDeletePlan={(planId) => {
-          handleDeletePlan(planId);
-        }}
-        onOpenUploadNewPlan={() => {
-          setIsArchiveModalOpen(false);
-          setIsUploadModalOpen(true);
-        }}
-        onOpenAdminLogin={() => {
-          handleOpenAdminLogin(
-            'صلاحية إدارة الأرشيف',
-            'إضافة الخطط وتعيين الأسبوع النشط مقتصر على الأدمن'
-          )
-        }}
-      />
-
-      {/* Admin Authentication Modal */}
-      <AdminAuthModal
-        isOpen={isAdminAuthModalOpen}
-        onClose={() => setIsAdminAuthModalOpen(false)}
-        onSuccess={handleAdminSuccess}
-        reasonTitle={adminReason?.title}
-        reasonMessage={adminReason?.message}
-      />
-
-      {/* 3-Option App Entry Portal Modal (Admin, Student: Name, Visitor: Instant Browse) */}
-      <AppEntryPortalModal
-        isOpen={isEntryPortalOpen}
-        onClose={() => setIsEntryPortalOpen(false)}
-        currentRole={userRole}
-        currentStudentName={student.name}
-        selectedSection={selectedSection}
-        onSelectSection={handleSelectSection}
-        onAdminLoginSuccess={() => {
-          setIsAdmin(true);
-          setAdminLoggedIn(true);
-          saveUserRole('admin');
-          setUserRole('admin');
-          setIsEntryPortalOpen(false);
-        }}
-        onStudentLoginSuccess={(sName, sec) => {
-          saveUserRole('student');
-          setUserRole('student');
-          setIsAdmin(false);
-          setAdminLoggedIn(false);
-          setIsLoggedIn(true);
-          setStudent((prev) => ({
-            ...prev,
-            name: sName,
-            section: sec,
-            grade: `Grade ${sec}`,
-          }));
-          setIsEntryPortalOpen(false);
-          fetchVisitorStats().then((data) => {
-            if (data) setVisitorStats(data);
-          });
-        }}
-        onVisitorLoginSuccess={() => {
-          saveUserRole('visitor');
-          setUserRole('visitor');
-          setIsAdmin(false);
-          setAdminLoggedIn(false);
-          setIsLoggedIn(false);
-          setStudent((prev) => ({
-            ...prev,
-            name: 'زائر',
-          }));
-          setIsEntryPortalOpen(false);
-        }}
-        canDismiss={hasStoredUserRole()}
-      />
-
-      {/* Visitor Action Restriction Dialog */}
-      {visitorNoticeModal.isOpen && (
-        <div
-          id="visitor-restriction-modal"
-          className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn"
-          dir="rtl"
-        >
-          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl border border-slate-200 overflow-hidden text-slate-900">
-            <div className="bg-gradient-to-r from-sky-600 to-indigo-700 text-white p-5 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-white/15 flex items-center justify-center">
-                  <Eye className="w-5 h-5 text-sky-200" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-base">وضع التصفح فقط (حساب زائر)</h3>
-                  <span className="text-xs text-sky-100">صلاحيات العرض والمتابعة</span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setVisitorNoticeModal({ isOpen: false, message: '' })}
-                className="p-1.5 rounded-full hover:bg-white/20 text-white transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
+      {/* Official Footer */}
+      <footer className="bg-white border-t border-slate-200 mt-12 py-6 text-xs text-slate-500">
+        <div className="max-w-7xl mx-auto px-4 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-md bg-slate-900 text-amber-400 flex items-center justify-center font-bold">
+              <GraduationCap className="w-4 h-4" />
             </div>
+            <span className="font-bold text-slate-800">
+              مدارس النيل المصرية الدولية - فرع المنيا
+            </span>
+            <span>•</span>
+            <span>نظام المتابعة المدرسية لجريد 2 (2A - 2B - 2C)</span>
+          </div>
 
-            <div className="p-6 space-y-4">
-              <p className="text-sm text-slate-700 leading-relaxed font-medium">
-                {visitorNoticeModal.message}
-              </p>
-
-              <div className="p-3.5 rounded-2xl bg-indigo-50 border border-indigo-100 text-xs text-indigo-900 space-y-1">
-                <div className="font-bold flex items-center gap-1.5 text-indigo-700">
-                  <GraduationCap className="w-4 h-4" />
-                  <span>ميزة حساب الطالب:</span>
-                </div>
-                <p>
-                  تحديد المهام المنجزة (Done) وحفظ ملاحظاتك الخاصة على جهازك دون التأثير على الطلاب الآخرين.
-                </p>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                <button
-                  type="button"
-                  id="visitor-notice-btn-switch-student"
-                  onClick={() => {
-                    setVisitorNoticeModal({ isOpen: false, message: '' });
-                    setIsEntryPortalOpen(true);
-                  }}
-                  className="flex-1 py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <GraduationCap className="w-4 h-4" />
-                  <span>دخول كـ طالب الآن</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setVisitorNoticeModal({ isOpen: false, message: '' })}
-                  className="py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all cursor-pointer"
-                >
-                  متابعة التصفح
-                </button>
-              </div>
-            </div>
+          <div className="flex items-center gap-4">
+            <span>البلوكات والأسابيع الدراسية المعتمدة</span>
+            <span>•</span>
+            <span>العام الدراسي 2026 / 2027</span>
           </div>
         </div>
-      )}
+      </footer>
 
-      {/* Visitor & Emails Stats Admin Modal */}
-      <VisitorStatsModal
-        isOpen={isVisitorStatsOpen}
-        onClose={() => setIsVisitorStatsOpen(false)}
-        summaryStats={visitorStats}
-        onRefreshStats={() => {
-          fetchVisitorStats().then((data) => {
-            if (data) setVisitorStats(data);
-          });
-        }}
-      />
-
-      {/* Materials & Sheets Modal (Block 1 Main Sheets & Weekly Materials - View Only) */}
-      <MaterialsModal
-        isOpen={isMaterialsModalOpen}
-        onClose={() => setIsMaterialsModalOpen(false)}
-        subjects={subjects}
-        currentSection={selectedSection}
-        isAdmin={isAdmin}
+      {/* Printable Report Modal */}
+      <PrintModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        selectedClass={selectedClass}
+        selectedBlock={selectedBlock}
+        selectedWeek={selectedWeek}
+        dailyFollowUps={dailyFollowUps}
+        weeklyPlans={weeklyPlans}
+        timetables={timetables}
       />
     </div>
   );
