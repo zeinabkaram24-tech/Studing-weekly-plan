@@ -151,7 +151,7 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
 
         return {
           ...tt,
-          days: parsedResult?.days?.length ? parsedResult.days : tt.days,
+          days: parsedResult?.slotsCount ? parsedResult.days : tt.days,
           fileDataUrl: uploadFileDataUrl,
           fileName: uploadFileName || `جدول الحصص المعتمد - فصل ${tt.classId}`,
           fileType: uploadFileType,

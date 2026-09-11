@@ -207,6 +207,14 @@ export const DailyFollowUpView: React.FC<DailyFollowUpViewProps> = ({
     return keys.map((key) => plan.dayContent?.[key]).find(Boolean);
   };
 
+  const getEffectiveDayPlanContent = (plan: WeeklyPlanItem | undefined, day: string, subjectId?: string) => {
+    const explicit = getDayPlanContent(plan, day, subjectId);
+    if (explicit) return explicit;
+    const englishDay: Record<string, string> = { 'الأحد': 'sunday', 'الإثنين': 'monday', 'الثلاثاء': 'tuesday', 'الأربعاء': 'wednesday', 'الخميس': 'thursday' };
+    if (!plan?.day || plan.day.toLowerCase() !== (englishDay[day] || day).toLowerCase()) return undefined;
+    return { classworkNote: plan.classworkNote || plan.classwork, homeworkNote: plan.homeworkNote || plan.homework, tomorrowNote: plan.tomorrowNote };
+  };
+
   const getClassSession = (subjectId: string, day: string): number | undefined => {
     const sessions: Record<string, Record<SchoolClass, Record<string, number>>> = {
       ict: {
@@ -223,15 +231,25 @@ export const DailyFollowUpView: React.FC<DailyFollowUpViewProps> = ({
     return sessions[subjectId]?.[selectedClass]?.[day];
   };
 
+  // Tomorrow is opt-in: a timetable period alone is never enough to create a
+  // preparation item. It must have an explicit note in the selected day's
+  // weekly-plan row; this prevents subjects with no uploaded plan from being
+  // invented in the daily sheet.
   const tomorrowPeriods = scheduledTomorrowPeriods.filter((period) => {
     const plan = weekPlans.find((item) => item.subjectId === period.subjectId);
-    return Boolean(getDayPlanContent(plan, selectedTomorrowDay, period.subjectId)?.tomorrowNote || plan?.tomorrowNote);
+    return Boolean(getEffectiveDayPlanContent(plan, selectedTomorrowDay, period.subjectId)?.tomorrowNote?.trim());
   });
 
-  // Homework: Weekly Plan is the source of truth; saved daily homework is only a fallback.
+  // Homework comes only from the selected day in the weekly plan. Do not fall
+  // back to old daily records: that made homework reappear after its weekly
+  // plan had been removed or was never uploaded.
   const homeworkItems = useMemo(() => {
     const dictations = (materials || [])
       .filter((material) => (material.materialKind === 'dictation' || material.subjectId === 'dictation') && material.blockId === selectedBlock && material.weekId === selectedWeek)
+      .filter((material) => weekPlans.some((plan) => {
+        const dayPlan = getDayPlanContent(plan, selectedFollowUpDay, plan.subjectId);
+        return dayPlan && plan.subjectId === material.subjectId;
+      }))
       .map((material) => ({
         id: `material-dictation-${material.id}`,
         subjectId: material.subjectId,
@@ -245,19 +263,17 @@ export const DailyFollowUpView: React.FC<DailyFollowUpViewProps> = ({
         const dayPlan = getDayPlanContent(wp, selectedFollowUpDay, wp.subjectId);
         const session = getClassSession(wp.subjectId, selectedFollowUpDay);
         if ((wp.subjectId === 'ict' || wp.subjectId === 'french') && session !== 3) return false;
-        return hasActualHomework(dayPlan?.homeworkNote || wp.homeworkNote) || wp.dictationFileName;
+        return Boolean(hasActualHomework(dayPlan?.homeworkNote) || (dayPlan && wp.dictationFileName));
       })
       .map((wp) => {
         const sub = getSubjectInfo(wp.subjectId);
         const dayPlan = getDayPlanContent(wp, selectedFollowUpDay, wp.subjectId);
         const session = getClassSession(wp.subjectId, selectedFollowUpDay);
-        const rawHomework = (wp.subjectId === 'ict' || wp.subjectId === 'french')
-          ? (session === 3 ? wp.homeworkNote : dayPlan?.homeworkNote)
-          : (dayPlan?.homeworkNote || wp.homeworkNote);
+        const rawHomework = dayPlan?.homeworkNote;
         const dayHomework = hasActualHomework(rawHomework) ? rawHomework : undefined;
         const parts = [
-          (dayHomework || wp.homeworkNote)?.trim(),
-          wp.dictationFileName ? `Dictation: ${wp.dictationFileName}` : undefined
+          dayHomework?.trim(),
+          dayPlan && wp.dictationFileName ? `Dictation: ${wp.dictationFileName}` : undefined
         ].filter(Boolean);
         return {
           id: `weekly-homework-${wp.id}`,
@@ -269,36 +285,7 @@ export const DailyFollowUpView: React.FC<DailyFollowUpViewProps> = ({
         };
       });
     if (dictations.length || planned.length) return [...dictations, ...planned];
-
-    const legacyPlanned = weekPlans
-      .filter((wp) => wp.homeworkNote && wp.homeworkNote.trim().length > 0)
-      .map((wp) => {
-        const sub = getSubjectInfo(wp.subjectId);
-        return {
-          id: `weekly-homework-${wp.id}`,
-          subjectId: wp.subjectId,
-          subjectName: sub.nameEn,
-          homeworkText: wp.homeworkNote!,
-          pageNumber: extractPageNumber(wp.homeworkNote),
-          rawRecord: null
-        };
-      });
-    if (legacyPlanned.length > 0) return legacyPlanned;
-
-    if (currentRecord.homework?.length > 0) {
-      return currentRecord.homework.filter((hw) => hw.assignment?.trim()).map((hw) => {
-        const sub = getSubjectInfo(hw.subjectId);
-        const pageNum = hw.pages ? extractPageNumber(hw.pages) : extractPageNumber(hw.assignment);
-        return {
-          id: hw.id,
-          subjectId: hw.subjectId,
-          subjectName: sub.nameEn,
-          homeworkText: hw.assignment,
-          pageNumber: pageNum || '25',
-          rawRecord: hw
-        };
-      });
-    }
+    return [];
   }, [currentRecord.homework, weekPlans, materials, selectedBlock, selectedWeek, selectedFollowUpDay, activeTimetable]);
 
   // Today's timetable schedule in the exact order of the selected class.
@@ -327,7 +314,10 @@ export const DailyFollowUpView: React.FC<DailyFollowUpViewProps> = ({
         ? wp?.dayContent?.[`Session ${session}`]
         : getDayPlanContent(wp, selectedFollowUpDay, period.subjectId);
       const existingCw = currentRecord.classwork?.find((c) => c.subjectId === period.subjectId);
-      const lessonTopic = dayPlan?.classworkNote || wp?.classworkNote || existingCw?.lessonTitle || '';
+      // A scheduled class without a weekly-plan entry is intentionally blank.
+      // Existing daily text must not resurrect a subject that was not supplied
+      // in the current weekly plan.
+      const lessonTopic = wp && dayPlan?.classworkNote ? dayPlan.classworkNote : '';
       return {
         id: `${period.id}-${existingCw?.id || 'lesson'}`,
         periodNum: period.periodNum,
@@ -335,9 +325,9 @@ export const DailyFollowUpView: React.FC<DailyFollowUpViewProps> = ({
         subjectName: sub.nameEn,
         lessonTopic: lessonTopic || ((period.subjectId === 'ict' || period.subjectId === 'french') ? `${period.subjectId.toUpperCase()} Session ${session || ''}` : ''),
         links: wp?.links || [],
-        existingCw
+        existingCw: wp && dayPlan?.classworkNote ? existingCw : undefined
       };
-    });
+    }).filter((item) => item.lessonTopic.trim().length > 0);
   }, [todayPeriodsList, weekPlans, currentRecord.classwork, selectedFollowUpDay]);
 
   // Weekly Plan notes for Tomorrow: resources and assessment notes are both actionable.
@@ -780,6 +770,20 @@ export const DailyFollowUpView: React.FC<DailyFollowUpViewProps> = ({
   // Calculate completed homework for the student
   const completedHwCount = homeworkItems.filter((h) => completedHwMap[h.id]).length;
 
+  const tableRows = useMemo(() => {
+    const ids = new Set<string>([
+      ...classworkItems.map((item) => item.subjectId),
+      ...homeworkItems.map((item) => item.subjectId),
+      ...tomorrowPeriods.map((period) => period.subjectId)
+    ]);
+    return Array.from(ids).map((subjectId) => ({
+      subjectId,
+      classwork: classworkItems.find((item) => item.subjectId === subjectId),
+      homework: homeworkItems.find((item) => item.subjectId === subjectId),
+      tomorrow: tomorrowPeriods.find((period) => period.subjectId === subjectId)
+    }));
+  }, [classworkItems, homeworkItems, tomorrowPeriods]);
+
   return (
     <div className="space-y-6">
       <div className="sticky top-[205px] md:top-[178px] z-30 bg-white rounded-2xl border border-slate-200 p-3 flex items-center gap-2 overflow-x-auto shadow-md">
@@ -1204,6 +1208,15 @@ export const DailyFollowUpView: React.FC<DailyFollowUpViewProps> = ({
 
       <table className="w-full border-collapse border-2 border-slate-300 text-right text-xs">
         <thead>
+          <tr className="bg-sky-50 text-slate-800 text-center">
+            <th colSpan={4} className="border-2 border-slate-300 p-2.5">
+              <span className="font-black">Daily Tasks</span>
+              <span className="mx-2 text-slate-400">•</span>
+              <span className="font-bold text-sky-700">{selectedFollowUpDay === 'الأحد' ? 'Sunday' : selectedFollowUpDay === 'الإثنين' ? 'Monday' : selectedFollowUpDay}</span>
+              <span className="mx-2 text-slate-400">→</span>
+              <span className="font-bold text-emerald-700">{selectedTomorrowDay === 'الأحد' ? 'Sunday' : selectedTomorrowDay === 'الإثنين' ? 'Monday' : selectedTomorrowDay}</span>
+            </th>
+          </tr>
           <tr className="bg-slate-800 text-white font-black text-center">
             <th className="border-2 border-slate-400 p-2.5 w-36">المادة الدراسية</th>
             <th className="border-2 border-slate-400 p-2.5">ما تم تدريسه داخل الفصل (Classwork)</th>
@@ -1212,20 +1225,16 @@ export const DailyFollowUpView: React.FC<DailyFollowUpViewProps> = ({
           </tr>
         </thead>
         <tbody>
-          {Array.from(
-            new Set([
-              ...currentRecord.classwork.map((c) => c.subjectId),
-              ...currentRecord.homework.map((h) => h.subjectId)
-            ])
-          ).map((subId, idx) => {
-            const cw = currentRecord.classwork.find((c) => c.subjectId === subId);
-            const hw = currentRecord.homework.find((h) => h.subjectId === subId);
+          {tableRows.map((row, idx) => {
+            const subId = row.subjectId;
+            const cw = row.classwork;
+            const hw = row.homework;
             const kit = SUBJECT_PACKING_KIT[subId] || {
               book: 'كتاب المادة',
               notebook: 'كشكول الحصة',
               tools: 'الأدوات المقررة'
             };
-            const isDone = hw ? completedHwMap[hw.id] : false;
+            const isDone = Boolean(hw && completedHwMap[hw.id]);
 
             return (
               <tr
@@ -1241,11 +1250,11 @@ export const DailyFollowUpView: React.FC<DailyFollowUpViewProps> = ({
                 <td className="border-2 border-slate-300 p-3 align-top">
                   {cw ? (
                     <div className="space-y-1">
-                      <p className="font-bold text-slate-900">{cw.lessonTitle}</p>
-                      <p className="text-slate-600 leading-relaxed text-[11px]">{cw.details}</p>
-                      {cw.pages && (
+                      <p className="font-bold text-slate-900">{cw.lessonTopic}</p>
+                      {cw.links?.length ? <p className="text-slate-600 leading-relaxed text-[11px]">{cw.links.join(' • ')}</p> : null}
+                      {cw.existingCw?.pages && (
                         <span className="inline-block bg-sky-50 text-sky-800 text-[10px] font-bold px-2 py-0.5 rounded-md border border-sky-200 mt-1">
-                          {cw.pages}
+                          {cw.existingCw.pages}
                         </span>
                       )}
                     </div>
@@ -1260,7 +1269,7 @@ export const DailyFollowUpView: React.FC<DailyFollowUpViewProps> = ({
                     <div className="space-y-1">
                       <div className="flex items-center justify-between gap-1 flex-wrap mb-1">
                         <p className={`font-bold text-slate-900 ${isDone ? 'line-through text-slate-400' : ''}`}>
-                          {hw.assignment}
+                          {hw.homeworkText}
                         </p>
                         {hw.dueDate && (
                           <span className="bg-amber-100 text-amber-900 text-[10px] font-bold px-2 py-0.5 rounded-md">
@@ -1269,9 +1278,7 @@ export const DailyFollowUpView: React.FC<DailyFollowUpViewProps> = ({
                         )}
                       </div>
 
-                        {hw.pages && (
-                          <p className="text-[10px] text-slate-600 font-semibold">{hw.pages}</p>
-                        )}
+                        {hw.pageNumber && <p className="text-[10px] text-slate-600 font-semibold">Page: {hw.pageNumber}</p>}
 
                       {currentRole === 'student' && (
                         <button
@@ -1295,7 +1302,8 @@ export const DailyFollowUpView: React.FC<DailyFollowUpViewProps> = ({
 
                 {/* Tomorrow Kit Column */}
                 <td className="border-2 border-slate-300 p-3 align-top">
-                  <div className="space-y-1 text-[11px]">
+                  {row.tomorrow ? <div className="space-y-1 text-[11px]">
+                    <div className="font-bold text-emerald-800">{getDayPlanContent(weekPlans.find((p) => p.subjectId === subId), selectedTomorrowDay, subId)?.tomorrowNote}</div>
                     <div className="flex items-center gap-1.5 text-slate-700">
                       <span className="font-bold text-slate-900">📚 الكتاب:</span>
                       <span>{kit.book}</span>
@@ -1308,7 +1316,7 @@ export const DailyFollowUpView: React.FC<DailyFollowUpViewProps> = ({
                       <span className="font-bold text-slate-900">✏️ الأدوات:</span>
                       <span>{kit.tools}</span>
                     </div>
-                  </div>
+                  </div> : <span className="text-slate-400 italic text-[11px]">- لا توجد تجهيزات للغد -</span>}
                 </td>
               </tr>
             );

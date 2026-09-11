@@ -34,6 +34,16 @@ function identifySubject(token: string): string | null {
   return Object.entries(SUBJECT_KEYWORDS).find(([, words]) => words.some((word) => value.includes(word)))?.[0] || null;
 }
 
+function identifySubjectsInLine(line: string): string[] {
+  const matches: Array<{ id: string; index: number }> = [];
+  Object.entries(SUBJECT_KEYWORDS).forEach(([id, words]) => words.forEach((word) => {
+    const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const match = new RegExp(`(?:^|[^\\p{L}])${escaped}(?=$|[^\\p{L}])`, 'giu').exec(line);
+    if (match) matches.push({ id, index: match.index });
+  }));
+  return matches.sort((a, b) => a.index - b.index).map((match) => match.id);
+}
+
 export interface ParseTimetableResult { days: DaySchedule[]; slotsCount: number; extractedTextPreview?: string; }
 
 /** Extracts text for the interactive grid; the original PDF bytes are kept untouched and displayed separately. */
@@ -95,9 +105,11 @@ export function parseTimetableFromText(text: string, classId: SchoolClass): Pars
     const day = DAY_NAMES.find((item) => item.aliases.some((alias) => line.toLowerCase().includes(alias.toLowerCase())));
     if (day) currentDay = day.ar;
     if (!currentDay) continue;
-    const tokens = line.split(/[,;\t|:/]+|\s{2,}/).map((token) => token.trim()).filter(Boolean);
-    for (const token of tokens) {
-      const subjectId = identifySubject(token);
+    const detectedSubjects = identifySubjectsInLine(line);
+    const subjectIds = detectedSubjects.length
+      ? detectedSubjects
+      : line.split(/[,;\t|:/]+|\s{2,}/).map((token) => identifySubject(token)).filter((id): id is string => Boolean(id));
+    for (const subjectId of subjectIds) {
       if (!subjectId || parsed[currentDay].length >= PERIOD_TIMES.length) continue;
       const period = PERIOD_TIMES[parsed[currentDay].length];
       parsed[currentDay].push({
@@ -108,8 +120,10 @@ export function parseTimetableFromText(text: string, classId: SchoolClass): Pars
     }
   }
 
-  const days = DAY_NAMES.map((day) => ({ dayNameAr: day.ar, dayNameEn: day.en, periods: parsed[day.ar] }))
-    .filter((day) => day.periods.length > 0);
+  // Keep all weekday rows, including an empty row. The visual timetable has
+  // fixed Sunday-to-Thursday rows and removing empty rows makes the rendered
+  // grid lose its original shape and shifts the day positions.
+  const days = DAY_NAMES.map((day) => ({ dayNameAr: day.ar, dayNameEn: day.en, periods: parsed[day.ar] }));
   return { days, slotsCount: days.reduce((sum, day) => sum + day.periods.length, 0), extractedTextPreview: text.slice(0, 1000) };
 }
 
